@@ -22,12 +22,14 @@ export function HomeScreen() {
   const sel = selMuniId ? SEARCH_AGENCIES.find((m) => m.id === selMuniId) : null;
 
   const results = useMemo(() => {
-    if (sel || q.length < 2) return [];
+    if (sel || q.length < 1) return [];
+    const needle = q.toLowerCase();
     return SEARCH_AGENCIES.filter((m) =>
-      (m.th + m.en + m.prov + m.dist + m.type + m.tshort)
+      [m.th, m.en, m.prov, m.dist, m.type, m.tshort, m.web, m.id]
+        .join(' ')
         .toLowerCase()
-        .includes(q.toLowerCase())
-    );
+        .includes(needle)
+    ).slice(0, 12);
   }, [sel, q]);
 
   return (
@@ -106,7 +108,17 @@ export function HomeScreen() {
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key !== 'Enter') return;
+              e.preventDefault();
+              if (sel) {
+                startScan();
+                return;
+              }
+              if (results[0]) selectMuni(results[0].id);
+            }}
             placeholder="ค้นหาหน่วยงาน — เช่น เทศบาลตำบลโพทะเล หรือ เทศบาลตำบลป่าไผ่"
+            autoComplete="off"
             style={{
               width: '100%',
               boxSizing: 'border-box',

@@ -133,10 +133,11 @@ export async function scrapePhothale(maxPages = 40) {
 
 export function parseNakornnontPage(html) {
   const rows = [];
+  const cleaned = html.replace(/<!--[\s\S]*?-->/g, '');
   const re =
     /<tr>[\s\S]*?<td[^>]*>([\s\S]*?)<\/td>\s*<td[^>]*>([\s\S]*?)<\/td>\s*<td[^>]*>([\s\S]*?)<\/td>\s*<td[^>]*>([\s\S]*?)<\/td>\s*<td[^>]*>([\s\S]*?)<\/td>\s*<td[^>]*>([\s\S]*?)<\/td>\s*<\/tr>/gi;
   let m;
-  while ((m = re.exec(html))) {
+  while ((m = re.exec(cleaned))) {
     const code = stripHtml(m[1]).trim();
     if (!code || code === 'เลขที่โครงการ' || !/^[A-Za-z0-9]/.test(code)) continue;
     const dept = stripHtml(m[2]);
@@ -197,9 +198,25 @@ export async function fetchEgpContracts({ apiKey, deptCode, keyword, years = [25
       });
       if (deptCode) params.set('dept_code', deptCode);
       if (keyword) params.set('keyword', keyword);
-      const r = await fetch(`https://opend.data.go.th/govspending/cgdcontract?${params}`);
-      if (!r.ok) throw new Error(`e-GP API ${r.status}`);
-      const data = await r.json();
+      const url = `https://opend.data.go.th/govspending/cgdcontract?${params}`;
+      const r = await fetch(url, {
+        headers: {
+          Accept: 'application/json',
+          'api-key': apiKey,
+          'User-Agent': 'TRACE24/1.0 (public-sector research demo)',
+        },
+      });
+      const raw = await r.text();
+      if (!r.ok) {
+        const snippet = raw.slice(0, 120).replace(/\s+/g, ' ');
+        throw new Error(`e-GP API ${r.status}: ${snippet}`);
+      }
+      let data;
+      try {
+        data = JSON.parse(raw);
+      } catch {
+        throw new Error(`e-GP API returned non-JSON (endpoint may be down/migrated)`);
+      }
       if (!data.status) break;
       const batch = data.result || [];
       if (!batch.length) break;
@@ -526,6 +543,245 @@ function buildSimpleGraph(agency, projects, priority) {
     }
   }
   return { nodes, edges, details };
+}
+
+export async function fetchAnnouncePlain(url) {
+  const r = await fetch(url, {
+    headers: { 'User-Agent': 'TRACE24/1.0 (public-sector research demo)' },
+  });
+  if (!r.ok) throw new Error(`${url} -> ${r.status}`);
+  const buf = Buffer.from(await r.arrayBuffer());
+  let text = '';
+  try {
+    text = new TextDecoder('windows-874').decode(buf);
+  } catch {
+    text = buf.toString('utf8');
+  }
+  // Fallback if page is already UTF-8 and decode mangled it
+  if (!/ประกาศ|ผู้ชนะ|ยกเลิก|เชิญชวน/.test(text) && /ประกาศ|ผู้ชนะ/.test(buf.toString('utf8'))) {
+    text = buf.toString('utf8');
+  }
+  return text
+    .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+    .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+export function parseWinnerFromAnnounceText(plain) {
+  if (!plain || /ค้นหาไฟล์เอกสารไม่พบ/.test(plain)) {
+    return { winner: null, price: null, budget: null };
+  }
+  const winnerRaw =
+    plain.match(/ผู้ได้รับการคัดเลือก\s*ได้แก่\s*(.+?)\s*โดยเสนอราคา/)?.[1] ||
+    plain.match(/ได้แก่\s*((?:นาย|นางสาว|นาง|หจก\.|ห้างหุ้นส่วนจำกัด|บริษัท)[^โดย]{1,100}?)\s*โดยเสนอราคา/)?.[1] ||
+    null;
+  const winner = winnerRaw
+    ? winnerRaw
+        .replace(/\s+/g, ' ')
+        .replace(/\([^)]*(ให้บริการ|ขาย|ส่งออก|ผู้ผลิต)[^)]*\)/g, '')
+        .trim()
+    : null;
+
+  const moneyThai =
+    plain.match(/เป็นเงินทั้งสิ้น\s*([0-9๐-๙,.]+)\s*บาท/)?.[1] || null;
+  const price = moneyThai ? Number(toArabicDigits(moneyThai).replace(/,/g, '')) : null;
+
+  const budgetThai =
+    plain.match(/วงเงินงบประมาณ\s*([0-9๐-๙,.]+)\s*บาท/)?.[1] ||
+    plain.match(/ราคากลาง\s*([0-9๐-๙,.]+)\s*บาท/)?.[1] ||
+    null;
+  const budget = budgetThai ? Number(toArabicDigits(budgetThai).replace(/,/g, '')) : null;
+
+  return {
+    winner: winner || null,
+    price: Number.isFinite(price) ? price : null,
+    budget: Number.isFinite(budget) ? budget : null,
+  };
+}
+
+function egpAnnounceUrl(projectId, { templateType = 'W2', tempAnnoun = 'A', seqNo = 1 } = {}) {
+  const params = new URLSearchParams({
+    servlet: 'gojsp',
+    proc_id: 'ShowHTMLFile',
+    processFlows: 'Procure',
+    projectId: String(projectId),
+    templateType,
+    temp_Announ: tempAnnoun,
+    temp_itemNo: tempAnnoun === 'A' ? '0' : '1',
+    seqNo: String(seqNo),
+  });
+  return `https://process.gprocurement.go.th/egp2procmainWeb/jsp/procsearch.sch?${params}`;
+}
+
+function collectAnnounceTargets(dataset) {
+  const targets = [];
+  for (const [pid, pr] of Object.entries(dataset.projects)) {
+    const hrefs = [];
+    for (const row of pr.timeline || []) {
+      const href = row[2];
+      if (
+        href &&
+        /gprocurement\.go\.th|ShowHTMLFile/i.test(href) &&
+        /ผู้ชนะ|คัดเลือก/.test(row[1] || '') &&
+        !/ยกเลิก/.test(row[1] || '')
+      ) {
+        hrefs.push(href);
+      }
+    }
+    if (pr._sourceUrl && /gprocurement\.go\.th|ShowHTMLFile/i.test(pr._sourceUrl)) {
+      hrefs.push(pr._sourceUrl);
+    }
+    // Fallback: construct from project code for agencies that only host local PDF mirrors
+    if (!hrefs.length && /^\d{8,}$/.test(String(pr.code))) {
+      hrefs.push(egpAnnounceUrl(pr.code));
+    }
+    const unique = [...new Set(hrefs)];
+    if (unique.length) targets.push({ pid, urls: unique });
+  }
+  return targets;
+}
+
+function finalizeContractors(dataset, contractors) {
+  const totalValue = Object.values(contractors).reduce((s, c) => s + (c.total || 0), 0);
+  dataset.contractors = {};
+  dataset.topContractors = [];
+  const list = Object.values(contractors).filter((c) => c._id);
+  const maxN = Math.max(1, ...list.map((x) => x.contracts));
+  for (const co of list) {
+    const totalNum = co.total || 0;
+    co.total = formatBaht(totalNum);
+    co.shareNum = totalValue ? `${((totalNum / totalValue) * 100).toFixed(1)}%` : '—';
+    co.share = co.shareNum;
+    dataset.contractors[co._id] = co;
+    dataset.topContractors.push({
+      id: co._id,
+      name: co.name,
+      value: co.total,
+      n: co.contracts,
+      pct: pctWidth(co.contracts, maxN),
+    });
+  }
+  dataset.topContractors.sort((a, b) => b.n - a.n || String(b.value).localeCompare(String(a.value)));
+}
+
+export async function enrichFromAnnouncementPages(dataset, { maxPages = 120, concurrency = 4 } = {}) {
+  const targets = collectAnnounceTargets(dataset).slice(0, maxPages);
+  console.log(`Enriching from ${targets.length} announcement pages...`);
+  const contractors = {};
+  let cIdx = 0;
+  let enriched = 0;
+  let failed = 0;
+
+  const upsertWinner = (pid, winner, price, budget, sourceUrl) => {
+    const pr = dataset.projects[pid];
+    if (!pr) return;
+    if (price != null) {
+      pr.award = formatBaht(price);
+      if (budget != null) {
+        pr.budget = formatBaht(budget);
+        pr.ref = formatBaht(budget);
+        pr.pct = `${((price / budget) * 100).toFixed(2)}%`;
+      }
+    }
+    if (!winner) return;
+    const key = winner.slice(0, 40);
+    if (!contractors[key]) {
+      cIdx++;
+      const cid = `c${cIdx}`;
+      contractors[key] = {
+        _id: cid,
+        name: winner,
+        reg: '—',
+        contracts: 0,
+        total: 0,
+        shareNum: '—',
+        share: '—',
+        cats: pr.cat || 'จัดซื้อจัดจ้าง',
+        address: '—',
+        addrNote: 'จากประกาศผู้ชนะบน e-GP / เว็บหน่วยงาน',
+        addrFlag: false,
+        directors: [],
+        risks: [],
+        related: [],
+        rows: [],
+        docs: [sourceUrl].filter(Boolean),
+      };
+    }
+    const co = contractors[key];
+    co.contracts++;
+    co.total += price || 0;
+    co.rows.push([
+      pid,
+      pr.code,
+      pr.name.slice(0, 50),
+      formatBaht(price),
+      pr.methodShort,
+      pr.fy || '—',
+    ]);
+    pr.winner = co._id;
+  };
+
+  let i = 0;
+  async function worker() {
+    while (i < targets.length) {
+      const idx = i++;
+      const { pid, urls } = targets[idx];
+      let ok = false;
+      for (const url of urls) {
+        try {
+          const plain = await fetchAnnouncePlain(url);
+          const parsed = parseWinnerFromAnnounceText(plain);
+          if (parsed.winner || parsed.price != null) {
+            upsertWinner(pid, parsed.winner, parsed.price, parsed.budget, url);
+            enriched++;
+            ok = true;
+            break;
+          }
+        } catch {
+          // try next url
+        }
+      }
+      if (!ok) failed++;
+      if ((idx + 1) % 20 === 0 || idx + 1 === targets.length) {
+        console.log(`  announce enrich ${idx + 1}/${targets.length} (ok ${enriched}, miss ${failed})`);
+      }
+      await new Promise((r) => setTimeout(r, 120));
+    }
+  }
+
+  await Promise.all(Array.from({ length: Math.min(concurrency, targets.length) }, () => worker()));
+  finalizeContractors(dataset, contractors);
+
+  const withAward = Object.values(dataset.projects).filter((p) => p.award && p.award !== '—').length;
+  dataset.meta.dataGapNote = `สกัดจากประกาศผู้ชนะ ${enriched} รายการ · มีราคา ${withAward} โครงการ · ไม่ใช้ e-GP Open D API`;
+  dataset.meta.concNote = `ราคาและผู้ชนะดึงจากประกาศ e-GP / หน้าประกาศหน่วยงานโดยตรง`;
+  dataset.meta.vendorsTitle = 'ผู้รับจ้างจากประกาศผู้ชนะ';
+  dataset.sources = dataset.sources || [];
+  const annSource = dataset.sources.find((s) => /ประกาศ/.test(s.type));
+  if (annSource) {
+    annSource.docs = String(Number(annSource.docs || 0));
+    annSource.last = `enrich ผู้ชนะ ${enriched} รายการ`;
+  }
+  dataset.sources = dataset.sources.map((s) =>
+    /e-GP API/.test(s.type)
+      ? {
+          ...s,
+          status: 'ข้าม — ใช้ประกาศหน่วยงานแทน',
+          ok: false,
+          docs: '0',
+          last: 'endpoint 404 / ไม่เสถียร',
+        }
+      : s
+  );
+  if (Object.keys(dataset.contractors).length && dataset.def.contractor === 'c1') {
+    dataset.def.contractor = Object.keys(dataset.contractors)[0];
+    dataset.def.node = dataset.def.contractor;
+  }
+  console.log(`Announcement enrich done: ${enriched} ok, ${failed} miss, contractors ${Object.keys(dataset.contractors).length}`);
+  return dataset;
 }
 
 export function enrichWithEgpContracts(dataset, contracts) {

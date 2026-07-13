@@ -1,11 +1,25 @@
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import {
   scrapePhothale,
   scrapeNakornnont,
   fetchEgpContracts,
   buildDatasetFromAnnouncements,
   enrichWithEgpContracts,
+  enrichFromAnnouncementPages,
   saveDataset,
 } from './lib/ingest.mjs';
+
+// Load .env.local if present (Node does not load it automatically)
+const envPath = path.join(path.dirname(fileURLToPath(import.meta.url)), '../.env.local');
+if (fs.existsSync(envPath)) {
+  for (const line of fs.readFileSync(envPath, 'utf8').split(/\r?\n/)) {
+    const m = line.match(/^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)\s*$/);
+    if (!m || process.env[m[1]]) continue;
+    process.env[m[1]] = m[2].replace(/^["']|["']$/g, '');
+  }
+}
 
 const AGENCIES = {
   phothale: {
@@ -49,8 +63,14 @@ for (const [id, agency] of Object.entries(AGENCIES)) {
   const rows = await agency.scrape(id === 'phothale' ? 33 : 30);
   let dataset = buildDatasetFromAnnouncements(agency, rows);
 
+  // Primary enrichment: scrape winner/price from e-GP announcement HTML
+  dataset = await enrichFromAnnouncementPages(dataset, {
+    maxPages: id === 'phothale' ? 150 : 80,
+    concurrency: 4,
+  });
+
   if (apiKey) {
-    console.log('Fetching e-GP API contracts...');
+    console.log('Trying e-GP Open D API (optional)...');
     try {
       const contracts = await fetchEgpContracts({
         apiKey,
@@ -58,12 +78,10 @@ for (const [id, agency] of Object.entries(AGENCIES)) {
         years: [2566, 2567, 2568],
       });
       dataset = enrichWithEgpContracts(dataset, contracts);
-      console.log(`Enriched with ${contracts.length} e-GP contracts`);
+      console.log(`Enriched with ${contracts.length} e-GP API contracts`);
     } catch (e) {
-      console.warn('e-GP API failed:', e.message);
+      console.warn('e-GP API skipped:', e.message);
     }
-  } else {
-    console.log('OPEND_API_KEY not set — using announcement data only');
   }
 
   saveDataset(id, dataset);
