@@ -160,6 +160,7 @@ export type PipelineReportLike = {
       methodShort?: string;
       award?: string;
       budget?: string;
+      ref?: string;
       winner?: string | null;
       announced?: string;
       sevKey?: string;
