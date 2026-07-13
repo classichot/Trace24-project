@@ -1,0 +1,59 @@
+# Sync TRACE24 contracts-cache from data.go.th (egp-contact).
+#
+# data.go.th often returns HTTP 403 from GitHub-hosted (US) runners and Vercel.
+# Use a self-hosted runner in Thailand, or run locally:
+#   cd trace24-app && npm run sync-contracts-cache
+#
+name: Sync contracts cache
+
+on:
+  workflow_dispatch:
+  schedule:
+    # 02:30 ICT ≈ 19:30 UTC
+    - cron: '30 19 * * *'
+
+concurrency:
+  group: sync-contracts-cache
+  cancel-in-progress: true
+
+jobs:
+  sync:
+    # Prefer a self-hosted runner labeled "thailand" when available.
+    # Fall back to ubuntu-latest for manual dispatch (may 403 — check logs).
+    runs-on: ${{ vars.TRACE24_SYNC_RUNNER || 'ubuntu-latest' }}
+    defaults:
+      run:
+        working-directory: trace24-app
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Sync contracts cache
+        id: sync
+        run: npm run sync-contracts-cache
+        continue-on-error: true
+
+      - name: Fail clearly on IP block
+        if: steps.sync.outcome == 'failure'
+        run: |
+          echo "::error::Sync failed. data.go.th likely blocked this runner IP."
+          echo "Run locally in Thailand: cd trace24-app && npm run sync-contracts-cache"
+          echo "Or register a self-hosted runner and set repo variable TRACE24_SYNC_RUNNER."
+          exit 1
+
+      - name: Commit cache updates
+        run: |
+          git config user.name "trace24-sync"
+          git config user.email "trace24-sync@users.noreply.github.com"
+          git add data/contracts-cache/*.json.gz data/contracts-cache/sync-last-run.json data/contracts-cache/agencies-to-sync.json || true
+          if git diff --staged --quiet; then
+            echo "No cache changes"
+          else
+            git commit -m "chore: sync contracts-cache from egp-contact"
+            git push
+          fi

@@ -10,7 +10,9 @@
     "fetch-real-data": "node scripts/fetch-real-data.mjs",
     "enrich-govspending": "node scripts/enrich-govspending.mjs",
     "build-from-govspending": "node scripts/build-from-govspending.mjs",
-    "build-agency-catalog": "node scripts/build-agency-catalog.mjs"
+    "build-agency-catalog": "node scripts/build-agency-catalog.mjs",
+    "cache-agency-contracts": "node scripts/cache-agency-contracts.mjs",
+    "sync-contracts-cache": "node scripts/sync-contracts-cache.mjs"
   },
   "dependencies": {
     "next": "16.2.10",

@@ -122,15 +122,28 @@ export function enrichStubWithContracts(
     projects[pid] = {
       code: c.project_id || pid,
       name: c.project_name,
+      cat: c.project_type_name || 'จัดซื้อจัดจ้าง',
+      fy: c._fy ? `ปีงบ ${c._fy}` : '—',
+      method: c.project_type_name || '—',
       methodShort: c.project_type_name || '—',
       award: formatBaht(awardN),
       budget: formatBaht(parseMoney(c.project_money)),
-      ref: c.project_money || '—',
+      ref: formatBaht(parseMoney(c.project_money)),
+      pct: '—',
       winner: winnerId,
       announced: c.contract[0]?.contract_date || c._fy || '—',
       sevKey: 'Low',
       ind: 0,
-      alerts: [],
+      alerts: [] as {
+        tag: string;
+        title: string;
+        sevKey: string;
+        conf: string;
+        facts: string[][];
+        explain: string;
+        innocent: string;
+        evidence: string[];
+      }[],
       timeline: [
         [
           c.contract[0]?.contract_date || c._fy || '—',
@@ -145,6 +158,7 @@ export function enrichStubWithContracts(
             ][])
           : []),
       ],
+      related: [] as [string, string, string][],
       _sourceUrl: egpUrl || govSpendingPortalSearchUrl(stub.agency.th),
     };
   }
@@ -152,6 +166,7 @@ export function enrichStubWithContracts(
   const totalContracts = Object.values(contractors).reduce((s, co) => s + co.contracts, 0) || 1;
   for (const co of Object.values(contractors)) {
     co.shareNum = `${Math.round((co.contracts / totalContracts) * 1000) / 10}%`;
+    (co as { share?: string }).share = co.shareNum;
   }
 
   // Province from contracts — egpdepartment catalog often has empty จังหวัด,
@@ -310,14 +325,18 @@ export async function buildAgencyReportFromCatalog(
       if (byProv.length) use = byProv;
     }
     if (!use.length) {
+      const notes = fetchNotes?.length ? fetchNotes.slice(0, 3).join(' · ') : '';
+      const cacheMiss = /403|blocked|contracts-cache/i.test(notes) || !notes.includes('contracts-cache');
       return {
         ...stub,
         meta: {
           ...stub.meta,
-          scanSummary: `อยู่ในทะเบียน e-GP · ค้นสัญญาแล้วยังไม่เจอที่ตรงชื่อ (estimate ${totalEstimate})`,
-          dataGapNote: fetchNotes?.length
-            ? `แหล่งข้อมูล: ${fetchNotes.slice(0, 3).join(' · ')}`
-            : stub.meta.dataGapNote,
+          scanSummary: cacheMiss
+            ? `อยู่ในทะเบียน e-GP · ยังไม่มีสัญญาในแคชสำหรับหน่วยงานนี้ (estimate ${totalEstimate})`
+            : `อยู่ในทะเบียน e-GP · ค้นสัญญาแล้วยังไม่เจอที่ตรงชื่อ (estimate ${totalEstimate})`,
+          dataGapNote: cacheMiss
+            ? `Production อ่านจาก contracts-cache — เพิ่มชื่อนี้ใน data/contracts-cache/agencies-to-sync.json แล้วรัน npm run sync-contracts-cache จากเครือข่ายที่เข้า data.go.th ได้${notes ? ` · ${notes}` : ''}`
+            : notes || stub.meta.dataGapNote,
         },
       };
     }

@@ -1,0 +1,77 @@
+{
+  "version": 1,
+  "updatedAt": "2026-07-14",
+  "note": "Priority agencies synced into data/contracts-cache for Vercel (data.go.th blocks cloud IPs). Add rows here; run npm run sync-contracts-cache from a Thailand-reachable network.",
+  "agencies": [
+    {
+      "id": "egp-5501408",
+      "th": "เทศบาลตำบลป่าไผ่",
+      "code": "5501408",
+      "prov": "เชียงใหม่",
+      "priority": 1
+    },
+    {
+      "id": "egp-6510407",
+      "th": "เทศบาลตำบลป่าไผ่",
+      "code": "6510407",
+      "prov": "ลำพูน",
+      "priority": 1
+    },
+    {
+      "id": "egp-6501404",
+      "th": "เทศบาลตำบลเมืองเล็น",
+      "code": "6501404",
+      "prov": "เชียงใหม่",
+      "priority": 1
+    },
+    {
+      "id": "egp-5240801",
+      "th": "เทศบาลตำบลสนามชัยเขต",
+      "code": "5240801",
+      "prov": "ฉะเชิงเทรา",
+      "priority": 1
+    },
+    {
+      "id": "phothale",
+      "th": "เทศบาลตำบลโพทะเล",
+      "code": "5660601",
+      "prov": "พิจิตร",
+      "priority": 2
+    },
+    {
+      "id": "nakornnont",
+      "th": "เทศบาลนครนนทบุรี",
+      "code": "3120101",
+      "prov": "นนทบุรี",
+      "priority": 2
+    },
+    {
+      "id": "nongyaeng",
+      "th": "เทศบาลตำบลหนองแหย่ง",
+      "code": "6501402",
+      "prov": "เชียงใหม่",
+      "priority": 2
+    },
+    {
+      "id": "egp-5500201",
+      "th": "เทศบาลตำบลจอมทอง",
+      "code": "5500201",
+      "prov": "เชียงใหม่",
+      "priority": 3
+    },
+    {
+      "id": "egp-5501601",
+      "th": "เทศบาลตำบลท่าข้าม",
+      "code": "5501601",
+      "prov": "เชียงใหม่",
+      "priority": 3
+    },
+    {
+      "id": "egp-6500703",
+      "th": "เทศบาลตำบลขี้เหล็ก",
+      "code": "6500703",
+      "prov": "เชียงใหม่",
+      "priority": 3
+    }
+  ]
+}

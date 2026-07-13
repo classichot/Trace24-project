@@ -44,6 +44,8 @@ next-env.d.ts
 # large uncompressed catalog (commit agencies.json.gz only)
 /data/catalog/agencies.json
 
-# contracts cache: commit .json.gz only
+# contracts cache: commit .json.gz + sync manifest; ignore other uncompressed dumps
 /data/contracts-cache/*.json
 !/data/contracts-cache/*.json.gz
+!/data/contracts-cache/agencies-to-sync.json
+!/data/contracts-cache/sync-last-run.json
