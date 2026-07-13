@@ -5,6 +5,7 @@
  */
 
 import { fetchCgdContracts } from './opend';
+import { loadContractsCache, loadContractsCacheByKeyword } from './contracts-cache';
 
 const UA = {
   'User-Agent':
@@ -305,7 +306,7 @@ async function fetchFromOpenD(
 
 export async function fetchGovSpendingContracts(
   keyword: string,
-  opts: { packageId?: string; limit?: number; deptCode?: string } = {}
+  opts: { packageId?: string; limit?: number; deptCode?: string; agencyId?: string } = {}
 ): Promise<{
   contracts: GovSpendingContract[];
   packageId: string;
@@ -315,6 +316,30 @@ export async function fetchGovSpendingContracts(
   const limit = opts.limit ?? 50;
   const notes: string[] = [];
   const packageId = opts.packageId || 'egp-contact-2568';
+
+  // 0) Committed cache — works on Vercel when data.go.th blocks cloud IPs
+  try {
+    const cached =
+      (opts.agencyId ? loadContractsCache(opts.agencyId) : null) ||
+      loadContractsCacheByKeyword(keyword);
+    if (cached?.rows?.length) {
+      const contracts = cached.rows
+        .map(mapRow)
+        .filter((c) => c.project_name && deptMatches(c.dept_name, keyword))
+        .slice(0, limit);
+      if (contracts.length) {
+        notes.push(`contracts-cache ${contracts.length} rows (${cached.fetchedAt})`);
+        return {
+          contracts,
+          packageId: cached.source || 'contracts-cache',
+          totalEstimate: cached.count || contracts.length,
+          fetchNotes: notes,
+        };
+      }
+    }
+  } catch (e) {
+    notes.push(`contracts-cache: ${e instanceof Error ? e.message : 'error'}`);
+  }
 
   // 1) Hardcoded resources — avoids package_show HTML blocks on Vercel
   try {

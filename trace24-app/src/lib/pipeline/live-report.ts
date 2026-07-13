@@ -227,6 +227,7 @@ export async function buildAgencyReportFromCatalog(
       {
         limit: opts.limit ?? 80,
         deptCode: agency.code && agency.code !== '—' ? String(agency.code) : undefined,
+        agencyId: agency.id,
       }
     );
     // Prefer exact dept_name matches
