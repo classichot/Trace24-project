@@ -8,7 +8,25 @@ export function ContractorScreen() {
   const { dataset, selContractorId, go } = useTrace24();
 
   const contractors = dataset.contractors as typeof D.contractors;
-  const co = contractors[selContractorId as keyof typeof contractors] ?? contractors[dataset.def.contractor as keyof typeof contractors];
+  const coRaw =
+    contractors[selContractorId as keyof typeof contractors] ??
+    contractors[dataset.def.contractor as keyof typeof contractors];
+  const co = {
+    name: coRaw?.name || '—',
+    reg: coRaw?.reg || '—',
+    address: coRaw?.address || '—',
+    contracts: coRaw?.contracts ?? 0,
+    total: coRaw?.total || '—',
+    shareNum: coRaw?.shareNum || '—',
+    cats: coRaw?.cats || '—',
+    rows: coRaw?.rows || [],
+    risks: coRaw?.risks || [],
+    directors: coRaw?.directors || [],
+    related: coRaw?.related || [],
+    addrFlag: coRaw?.addrFlag || false,
+    addrNote: coRaw?.addrNote || 'ยังไม่มีข้อมูลกรรมการ/ที่อยู่จาก DBD — เพิ่มได้ที่แท็บความเชื่อมโยง',
+    docs: coRaw?.docs || [],
+  };
 
   return (
     <div
@@ -111,6 +129,11 @@ export function ContractorScreen() {
 
           <h2 style={{ fontSize: 16, fontWeight: 600, margin: '40px 0 0' }}>สัญญาณความเสี่ยง</h2>
           <div style={{ marginTop: 14, borderTop: '1px solid #111110' }}>
+            {co.risks.length === 0 && (
+              <div style={{ padding: '14px 0', fontSize: 13, color: '#8B8B85' }}>
+                ยังไม่มีสัญญาณบนผู้รับจ้างรายนี้
+              </div>
+            )}
             {co.risks.map((cr, i) => {
               const s = sev(cr.sevKey);
               return (
@@ -140,6 +163,11 @@ export function ContractorScreen() {
           <div>
             <h2 style={{ fontSize: 13.5, fontWeight: 600, margin: 0 }}>กรรมการและผู้ถือหุ้น</h2>
             <div style={{ marginTop: 12, borderTop: '1px solid #111110' }}>
+              {co.directors.length === 0 && (
+                <div style={{ padding: '12px 0', fontSize: 12.5, color: '#8B8B85', lineHeight: 1.55 }}>
+                  ยังไม่มีรายชื่อกรรมการ/ผู้ถือหุ้น — บันทึกจาก DBD หรือ บอจ.5 ที่แท็บ「ความเชื่อมโยง」เพื่อเปิดการตรวจ R13
+                </div>
+              )}
               {co.directors.map((d, i) => (
                 <div key={i} style={{ padding: '12px 0', borderBottom: '1px solid #EEEEEA' }}>
                   <div style={{ fontSize: 13.5 }}>{d.name}</div>

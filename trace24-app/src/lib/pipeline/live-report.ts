@@ -32,7 +32,22 @@ export function enrichStubWithContracts(
   const projects: Record<string, unknown> = {};
   const contractors: Record<
     string,
-    { name: string; contracts: number; total: string; totalN: number; rows: unknown[] }
+    {
+      name: string;
+      reg: string;
+      address: string;
+      addrNote: string;
+      addrFlag: boolean;
+      contracts: number;
+      total: string;
+      totalN: number;
+      shareNum: string;
+      cats: string;
+      directors: { name: string; note: string; flag: boolean }[];
+      related: { id: string; name: string; note: string }[];
+      risks: { tag: string; text: string; sevKey: string }[];
+      rows: (string | null)[][];
+    }
   > = {};
   let i = 0;
 
@@ -51,6 +66,7 @@ export function enrichStubWithContracts(
     i += 1;
     const pid = `p${i}`;
     const winnerName = c.contract[0]?.winner?.trim() || '';
+    const winnerTin = String(c.contract[0]?.winner_tin || '').replace(/\D/g, '');
     const awardN = parseMoney(c.contract[0]?.price_agree || c.project_money);
     let winnerId: string | null = null;
     if (winnerName) {
@@ -58,11 +74,37 @@ export function enrichStubWithContracts(
         Object.entries(contractors).find(([, co]) => co.name === winnerName)?.[0] ||
         `c${Object.keys(contractors).length + 1}`;
       if (!contractors[winnerId]) {
-        contractors[winnerId] = { name: winnerName, contracts: 0, total: '—', totalN: 0, rows: [] };
+        contractors[winnerId] = {
+          name: winnerName,
+          reg: winnerTin || '—',
+          address: '—',
+          addrNote: 'รอข้อมูลจาก DBD / บอจ.5',
+          addrFlag: false,
+          contracts: 0,
+          total: '—',
+          totalN: 0,
+          shareNum: '—',
+          cats: '—',
+          directors: [],
+          related: [],
+          risks: [],
+          rows: [],
+        };
+      }
+      if (winnerTin && (!contractors[winnerId].reg || contractors[winnerId].reg === '—')) {
+        contractors[winnerId].reg = winnerTin;
       }
       contractors[winnerId].contracts += 1;
       contractors[winnerId].totalN += awardN;
       contractors[winnerId].total = formatBaht(contractors[winnerId].totalN);
+      contractors[winnerId].rows.push([
+        pid,
+        c.project_id || pid,
+        c.project_name,
+        formatBaht(awardN),
+        c.project_type_name || '—',
+        c._fy || '—',
+      ]);
     }
 
     projects[pid] = {
@@ -86,6 +128,11 @@ export function enrichStubWithContracts(
       ],
       _sourceUrl: govSpendingPortalSearchUrl(stub.agency.th),
     };
+  }
+
+  const totalContracts = Object.values(contractors).reduce((s, co) => s + co.contracts, 0) || 1;
+  for (const co of Object.values(contractors)) {
+    co.shareNum = `${Math.round((co.contracts / totalContracts) * 1000) / 10}%`;
   }
 
   const topContractors = Object.entries(contractors)
@@ -175,9 +222,13 @@ export async function buildAgencyReportFromCatalog(
   if (opts.fetchContracts === false) return stub;
 
   try {
-    const { contracts, packageId, totalEstimate } = await fetchGovSpendingContracts(agency.th, {
-      limit: opts.limit ?? 80,
-    });
+    const { contracts, packageId, totalEstimate, fetchNotes } = await fetchGovSpendingContracts(
+      agency.th,
+      {
+        limit: opts.limit ?? 80,
+        deptCode: agency.code && agency.code !== '—' ? String(agency.code) : undefined,
+      }
+    );
     // Prefer exact dept_name matches
     const exact = contracts.filter((c) => c.dept_name === agency.th);
     const use = exact.length ? exact : contracts;
@@ -186,18 +237,34 @@ export async function buildAgencyReportFromCatalog(
         ...stub,
         meta: {
           ...stub.meta,
-          scanSummary: `อยู่ในทะเบียน e-GP · ค้น data.go.th แล้วยังไม่เจอสัญญาที่ตรงชื่อ (estimate ${totalEstimate})`,
+          scanSummary: `อยู่ในทะเบียน e-GP · ค้นสัญญาแล้วยังไม่เจอที่ตรงชื่อ (estimate ${totalEstimate})`,
+          dataGapNote: fetchNotes?.length
+            ? `แหล่งข้อมูล: ${fetchNotes.slice(0, 3).join(' · ')}`
+            : stub.meta.dataGapNote,
         },
       };
     }
-    return enrichStubWithContracts(stub, use, packageId);
+    const enriched = enrichStubWithContracts(stub, use, packageId);
+    // Fill province from contracts when catalog lacks it
+    const prov = use.find((c) => c.province)?.province;
+    if (prov && (!enriched.agency.prov || enriched.agency.prov === '')) {
+      enriched.agency = {
+        ...enriched.agency,
+        prov,
+        loc: enriched.agency.dist ? `อ.${enriched.agency.dist} · จ.${prov}` : `จ.${prov}`,
+      };
+      enriched.stats = enriched.stats.map((s) =>
+        s.label === 'จังหวัด' ? { ...s, value: prov, sub: enriched.agency.loc } : s
+      );
+    }
+    return enriched;
   } catch (e) {
     return {
       ...stub,
       meta: {
         ...stub.meta,
         scanSummary: `อยู่ในทะเบียน e-GP · ดึงสัญญาไม่สำเร็จ: ${e instanceof Error ? e.message : 'error'}`,
-        dataGapNote: 'ใช้รายงานทะเบียนชั่วคราว — ลองใหม่หรือรัน build-from-govspending',
+        dataGapNote: 'ใช้รายงานทะเบียนชั่วคราว — ลองใหม่หรือตั้ง OPEND_API_KEY บน Vercel',
       },
     };
   }

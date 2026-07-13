@@ -113,6 +113,52 @@ export function buildTemporalGraph(report: PipelineReportLike): TemporalGraph {
     });
   }
 
+  // Executives + directors/shareholders (when present on report)
+  const reportExt = report as PipelineReportLike & {
+    executives?: { name: string; title: string; since?: string | null; until?: string | null; sourceUrl?: string }[];
+  };
+  for (const [ei, exec] of (reportExt.executives || []).entries()) {
+    const pid = `person:exec-${ei}`;
+    nodes.push({
+      id: pid,
+      type: 'person',
+      label: exec.name,
+      attrs: { title: exec.title, role: 'agency_executive' },
+    });
+    edges.push({
+      from: pid,
+      to: `agency:${agencyId}`,
+      rel: 'ดำรงตำแหน่ง',
+      since: exec.since || null,
+      until: exec.until || null,
+      evidenceIds: exec.sourceUrl ? [exec.sourceUrl] : [],
+    });
+  }
+
+  for (const [cid, co] of Object.entries(contractors)) {
+    const directors = (co as { directors?: { name: string; note?: string }[] }).directors || [];
+    for (const [di, d] of directors.entries()) {
+      const pid = `person:dir-${cid}-${di}`;
+      if (!nodes.some((n) => n.id === pid)) {
+        nodes.push({
+          id: pid,
+          type: 'person',
+          label: d.name,
+          attrs: { note: d.note || '', role: 'company_person' },
+        });
+      }
+      const rel = /ผู้ถือหุ้น/.test(d.note || '') ? 'เป็นผู้ถือหุ้นของ' : 'เป็นกรรมการของ';
+      edges.push({
+        from: pid,
+        to: `company:${cid}`,
+        rel,
+        since: null,
+        until: null,
+        evidenceIds: [],
+      });
+    }
+  }
+
   return { nodes, edges, builtAt: new Date().toISOString() };
 }
 

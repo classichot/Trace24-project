@@ -65,6 +65,32 @@ export function DashboardScreen() {
         ))}
       </div>
 
+      {!!dataset.relatedParty?.coverage && (
+        <div
+          style={{
+            marginTop: 28,
+            padding: '16px 18px',
+            background: '#F6F6F3',
+            fontSize: 13.5,
+            lineHeight: 1.55,
+            color: '#33332E',
+          }}
+        >
+          <div style={{ fontSize: 11, letterSpacing: '.06em', color: '#8B8B85', marginBottom: 6 }}>
+            ความเชื่อมโยงผู้บริหาร ↔ กรรมการ/ผู้ถือหุ้น (R13 / R5)
+          </div>
+          {dataset.relatedParty.coverage}
+          {(dataset.relatedParty.matches || []).slice(0, 3).map((m) => (
+            <div key={m.explanation} style={{ marginTop: 8, fontSize: 12.5, color: '#55554F' }}>
+              · [{m.ruleId}] {m.explanation}
+            </div>
+          ))}
+          <div style={{ marginTop: 10, fontSize: 12, color: '#8A5A1C' }}>
+            สัญญาณนี้จัดลำดับการตรวจเท่านั้น — นามสกุลร่วมไม่ใช่ข้อพิสูจน์ · จัดการข้อมูลที่ Admin → ความเชื่อมโยง
+          </div>
+        </div>
+      )}
+
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: 56, marginTop: 44, alignItems: 'start' }}>
         <div>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 12, flexWrap: 'wrap' }}>
@@ -166,7 +192,7 @@ export function DashboardScreen() {
           <div>
             <h2 style={{ fontSize: 13.5, fontWeight: 600, margin: 0 }}>สัญญาณความเสี่ยงตามหมวด</h2>
             <div style={{ marginTop: 12, borderTop: '1px solid #111110' }}>
-              {dataset.riskCats.map((rc) => (
+              {(dataset.riskCats || []).map((rc) => (
                 <div
                   key={rc.label}
                   style={{

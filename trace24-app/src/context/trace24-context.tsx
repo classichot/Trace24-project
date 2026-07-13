@@ -15,6 +15,17 @@ import { C, D, H } from '@/lib/data';
 
 export type Trace24Dataset = Omit<typeof D, 'munis' | 'reviewOptions'> & {
   agency?: AgencyRecord;
+  executives?: { name: string; title: string; since?: string | null; until?: string | null; sourceUrl?: string }[];
+  relatedParty?: {
+    coverage: string;
+    matches: {
+      id?: string;
+      ruleId: string;
+      matchType?: string;
+      severity: string;
+      explanation: string;
+    }[];
+  };
 };
 
 export type Page =
@@ -34,6 +45,7 @@ export type AdminTab =
   | 'crawl'
   | 'queue'
   | 'entities'
+  | 'related'
   | 'review'
   | 'case'
   | 'pipeline'

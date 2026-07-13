@@ -62,6 +62,7 @@ const ADMIN_TABS = [
   ['crawl', 'การเก็บข้อมูล'],
   ['queue', 'คิวประมวลผลเอกสาร'],
   ['entities', 'ตรวจการจับคู่นิติบุคคล'],
+  ['related', 'ความเชื่อมโยง'],
   ['review', 'สถานะการตรวจสอบ'],
   ['case', 'พื้นที่ทำงานคดี'],
   ['pipeline', 'สถาปัตยกรรมท่อข้อมูล'],
@@ -114,6 +115,13 @@ export function AdminScreen() {
   } | null>(null);
   const [rulesLoading, setRulesLoading] = useState(false);
   const [rulesMsg, setRulesMsg] = useState<string | null>(null);
+  const [relatedPackJson, setRelatedPackJson] = useState('');
+  const [relatedMatches, setRelatedMatches] = useState<
+    { id: string; ruleId: string; matchType: string; severity: string; explanation: string }[]
+  >([]);
+  const [relatedCoverage, setRelatedCoverage] = useState('');
+  const [relatedMsg, setRelatedMsg] = useState<string | null>(null);
+  const [relatedBusy, setRelatedBusy] = useState(false);
 
   useEffect(() => {
     if (adminTab !== 'pipeline') return;
@@ -152,6 +160,62 @@ export function AdminScreen() {
       })
       .finally(() => setPackLoading(false));
   }, [adminTab, scannedId]);
+
+  useEffect(() => {
+    if (adminTab !== 'related') return;
+    if (!isRealAgency(scannedId)) {
+      setRelatedPackJson('');
+      setRelatedMatches([]);
+      setRelatedCoverage('');
+      setRelatedMsg('สแกนหน่วยงานจริงก่อน แล้วกลับมาใส่ทำเนียบผู้บริหาร + กรรมการผู้ชนะ');
+      return;
+    }
+    setRelatedBusy(true);
+    setRelatedMsg(null);
+    fetch(`/api/agencies/${scannedId}/related`)
+      .then(async (r) => {
+        if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || `HTTP ${r.status}`);
+        return r.json();
+      })
+      .then((d) => {
+        setRelatedPackJson(JSON.stringify(d.pack, null, 2));
+        setRelatedMatches(d.matches || []);
+        setRelatedCoverage(d.coverage || '');
+        setRelatedMsg(d.ethics || null);
+      })
+      .catch((e: Error) => setRelatedMsg(e.message))
+      .finally(() => setRelatedBusy(false));
+  }, [adminTab, scannedId]);
+
+  const saveRelatedPack = () => {
+    if (!isRealAgency(scannedId)) return;
+    setRelatedBusy(true);
+    setRelatedMsg(null);
+    let body: unknown;
+    try {
+      body = JSON.parse(relatedPackJson);
+    } catch {
+      setRelatedBusy(false);
+      setRelatedMsg('JSON ไม่ถูกต้อง');
+      return;
+    }
+    fetch(`/api/agencies/${scannedId}/related`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    })
+      .then(async (r) => {
+        if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || `HTTP ${r.status}`);
+        return r.json();
+      })
+      .then((d) => {
+        setRelatedPackJson(JSON.stringify(d.pack, null, 2));
+        setRelatedMatches(d.matches || []);
+        setRelatedMsg(d.ethics || 'บันทึกแล้ว — สแกนหน่วยงานใหม่เพื่ออัปเดตแดชบอร์ด');
+      })
+      .catch((e: Error) => setRelatedMsg(e.message))
+      .finally(() => setRelatedBusy(false));
+  };
 
   const runRag = () => {
     if (!isRealAgency(scannedId) || ragQuery.trim().length < 2) return;
@@ -437,6 +501,72 @@ export function AdminScreen() {
               </div>
             );
           })}
+        </div>
+      )}
+
+      {adminTab === 'related' && (
+        <div style={{ marginTop: 28, maxWidth: 860 }}>
+          <h2 style={{ fontSize: 18, fontWeight: 600, margin: '0 0 8px' }}>
+            ความเชื่อมโยงผู้บริหาร ↔ กรรมการ/ผู้ถือหุ้น
+          </h2>
+          <p style={{ margin: '0 0 14px', fontSize: 13.5, color: '#55554F', lineHeight: 1.6 }}>
+            กฎ R13 เทียบทำเนียบผู้บริหารของหน่วยงานกับกรรมการ/ผู้ถือหุ้นของผู้ชนะ · กฎ R5 จับกรรมการหรือที่อยู่ร่วมระหว่างผู้รับจ้าง
+            — นามสกุลตรงกันเป็นเพียง lead (ระดับ Medium) ไม่ใช่ข้อพิสูจน์
+          </p>
+          <RiskDisclaimer style={{ marginBottom: 16 }} />
+          {relatedBusy && <div style={{ fontSize: 13, color: '#8B8B85', marginBottom: 12 }}>กำลังโหลด…</div>}
+          {relatedCoverage && (
+            <div style={{ fontSize: 13.5, marginBottom: 14, lineHeight: 1.55 }}>{relatedCoverage}</div>
+          )}
+          {relatedMatches.length > 0 && (
+            <div style={{ marginBottom: 20, borderTop: '1px solid #111110' }}>
+              {relatedMatches.map((m) => (
+                <div
+                  key={m.id}
+                  style={{ padding: '12px 0', borderBottom: '1px solid #EEEEEA', fontSize: 13, lineHeight: 1.55 }}
+                >
+                  <span style={{ color: '#8B8B85', fontSize: 11, letterSpacing: '.04em' }}>
+                    {m.ruleId} · {m.matchType} · {m.severity}
+                  </span>
+                  <div style={{ marginTop: 4 }}>{m.explanation}</div>
+                </div>
+              ))}
+            </div>
+          )}
+          <div style={{ fontSize: 12.5, color: '#8B8B85', marginBottom: 8 }}>
+            แก้ไข JSON แล้วกดบันทึก — ใช้เลขนิติบุคคล (tin) ให้ตรงกับผู้ชนะจากภาษีไปไหน · แหล่งอ้างอิง:{' '}
+            <a href="https://data.dbd.go.th/" target="_blank" rel="noreferrer" style={{ color: '#55554F' }}>
+              data.dbd.go.th
+            </a>
+          </div>
+          <textarea
+            value={relatedPackJson}
+            onChange={(e) => setRelatedPackJson(e.target.value)}
+            rows={18}
+            spellCheck={false}
+            style={{
+              ...inputStyle,
+              width: '100%',
+              fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace',
+              fontSize: 12,
+              lineHeight: 1.45,
+              resize: 'vertical',
+              boxSizing: 'border-box',
+            }}
+            placeholder='{"agencyId":"...","executives":[{"name":"นาย...","title":"ผู้อำนวยการ"}],"companies":[{"tin":"...","name":"...","directors":[{"name":"นาย...","role":"director"}]}]}'
+          />
+          <div style={{ display: 'flex', gap: 10, marginTop: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+            <div
+              onClick={saveRelatedPack}
+              className="trace24-btn-dark"
+              style={{ padding: '11px 18px', fontSize: 13, opacity: relatedBusy ? 0.6 : 1 }}
+            >
+              {relatedBusy ? '…' : 'บันทึกและตรวจจับคู่'}
+            </div>
+            <div style={{ fontSize: 12.5, color: '#8A5A1C', maxWidth: 520, lineHeight: 1.5 }}>
+              {relatedMsg}
+            </div>
+          </div>
         </div>
       )}
 

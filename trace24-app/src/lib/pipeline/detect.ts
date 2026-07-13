@@ -1,6 +1,7 @@
 import { detectSupplierConcentration } from './graph';
 import { detectMissingInformation } from './facts';
 import { methodBucket, parseBaht } from './normalize';
+import { relatedMatchesToSignals, detectRelatedPartyMatches } from './related-party';
 import type { PipelineReportLike, RiskSignal } from './types';
 
 function confFromText(conf?: string) {
@@ -87,6 +88,10 @@ export function runRuleEngine(report: PipelineReportLike): RiskSignal[] {
       })
     );
   }
+
+  // R5 / R13 — related parties (needs executives + directors on report)
+  const related = detectRelatedPartyMatches(report);
+  signals.push(...relatedMatchesToSignals(related));
 
   return signals;
 }

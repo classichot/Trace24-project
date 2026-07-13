@@ -103,7 +103,7 @@ function buildCaseBrief(
   ];
   return {
     title: cf?.title || `การวิเคราะห์จัดซื้อจัดจ้าง — ${report.agency?.th || ''}`,
-    summary: cf?.summary || report.meta?.scanSummary || '',
+    summary: cf?.summary || String(report.meta?.scanSummary || ''),
     riskExplanation:
       cf?.signals ||
       `แยก 3 ชั้น: ข้อเท็จจริง (fact) → สัญญาณความเสี่ยง (signal) → ข้อสรุปเชิงวิเคราะห์ที่ต้องสอบสวนต่อ (conclusion) — ${SCORE_DISCLAIMER}`,
@@ -170,6 +170,36 @@ function buildLeads(
     nextActions: ['เชื่อมแหล่ง DBD', 'ใส่ since/until บน edges', 'ตรวจคลัสเตอร์ในแท็บผู้ช่วยสอบสวน'],
     priority: 'Medium',
   });
+
+  const related = (report as { relatedParty?: { matches?: { ruleId: string; explanation: string; matchType: string }[] } })
+    .relatedParty?.matches || [];
+  for (const m of related.slice(0, 6)) {
+    leads.push({
+      id: `lead-rel-${leads.length}`,
+      question:
+        m.ruleId === 'R13'
+          ? 'ผู้บริหารหน่วยงานเกี่ยวข้องกับกรรมการ/ผู้ถือหุ้นผู้ชนะหรือไม่?'
+          : 'ผู้รับจ้างมีกรรมการหรือที่อยู่ร่วมกันหรือไม่?',
+      why: `${m.explanation} (${m.matchType})`,
+      missingDocuments: ['ทำเนียบผู้บริหาร', 'บอจ.5 / ข้อมูลกรรมการ DBD', 'คำสั่งแต่งตั้ง'],
+      nextActions: [
+        'เปิดแท็บความเชื่อมโยงเพื่อตรวจรายละเอียด',
+        'ยืนยันด้วยเอกสารต้นทาง — อย่าสรุปจากนามสกุลอย่างเดียว',
+      ],
+      priority: m.ruleId === 'R13' && m.matchType === 'surname' ? 'Medium' : 'High',
+    });
+  }
+
+  if (!related.length) {
+    leads.push({
+      id: 'lead-r13-setup',
+      question: 'ควรใส่ทำเนียบผู้บริหารและกรรมการผู้ชนะเพื่อเปิดการตรวจ R13 หรือไม่?',
+      why: 'กฎ R13 ต้องการข้อมูลทั้งสองฝั่ง — ปัจจุบันอาจยังว่าง',
+      missingDocuments: ['ทำเนียบผู้บริหารจากเว็บหน่วยงาน', 'กรรมการ/ผู้ถือหุ้นจาก data.dbd.go.th'],
+      nextActions: ['เปิดแท็บความเชื่อมโยง', 'บันทึกข้อมูลแล้วสแกนหน่วยงานใหม่'],
+      priority: 'Medium',
+    });
+  }
 
   return leads.slice(0, 14);
 }

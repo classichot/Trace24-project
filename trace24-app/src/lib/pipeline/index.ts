@@ -13,3 +13,4 @@ export * from './detect';
 export * from './risk';
 export * from './rules';
 export * from './facts';
+export * from './related-party';

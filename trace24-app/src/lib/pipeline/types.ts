@@ -232,7 +232,7 @@ export type InvestigationPack = {
 
 export type PipelineReportLike = {
   agency?: { id?: string; th?: string; dataUrl?: string; web?: string };
-  meta?: Record<string, string>;
+  meta?: Record<string, string | boolean | number | null | undefined>;
   sources?: {
     url: string;
     type: string;
@@ -273,9 +273,32 @@ export type PipelineReportLike = {
       name: string;
       contracts?: number;
       total?: string;
+      reg?: string;
+      address?: string;
+      directors?: { name: string; note: string; flag?: boolean }[];
+      related?: { id: string; name: string; note: string }[];
+      risks?: { tag: string; text: string; sevKey: string }[];
       rows?: unknown[];
     }
   >;
+  executives?: {
+    name: string;
+    title: string;
+    since?: string | null;
+    until?: string | null;
+    sourceUrl?: string;
+  }[];
+  relatedParty?: {
+    matches: {
+      id: string;
+      ruleId: string;
+      matchType: string;
+      severity: string;
+      explanation: string;
+    }[];
+    coverage: string;
+  };
+  alerts?: { tag: string; text: string; sevKey: string }[];
   topContractors?: { id: string; name: string; value: string; n: number }[];
   caseFile?: {
     id: string;

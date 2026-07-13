@@ -7,6 +7,8 @@ import {
   agencyFromSearchParams,
   buildAgencyReportFromCatalog,
 } from '@/lib/pipeline/live-report';
+import { withRelatedPartyOverlay } from '@/lib/pipeline/related-party-store';
+import type { PipelineReportLike } from '@/lib/pipeline/types';
 
 export const maxDuration = 60;
 
@@ -26,8 +28,8 @@ export async function GET(
 
   const file = path.join(/*turbopackIgnore: true*/ process.cwd(), 'data', 'real', `${id}.json`);
   if (fs.existsSync(file)) {
-    const raw = fs.readFileSync(file, 'utf8');
-    return Response.json(JSON.parse(raw));
+    const raw = JSON.parse(fs.readFileSync(file, 'utf8'));
+    return Response.json(withRelatedPartyOverlay(raw));
   }
 
   const agency =
@@ -55,7 +57,9 @@ export async function GET(
         fetchContracts,
         limit: 60,
       });
-      return Response.json(report, { headers: { 'X-TRACE24-Catalog-Only': '1' } });
+      return Response.json(withRelatedPartyOverlay(report as unknown as PipelineReportLike), {
+        headers: { 'X-TRACE24-Catalog-Only': '1' },
+      });
     }
     return Response.json(
       {
@@ -71,16 +75,20 @@ export async function GET(
       fetchContracts,
       limit: 80,
     });
-    return Response.json(report, {
+    const withRelated = withRelatedPartyOverlay(report as unknown as PipelineReportLike);
+    return Response.json(withRelated, {
       headers: {
-        'X-TRACE24-Catalog-Only': report.meta.catalogOnly ? '1' : '0',
+        'X-TRACE24-Catalog-Only': withRelated.meta?.catalogOnly ? '1' : '0',
       },
     });
   } catch {
     // Never fail hard — registry stub is enough to open the agency
-    return Response.json(buildCatalogStubReport(agency), {
-      headers: { 'X-TRACE24-Catalog-Only': '1' },
-      status: 200,
-    });
+    return Response.json(
+      withRelatedPartyOverlay(buildCatalogStubReport(agency) as unknown as PipelineReportLike),
+      {
+        headers: { 'X-TRACE24-Catalog-Only': '1' },
+        status: 200,
+      }
+    );
   }
 }

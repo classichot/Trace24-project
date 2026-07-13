@@ -21,7 +21,12 @@ export function scoreRisks(report: PipelineReportLike): RiskScores {
   const supplierSignals = signals.filter((s) => s.subjectIds.some((id) => id.startsWith('company:')));
   const agencySignals = signals.filter((s) => s.subjectIds.some((id) => id.startsWith('agency:')));
   const networkSignals = signals.filter(
-    (s) => s.ruleId === 'R8' || s.ruleId === 'R1' || s.ruleId === 'R5' || s.kind === 'network'
+    (s) =>
+      s.ruleId === 'R8' ||
+      s.ruleId === 'R1' ||
+      s.ruleId === 'R5' ||
+      s.ruleId === 'R13' ||
+      s.kind === 'network'
   );
 
   const project = avg(projectSignals.map((s) => s.score));

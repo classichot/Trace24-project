@@ -67,6 +67,11 @@ export function buildCatalogStubReport(agency: AgencyRecord) {
     },
     priorityOrder: [],
     topContractors: [],
+    executives: [],
+    relatedParty: {
+      matches: [],
+      coverage: 'ยังไม่มีทำเนียบผู้บริหารและกรรมการ — เพิ่มที่แท็บความเชื่อมโยง',
+    },
     caseFile: {
       id: `case-${agency.id}`,
       title: agency.th,
