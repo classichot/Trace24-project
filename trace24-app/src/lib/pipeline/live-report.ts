@@ -1,5 +1,10 @@
 import type { AgencyRecord } from '@/lib/agencies';
 import { fetchGovSpendingContracts, govSpendingPortalSearchUrl } from '@/lib/gov-apis/govspending';
+import {
+  egpAnnounceUrl,
+  enrichReportFromEgAnnouncements,
+  looksLikeBadWinner,
+} from './announce-enrich';
 import { buildCatalogStubReport } from './catalog-stub';
 
 type ContractLike = {
@@ -65,8 +70,10 @@ export function enrichStubWithContracts(
 
     i += 1;
     const pid = `p${i}`;
-    const winnerName = c.contract[0]?.winner?.trim() || '';
-    const winnerTin = String(c.contract[0]?.winner_tin || '').replace(/\D/g, '');
+    let winnerName = c.contract[0]?.winner?.trim() || '';
+    if (looksLikeBadWinner(winnerName)) winnerName = '';
+    const winnerTinRaw = String(c.contract[0]?.winner_tin || '').trim();
+    const winnerTin = looksLikeBadWinner(winnerTinRaw) ? '' : winnerTinRaw.replace(/\D/g, '');
     const awardN = parseMoney(c.contract[0]?.price_agree || c.project_money);
     let winnerId: string | null = null;
     if (winnerName) {
@@ -107,6 +114,9 @@ export function enrichStubWithContracts(
       ]);
     }
 
+    const projectCode = String(c.project_id || '');
+    const egpUrl = /^\d{8,}$/.test(projectCode) ? egpAnnounceUrl(projectCode) : null;
+
     projects[pid] = {
       code: c.project_id || pid,
       name: c.project_name,
@@ -125,8 +135,15 @@ export function enrichStubWithContracts(
           'สัญญา / รายการจากภาษีไปไหน',
           govSpendingPortalSearchUrl(stub.agency.th),
         ],
+        ...(egpUrl
+          ? ([[c.contract[0]?.contract_date || c._fy || '—', 'ลิงก์ประกาศผู้ชนะ e-GP (จะดึงตอนสแกน)', egpUrl]] as [
+              string,
+              string,
+              string,
+            ][])
+          : []),
       ],
-      _sourceUrl: govSpendingPortalSearchUrl(stub.agency.th),
+      _sourceUrl: egpUrl || govSpendingPortalSearchUrl(stub.agency.th),
     };
   }
 
@@ -254,10 +271,29 @@ export async function buildAgencyReportFromCatalog(
         prov,
         loc: enriched.agency.dist ? `อ.${enriched.agency.dist} · จ.${prov}` : `จ.${prov}`,
       };
-      enriched.stats = enriched.stats.map((s) =>
+      enriched.stats = enriched.stats.map((s: { label: string; value: string; sub: string }) =>
         s.label === 'จังหวัด' ? { ...s, value: prov, sub: enriched.agency.loc } : s
       );
     }
+
+    // Auto-fetch e-GP winner announcements for projects missing usable winners
+    const projectList = Object.values(enriched.projects || {}) as { winner?: string | null }[];
+    const missingWinners = projectList.filter((p) => !p.winner).length;
+    if (missingWinners > 0) {
+      const announce = await enrichReportFromEgAnnouncements(
+        enriched as unknown as Parameters<typeof enrichReportFromEgAnnouncements>[0],
+        {
+          maxProjects: Math.min(20, missingWinners),
+          concurrency: 3,
+        }
+      );
+      if (announce.filled) {
+        enriched.meta.scanSummary = `${enriched.meta.scanSummary} · เติมผู้ชนะจากประกาศ e-GP ${announce.filled} รายการ`;
+      } else if (announce.tried) {
+        enriched.meta.dataGapNote = `${enriched.meta.dataGapNote || ''} · ลองดึงประกาศ e-GP ${announce.tried} โครงการแล้วยังไม่พบไฟล์ประกาศผล (อาจใช้เทมเพลตอื่น)`.trim();
+      }
+    }
+
     return enriched;
   } catch (e) {
     return {

@@ -14,3 +14,9 @@ export * from './risk';
 export * from './rules';
 export * from './facts';
 export * from './related-party';
+export * from './announce-enrich';
+export {
+  extractFromAnnounceUrl,
+  collectProjectAnnounceUrls,
+  parseWinnerFromAnnounceText,
+} from './announce-fallback';
