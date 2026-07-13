@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;500;600;700&family=K2D:wght@400;500;600;700&family=Krub:wght@400;500;600;700&family=Mitr:wght@300;400;500;600&family=Niramit:wght@400;500;600;700&family=Kanit:wght@300;400;500;600&family=Athiti:wght@400;500;600;700&family=Noto+Sans+Thai:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#FBFBF9;color:#111110;-webkit-font-smoothing:antialiased}
+a{color:#111110;text-decoration:underline;text-underline-offset:2px}
+a:hover{color:#6E6E6A}
+</style>
+</helmet>
+
+<div style="max-width:1080px;margin:0 auto;padding:56px 32px 96px;box-sizing:border-box;font-family:'Noto Sans Thai',sans-serif">
+  <div style="font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:#8B8B85;font-weight:500">TRACE24 · เลือกฟอนต์ · รอบ 2</div>
+  <h1 style="font-size:30px;font-weight:600;letter-spacing:-.01em;margin:12px 0 8px">ตัวเลือกที่มีบุคลิกมากขึ้น — 7 แบบ</h1>
+  <p style="margin:0;font-size:15px;color:#55554F;line-height:1.6;max-width:620px">รอบนี้เน้นฟอนต์ที่มีเอกลักษณ์: ปลายตัดแบบเทคนิค เรขาคณิต และแบบครึ่งทางการ บอกหมายเลขที่ต้องการได้เลย</p>
+
+  <sc-for list="{{ fonts }}" as="f" hint-placeholder-count="7">
+    <div style="margin-top:48px;border:1px solid #E4E4E0;background:#fff">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;gap:16px;padding:16px 28px;border-bottom:1px solid #EEEEEA;flex-wrap:wrap">
+        <div style="display:flex;align-items:baseline;gap:14px">
+          <span style="font-size:12px;font-weight:700;background:#111110;color:#FBFBF9;padding:3px 9px;font-family:'Noto Sans Thai',sans-serif">{{ f.num }}</span>
+          <span style="font-size:17px;font-weight:600;font-family:{{ f.stack }}">{{ f.name }}</span>
+        </div>
+        <span style="font-size:12.5px;color:#8B8B85;font-family:'Noto Sans Thai',sans-serif">{{ f.note }}</span>
+      </div>
+      <div style="padding:30px 28px;font-family:{{ f.stack }}">
+        <div style="font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:#8B8B85">รายงานเทศบาล · ปีงบประมาณ 2566–2568</div>
+        <div style="font-size:30px;font-weight:{{ f.headWeight }};letter-spacing:-.01em;margin-top:8px">เทศบาลตำบลป่าไผ่ อำเภอดอยสะเก็ด</div>
+        <div style="font-size:14px;color:#55554F;margin-top:6px;line-height:1.6">ติดตามเส้นทางเงินงบประมาณ ค้นหารูปแบบที่ผิดปกติ และแสดงหลักฐานประกอบทุกข้อค้นพบ</div>
+        <div style="display:flex;gap:0;border-top:1px solid #111110;border-bottom:1px solid #E4E4E0;margin-top:22px">
+          <div style="padding:16px 24px 16px 0;border-right:1px solid #EEEEEA;margin-right:24px"><div style="font-size:10.5px;letter-spacing:.08em;color:#8B8B85">มูลค่าจัดซื้อจัดจ้าง</div><div style="font-size:24px;font-weight:500;margin-top:5px">฿86,400,000</div></div>
+          <div style="padding:16px 24px 16px 0;border-right:1px solid #EEEEEA;margin-right:24px"><div style="font-size:10.5px;letter-spacing:.08em;color:#8B8B85">โครงการ</div><div style="font-size:24px;font-weight:500;margin-top:5px">251</div></div>
+          <div style="padding:16px 0"><div style="font-size:10.5px;letter-spacing:.08em;color:#8B8B85">สัญญาณความเสี่ยง</div><div style="font-size:24px;font-weight:500;margin-top:5px">23</div></div>
+        </div>
+        <div style="display:grid;grid-template-columns:110px 1fr 110px 110px;gap:14px;padding:13px 0;border-bottom:1px solid #EEEEEA;align-items:baseline;margin-top:10px">
+          <div style="font-size:12.5px;color:#55554F">P-2568-014</div>
+          <div style="font-size:14px">ก่อสร้างถนน คสล. สายบ้านป่าไผ่เหนือ ช่วงที่ 2 หมู่ 3</div>
+          <div style="font-size:13.5px">฿497,500</div>
+          <div><span style="font-size:10px;letter-spacing:.08em;padding:3px 8px;border:1px solid #8A5A1C;color:#8A5A1C">ความสำคัญสูง</span></div>
+        </div>
+        <div style="display:grid;grid-template-columns:110px 1fr 110px 110px;gap:14px;padding:13px 0;border-bottom:1px solid #EEEEEA;align-items:baseline">
+          <div style="font-size:12.5px;color:#55554F">P-2568-021</div>
+          <div style="font-size:14px">ปรับปรุงระบบระบายน้ำ บ้านป่าไผ่ใต้ หมู่ 6 — หจก. ป่าไผ่การโยธา</div>
+          <div style="font-size:13.5px">฿1,236,000</div>
+          <div><span style="font-size:10px;letter-spacing:.08em;padding:3px 8px;border:1px solid #C9C9C4;color:#55554F">ปานกลาง</span></div>
+        </div>
+        <div style="font-size:12.5px;color:#8B8B85;margin-top:14px;font-style:italic">สัญญาณความเสี่ยงไม่ใช่ข้อพิสูจน์การทุจริต — เป็นเพียงเหตุผลสำหรับการตรวจสอบเพิ่มเติม 0123456789</div>
+      </div>
+    </div>
+  </sc-for>
+
+  <div style="margin-top:40px;font-size:13.5px;color:#55554F;font-family:'Noto Sans Thai',sans-serif;line-height:1.7">คำแนะนำรอบนี้: <b>1 · Chakra Petch</b> ให้อารมณ์แพลตฟอร์มข่าวกรอง/วิเคราะห์ชัดที่สุด · <b>4 · Mitr</b> โมเดิร์นอบอุ่นแต่ยังจริงจัง · <b>6 · Kanit</b> เรขาคณิตเด่นในหัวข้อใหญ่ — จับคู่ฟอนต์ก็ได้ เช่น หัวข้อ Kanit + เนื้อหา Krub</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  renderVals() {
+    return {
+      fonts: [
+        { num: '1', name: 'Chakra Petch', stack: "'Chakra Petch',sans-serif", headWeight: '500', note: 'ปลายตัด เหลี่ยม ดูเทคนิค — อารมณ์ระบบข่าวกรอง/วิเคราะห์ข้อมูล' },
+        { num: '2', name: 'K2D', stack: "'K2D',sans-serif", headWeight: '500', note: 'โค้งมนแบบมีจังหวะ — โมเดิร์นแต่ไม่แข็ง' },
+        { num: '3', name: 'Krub', stack: "'Krub',sans-serif", headWeight: '500', note: 'กระชับ แน่น — เด่นในตารางข้อมูลหนาแน่น' },
+        { num: '4', name: 'Mitr', stack: "'Mitr',sans-serif", headWeight: '400', note: 'อวบ นุ่ม มีน้ำหนัก — บุคลิกชัดทั้งหัวข้อและเนื้อหา' },
+        { num: '5', name: 'Niramit', stack: "'Niramit',sans-serif", headWeight: '600', note: 'กึ่งทางการ มีหัวกลมเล็ก — เชื่อมโลกราชการกับโลกดิจิทัล' },
+        { num: '6', name: 'Kanit', stack: "'Kanit',sans-serif", headWeight: '400', note: 'เรขาคณิต เส้นสม่ำเสมอ — หัวข้อใหญ่ดูสถาปนิก' },
+        { num: '7', name: 'Athiti', stack: "'Athiti',sans-serif", headWeight: '600', note: 'แคบ ประหยัดพื้นที่ — บุคลิกเฉียบ เหมาะแดชบอร์ด' }
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,79 @@
+@import "tailwindcss";
+
+:root {
+  --accent: #8a5a1c;
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.25;
+  }
+}
+
+body {
+  margin: 0;
+  background: #fbfbf9;
+  color: #111110;
+  font-family: var(--font-chakra), 'Chakra Petch', sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+a {
+  color: #111110;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+a:hover {
+  color: #6e6e6a;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: #a3a39e;
+}
+
+select {
+  font-family: inherit;
+}
+
+.trace24-hover-text:hover {
+  color: #111110 !important;
+}
+
+.trace24-hover-muted:hover {
+  color: #6e6e6a !important;
+}
+
+.trace24-hover-row:hover {
+  background: #f4f4f1;
+}
+
+.trace24-btn-dark {
+  background: #111110;
+  color: #fbfbf9;
+  cursor: pointer;
+  user-select: none;
+}
+
+.trace24-btn-dark:hover {
+  background: #333331;
+}
+
+.trace24-btn-outline:hover {
+  background: #111110;
+  color: #fbfbf9;
+}
+
+.trace24-chip:hover {
+  border-color: #111110 !important;
+  color: #111110 !important;
+}
+
+.trace24-tab:hover {
+  color: #111110 !important;
+}

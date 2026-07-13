@@ -1,0 +1,26 @@
+# Archives
+*.zip
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Env / secrets
+.env
+.env.*
+!.env.example
+
+# Next.js app
+trace24-app/node_modules/
+trace24-app/.next/
+trace24-app/out/
+trace24-app/.vercel/
+trace24-app/*.tsbuildinfo
+trace24-app/next-env.d.ts
+trace24-app/npm-debug.log*
+trace24-app/yarn-debug.log*
+trace24-app/yarn-error.log*
+
+# Scraper debug dumps
+trace24-app/scripts/*.html
+trace24-app/scripts/data/

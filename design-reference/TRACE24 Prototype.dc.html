@@ -1,0 +1,2055 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#FBFBF9;color:#111110;font-family:'Chakra Petch',sans-serif;-webkit-font-smoothing:antialiased;--accent:#8A5A1C}
+a{color:#111110;text-decoration:underline;text-underline-offset:2px}
+a:hover{color:#6E6E6A}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.25}}
+input::placeholder{color:#A3A39E}
+select{font-family:inherit}
+</style>
+</helmet>
+
+<!-- ============ NAV ============ -->
+<sc-if value="{{ showNav }}" hint-placeholder-val="{{ false }}">
+<div style="position:sticky;top:0;z-index:50;background:rgba(251,251,249,.95);backdrop-filter:blur(8px);border-bottom:1px solid #E4E4E0">
+  <div style="max-width:1160px;margin:0 auto;padding:0 32px;height:54px;display:flex;align-items:center;gap:20px">
+    <div onClick="{{ goHome }}" style="cursor:pointer;font-weight:700;font-size:15px;letter-spacing:.01em">TRACE<span style="color:#8B8B85">24</span></div>
+    <div style="width:1px;height:16px;background:#DDDDD8"></div>
+    <div style="font-size:13px;color:#55554F;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ muniTh }} · {{ muniProv }}</div>
+    <div style="flex:1"></div>
+    <div style="display:flex;gap:24px;align-items:center;height:100%">
+      <sc-for list="{{ navTabs }}" as="t" hint-placeholder-count="3">
+        <div onClick="{{ t.go }}" style="cursor:pointer;font-size:13px;height:100%;display:flex;align-items:center;border-bottom:2px solid {{ t.border }};color:{{ t.color }};margin-bottom:-1px" style-hover="color:#111110">{{ t.label }}</div>
+      </sc-for>
+    </div>
+  </div>
+</div>
+</sc-if>
+
+<!-- ============ HOME ============ -->
+<sc-if value="{{ isHome }}" hint-placeholder-val="{{ true }}">
+<div data-screen-label="หน้าแรก / ค้นหา" style="min-height:100vh;display:flex;flex-direction:column;box-sizing:border-box">
+  <div style="max-width:1160px;width:100%;margin:0 auto;padding:26px 32px;box-sizing:border-box;display:flex;justify-content:space-between;align-items:center">
+    <div style="font-weight:700;font-size:16px;letter-spacing:.01em">TRACE<span style="color:#8B8B85">24</span></div>
+    <div style="display:flex;gap:26px;font-size:13px;color:#55554F">
+      <span onClick="{{ openMethod }}" style="cursor:pointer" style-hover="color:#111110">ระเบียบวิธี</span>
+      <span onClick="{{ openSources }}" style="cursor:pointer" style-hover="color:#111110">แหล่งข้อมูล</span>
+      <span onClick="{{ openCorrections }}" style="cursor:pointer" style-hover="color:#111110">ขอแก้ไขข้อมูล</span>
+      <span onClick="{{ openAbout }}" style="cursor:pointer" style-hover="color:#111110">เกี่ยวกับเรา</span>
+    </div>
+  </div>
+  <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:48px 24px 72px">
+    <div style="font-size:11px;letter-spacing:.1em;color:#8B8B85;font-weight:500">แพลตฟอร์มข้อมูลการใช้จ่ายภาครัฐ — ประเทศไทย</div>
+    <h1 style="font-size:40px;font-weight:500;letter-spacing:-.01em;line-height:1.25;margin:18px 0 12px;text-align:center;max-width:720px;text-wrap:balance">ตามเส้นทางเงิน ค้นหารูปแบบ แสดงหลักฐาน</h1>
+    <p style="margin:0 0 40px;font-size:15px;color:#55554F;text-align:center;max-width:560px;line-height:1.6;text-wrap:pretty">ค้นหาหน่วยงานรัฐที่มีการจัดซื้อจัดจ้าง — เทศบาล อบต. อำเภอ จังหวัด กระทรวง กรม โรงพยาบาล โรงเรียน ตำรวจ ทหาร — เพื่อติดตามว่าเงินสาธารณะถูกวางแผน จัดซื้อจัดจ้าง และตกลงราคาอย่างไร ทุกข้อค้นพบมีเอกสารต้นทางรองรับ</p>
+    <div style="width:100%;max-width:620px;position:relative">
+      <input value="{{ query }}" onChange="{{ onQuery }}" placeholder="ค้นหาหน่วยงาน — เช่น เทศบาลตำบลป่าไผ่ หรือ โรงพยาบาลดอยสะเก็ด" style="width:100%;box-sizing:border-box;border:1px solid #111110;background:#fff;padding:16px 18px;font-size:15.5px;font-family:inherit;outline:none;border-radius:0">
+      <sc-if value="{{ hasResults }}" hint-placeholder-val="{{ false }}">
+        <div style="position:absolute;top:100%;left:0;right:0;background:#fff;border:1px solid #111110;border-top:none;z-index:20">
+          <sc-for list="{{ results }}" as="r" hint-placeholder-count="2">
+            <div onClick="{{ r.select }}" style="display:flex;align-items:baseline;gap:12px;padding:13px 18px;border-bottom:1px solid #EEEEEA;cursor:pointer" style-hover="background:#F4F4F1">
+              <div style="flex:1;min-width:0">
+                <div style="font-size:14.5px">{{ r.th }}</div>
+                <div style="font-size:12px;color:#8B8B85;margin-top:2px">{{ r.en }}</div>
+              </div>
+              <div style="font-size:12px;color:#55554F;white-space:nowrap">{{ r.tshort }} · {{ r.loc }}</div>
+            </div>
+          </sc-for>
+        </div>
+      </sc-if>
+      <sc-if value="{{ noResults }}" hint-placeholder-val="{{ false }}">
+        <div style="position:absolute;top:100%;left:0;right:0;background:#fff;border:1px solid #111110;border-top:none;padding:14px 18px;font-size:13px;color:#8B8B85;z-index:20">ไม่พบหน่วยงานที่ตรงกัน — ระบบครอบคลุมหน่วยงานรัฐที่มีการจัดซื้อจัดจ้างทุกระดับ จับคู่จากชื่อทางการ รหัสหน่วยงาน และการสะกดแบบอื่น ลองระบุจังหวัดหรือประเภทหน่วยงาน</div>
+      </sc-if>
+      <sc-if value="{{ selPicked }}" hint-placeholder-val="{{ false }}">
+        <div style="border:1px solid #111110;border-top:none;background:#fff;padding:26px 28px">
+          <div style="display:flex;justify-content:space-between;align-items:baseline;gap:16px">
+            <div>
+              <div style="font-size:19px;font-weight:500">{{ sel.th }}</div>
+              <div style="font-size:13px;color:#55554F;margin-top:3px">{{ sel.en }}</div>
+            </div>
+            <div onClick="{{ clearSel }}" style="font-size:12px;color:#8B8B85;cursor:pointer;text-decoration:underline;text-underline-offset:2px" style-hover="color:#111110">เปลี่ยน</div>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:18px;margin-top:22px;padding-top:18px;border-top:1px solid #EEEEEA">
+            <div><div style="font-size:11px;color:#8B8B85">ประเภท</div><div style="font-size:13px;margin-top:4px">{{ sel.type }}</div></div>
+            <div><div style="font-size:11px;color:#8B8B85">พื้นที่</div><div style="font-size:13px;margin-top:4px">{{ sel.loc }}</div></div>
+            <div><div style="font-size:11px;color:#8B8B85">รหัสหน่วยงาน</div><div style="font-size:13px;margin-top:4px">{{ sel.code }}</div></div>
+            <div><div style="font-size:11px;color:#8B8B85">เว็บไซต์ทางการ</div><div style="font-size:13px;margin-top:4px">{{ sel.web }} <span style="color:#8B8B85">· ยืนยันแล้ว</span></div></div>
+          </div>
+          <div style="display:flex;align-items:center;gap:18px;margin-top:24px">
+            <div onClick="{{ startScan }}" style="background:#111110;color:#FBFBF9;padding:13px 24px;font-size:14px;cursor:pointer;user-select:none" style-hover="background:#333331">วิเคราะห์หน่วยงานนี้</div>
+            <div style="font-size:12px;color:#8B8B85;line-height:1.55">ใช้เฉพาะข้อมูลสาธารณะที่เข้าถึงได้โดยชอบด้วยกฎหมาย<br>ไม่ข้ามระบบล็อกอิน · ไม่เก็บข้อมูลส่วนบุคคลเกินจำเป็น</div>
+          </div>
+        </div>
+      </sc-if>
+    </div>
+  </div>
+  <div style="border-top:1px solid #E4E4E0">
+    <div style="max-width:1160px;margin:0 auto;padding:20px 32px;display:flex;justify-content:space-between;gap:24px;flex-wrap:wrap">
+      <div style="font-size:12px;color:#8B8B85;line-height:1.5">สัญญาณความเสี่ยงไม่ใช่ข้อพิสูจน์การทุจริต — เป็นเพียงเหตุผลสำหรับการตรวจสอบเพิ่มเติม</div>
+      <div style="font-size:12px;color:#8B8B85">ต้นแบบ · หน่วยงาน บริษัท และเอกสารทั้งหมดเป็นข้อมูลสมมติ</div>
+    </div>
+  </div>
+</div>
+</sc-if>
+
+<!-- ============ SCAN ============ -->
+<sc-if value="{{ isScan }}" hint-placeholder-val="{{ false }}">
+<div data-screen-label="ความคืบหน้าการสแกน" style="max-width:640px;margin:0 auto;padding:72px 32px 96px;box-sizing:border-box">
+  <div style="font-size:11px;letter-spacing:.08em;color:#8B8B85;font-weight:500">กำลังสแกนแหล่งข้อมูลสาธารณะ</div>
+  <h1 style="font-size:28px;font-weight:500;margin:12px 0 6px">{{ muniTh }}</h1>
+  <div style="font-size:13px;color:#8B8B85">{{ muniWeb }} · เฉพาะข้อมูลสาธารณะ · บันทึกแหล่งที่มาและเวลาดึงข้อมูลทุกรายการ</div>
+  <div style="margin-top:40px;border-top:1px solid #E4E4E0">
+    <sc-for list="{{ stages }}" as="st" hint-placeholder-count="11">
+      <div style="display:flex;align-items:baseline;gap:14px;padding:12px 0;border-bottom:1px solid #EEEEEA;opacity:{{ st.rowOp }}">
+        <div style="width:14px;font-size:11px;color:{{ st.markColor }};animation:{{ st.anim }}">{{ st.mark }}</div>
+        <div style="flex:1;font-size:14.5px;font-weight:{{ st.weight }}">{{ st.label }}</div>
+        <div style="font-size:13px;color:#8B8B85;opacity:{{ st.detailOp }}">{{ st.detail }}</div>
+      </div>
+    </sc-for>
+  </div>
+  <sc-if value="{{ scanDone }}" hint-placeholder-val="{{ false }}">
+    <div style="display:flex;gap:18px;align-items:center;margin-top:32px;flex-wrap:wrap">
+      <div onClick="{{ openDash }}" style="background:#111110;color:#FBFBF9;padding:13px 24px;font-size:14px;cursor:pointer;user-select:none" style-hover="background:#333331">ดูรายงานหน่วยงาน →</div>
+      <div style="font-size:12.5px;color:#8B8B85">{{ scanSummary }}</div>
+    </div>
+  </sc-if>
+</div>
+</sc-if>
+
+<!-- ============ DASHBOARD ============ -->
+<sc-if value="{{ isDash }}" hint-placeholder-val="{{ false }}">
+<div data-screen-label="แดชบอร์ดหน่วยงาน" style="max-width:1160px;margin:0 auto;padding:44px 32px 80px;box-sizing:border-box">
+  <div style="display:flex;justify-content:space-between;align-items:flex-end;gap:32px;flex-wrap:wrap">
+    <div>
+      <div style="font-size:11px;letter-spacing:.08em;color:#8B8B85;font-weight:500">รายงานหน่วยงาน · ปีงบประมาณ 2566–2568</div>
+      <h1 style="font-size:32px;font-weight:500;margin:10px 0 6px">{{ muniTh }}</h1>
+      <div style="font-size:13.5px;color:#55554F">{{ muniLoc }} · {{ muniWeb }} · สแกนล่าสุดวันนี้</div>
+    </div>
+    <div style="min-width:200px">
+      <div style="display:flex;justify-content:space-between;font-size:12px;color:#55554F;margin-bottom:6px"><span>ความครบถ้วนของข้อมูล</span><span>{{ dataPct }}</span></div>
+      <div style="height:4px;background:#ECECE8"><div style="height:4px;width:{{ dataPct }};background:#111110"></div></div>
+      <div style="font-size:11.5px;color:#8B8B85;margin-top:6px">{{ dataGapNote }}</div>
+    </div>
+  </div>
+
+  <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:0;border-top:1px solid #111110;border-bottom:1px solid #E4E4E0;margin-top:32px">
+    <sc-for list="{{ stats }}" as="s" hint-placeholder-count="5">
+      <div style="padding:22px 20px 22px 0;border-right:1px solid #EEEEEA;margin-right:20px">
+        <div style="font-size:11px;color:#8B8B85">{{ s.label }}</div>
+        <div style="font-size:29px;font-weight:500;margin-top:8px">{{ s.value }}</div>
+        <div style="font-size:12px;color:#8B8B85;margin-top:4px">{{ s.sub }}</div>
+      </div>
+    </sc-for>
+  </div>
+
+  <div style="display:grid;grid-template-columns:1fr 340px;gap:56px;margin-top:44px;align-items:start">
+    <div>
+      <div style="display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap">
+        <h2 style="font-size:16px;font-weight:600;margin:0">โครงการที่ควรตรวจสอบเป็นอันดับแรก</h2>
+        <div style="font-size:12px;color:#8B8B85">{{ priorityNote }}</div>
+      </div>
+      <div style="margin-top:16px;border-top:1px solid #111110">
+        <div style="display:grid;grid-template-columns:104px 1fr 96px 88px 118px;gap:14px;padding:10px 0;border-bottom:1px solid #E4E4E0;font-size:11px;color:#8B8B85">
+          <div>โครงการ</div><div>รายละเอียด</div><div>ราคาที่ตกลง</div><div>วิธี</div><div>สัญญาณ</div>
+        </div>
+        <sc-for list="{{ priority }}" as="p" hint-placeholder-count="6">
+          <div onClick="{{ p.open }}" style="display:grid;grid-template-columns:104px 1fr 96px 88px 118px;gap:14px;padding:14px 0;border-bottom:1px solid #EEEEEA;cursor:pointer;align-items:baseline" style-hover="background:#F4F4F1">
+            <div style="font-size:12.5px;color:#55554F">{{ p.code }}</div>
+            <div style="font-size:13.5px;line-height:1.45;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ p.name }}</div>
+            <div style="font-size:13px">{{ p.award }}</div>
+            <div style="font-size:12px;color:#55554F">{{ p.methodShort }}</div>
+            <div style="display:flex;align-items:center;gap:8px">
+              <span style="font-size:13px">{{ p.ind }}</span>
+              <span style="font-size:10px;letter-spacing:.06em;padding:3px 7px;border:1px solid {{ p.sevBorder }};color:{{ p.sevColor }}">{{ p.sevLabel }}</span>
+            </div>
+          </div>
+        </sc-for>
+      </div>
+      <div style="font-size:12px;color:#8B8B85;margin-top:14px;font-style:italic">สัญญาณความเสี่ยงไม่ใช่ข้อพิสูจน์การทุจริต — เป็นเพียงเหตุผลสำหรับการตรวจสอบเพิ่มเติม</div>
+
+      <h2 style="font-size:16px;font-weight:600;margin:44px 0 0">{{ vendorsTitle }}</h2>
+      <div style="margin-top:16px;border-top:1px solid #111110">
+        <sc-for list="{{ topContractors }}" as="c" hint-placeholder-count="5">
+          <div onClick="{{ c.open }}" style="display:grid;grid-template-columns:1fr 110px 90px;gap:16px;align-items:center;padding:13px 0;border-bottom:1px solid #EEEEEA;cursor:pointer" style-hover="background:#F4F4F1">
+            <div style="min-width:0">
+              <div style="font-size:13.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ c.name }}</div>
+              <div style="height:3px;background:#ECECE8;margin-top:7px;max-width:360px"><div style="height:3px;background:#111110;width:{{ c.pct }}"></div></div>
+            </div>
+            <div style="font-size:13px;text-align:right">{{ c.value }}</div>
+            <div style="font-size:12px;color:#8B8B85;text-align:right">{{ c.n }} สัญญา</div>
+          </div>
+        </sc-for>
+      </div>
+      <div style="font-size:12px;color:#55554F;margin-top:12px">{{ concNote }}</div>
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:40px">
+      <div>
+        <h2 style="font-size:13.5px;font-weight:600;margin:0">สัญญาณความเสี่ยงตามหมวด</h2>
+        <div style="margin-top:12px;border-top:1px solid #111110">
+          <sc-for list="{{ riskCats }}" as="rc" hint-placeholder-count="5">
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid #EEEEEA">
+              <div style="font-size:13px">{{ rc.label }}</div>
+              <div style="display:flex;align-items:center;gap:10px">
+                <div style="width:80px;height:3px;background:#ECECE8"><div style="height:3px;background:var(--accent);width:{{ rc.pct }}"></div></div>
+                <div style="font-size:13px;width:16px;text-align:right">{{ rc.count }}</div>
+              </div>
+            </div>
+          </sc-for>
+        </div>
+        <div style="font-size:11.5px;color:#8B8B85;margin-top:10px">แต่ละหมวดแยกจากกัน — ไม่รวมเป็นคะแนนเดียว</div>
+      </div>
+      <div>
+        <h2 style="font-size:13.5px;font-weight:600;margin:0">วิธีจัดซื้อจัดจ้าง</h2>
+        <div style="margin-top:12px;border-top:1px solid #111110">
+          <sc-for list="{{ methods }}" as="m" hint-placeholder-count="4">
+            <div style="padding:10px 0;border-bottom:1px solid #EEEEEA">
+              <div style="display:flex;justify-content:space-between;font-size:13px"><span>{{ m.label }}</span><span style="color:#55554F">{{ m.n }} · {{ m.pct }}</span></div>
+              <div style="height:3px;background:#ECECE8;margin-top:7px"><div style="height:3px;background:#111110;width:{{ m.pct }}"></div></div>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+      <div>
+        <h2 style="font-size:13.5px;font-weight:600;margin:0">มูลค่าจัดซื้อจัดจ้างรายปี</h2>
+        <div style="margin-top:12px;border-top:1px solid #111110">
+          <sc-for list="{{ years }}" as="y" hint-placeholder-count="3">
+            <div style="display:grid;grid-template-columns:76px 1fr 76px;gap:12px;align-items:center;padding:11px 0;border-bottom:1px solid #EEEEEA">
+              <div style="font-size:13px;color:#55554F">{{ y.label }}</div>
+              <div style="height:3px;background:#ECECE8"><div style="height:3px;background:#111110;width:{{ y.pct }}"></div></div>
+              <div style="font-size:13px;text-align:right">{{ y.value }}</div>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</sc-if>
+
+<!-- ============ PROJECT ============ -->
+<sc-if value="{{ isProject }}" hint-placeholder-val="{{ false }}">
+<div data-screen-label="หน้าตรวจสอบโครงการ" style="max-width:1160px;margin:0 auto;padding:36px 32px 80px;box-sizing:border-box">
+  <div onClick="{{ openDashboard }}" style="font-size:13px;color:#55554F;cursor:pointer;display:inline-block" style-hover="color:#111110">← แดชบอร์ด</div>
+  <div style="display:flex;align-items:center;gap:12px;margin-top:24px">
+    <div style="font-size:12.5px;color:#55554F">{{ pr.code }}</div>
+    <span style="font-size:10px;letter-spacing:.06em;padding:3px 8px;border:1px solid {{ pr.sevBorder }};color:{{ pr.sevColor }}">ความสำคัญ{{ pr.sevLabel }}</span>
+  </div>
+  <h1 style="font-size:27px;font-weight:500;margin:10px 0 8px;max-width:820px;line-height:1.35">{{ pr.name }}</h1>
+  <div style="font-size:13.5px;color:#55554F">{{ pr.cat }} · {{ pr.method }} · {{ pr.fy }} · ประกาศผู้ชนะ {{ pr.announced }}</div>
+
+  <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:0;border-top:1px solid #111110;border-bottom:1px solid #E4E4E0;margin-top:28px">
+    <div style="padding:20px 20px 20px 0;border-right:1px solid #EEEEEA;margin-right:20px"><div style="font-size:11px;color:#8B8B85">งบประมาณ</div><div style="font-size:24px;font-weight:500;margin-top:8px">{{ pr.budget }}</div></div>
+    <div style="padding:20px 20px 20px 0;border-right:1px solid #EEEEEA;margin-right:20px"><div style="font-size:11px;color:#8B8B85">ราคากลาง</div><div style="font-size:24px;font-weight:500;margin-top:8px">{{ pr.ref }}</div></div>
+    <div style="padding:20px 20px 20px 0;border-right:1px solid #EEEEEA;margin-right:20px"><div style="font-size:11px;color:#8B8B85">ราคาที่ตกลง</div><div style="font-size:24px;font-weight:500;margin-top:8px">{{ pr.award }}</div></div>
+    <div style="padding:20px 0"><div style="font-size:11px;color:#8B8B85">ราคาที่ตกลง / ราคากลาง</div><div style="font-size:24px;font-weight:500;margin-top:8px;color:{{ pr.pctColor }}">{{ pr.pct }}</div><div style="font-size:11.5px;color:#8B8B85;margin-top:3px">ค่ากลางกลุ่มเปรียบเทียบ −4.6%</div></div>
+  </div>
+
+  <div style="display:grid;grid-template-columns:1fr 320px;gap:56px;margin-top:40px;align-items:start">
+    <div>
+      <h2 style="font-size:16px;font-weight:600;margin:0">สัญญาณความเสี่ยง <span style="font-weight:400;color:#8B8B85">· {{ pr.ind }} รายการ</span></h2>
+      <div style="display:flex;flex-direction:column;gap:16px;margin-top:16px">
+        <sc-for list="{{ alerts }}" as="a" hint-placeholder-count="2">
+          <div style="border:1px solid #E4E4E0;background:#fff;padding:22px 24px">
+            <div style="display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap">
+              <div style="display:flex;align-items:baseline;gap:12px;flex-wrap:wrap">
+                <span style="font-size:10.5px;letter-spacing:.06em;color:#8B8B85">{{ a.tag }}</span>
+                <span style="font-size:15px;font-weight:600">{{ a.title }}</span>
+              </div>
+              <div style="display:flex;align-items:center;gap:10px">
+                <span style="font-size:11.5px;color:#8B8B85">{{ a.conf }}</span>
+                <span style="font-size:10px;letter-spacing:.06em;padding:3px 7px;border:1px solid {{ a.sevBorder }};color:{{ a.sevColor }}">{{ a.sevLabel }}</span>
+              </div>
+            </div>
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin:16px 0;padding:14px 16px;background:#F6F6F3">
+              <sc-for list="{{ a.facts }}" as="f" hint-placeholder-count="3">
+                <div><div style="font-size:11px;color:#8B8B85">{{ f.k }}</div><div style="font-size:13px;margin-top:3px">{{ f.v }}</div></div>
+              </sc-for>
+            </div>
+            <p style="margin:0;font-size:13.5px;line-height:1.65;color:#26261F;text-wrap:pretty">{{ a.explain }}</p>
+            <div style="margin-top:14px;padding-left:14px;border-left:2px solid #DDDDD8">
+              <div style="font-size:11px;color:#8B8B85">คำอธิบายโดยสุจริตที่เป็นไปได้</div>
+              <p style="margin:5px 0 0;font-size:13px;line-height:1.6;color:#55554F;font-style:italic;text-wrap:pretty">{{ a.innocent }}</p>
+            </div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:16px">
+              <sc-for list="{{ a.evidence }}" as="e" hint-placeholder-count="2">
+                <span style="font-size:11.5px;padding:5px 10px;border:1px solid #DDDDD8;color:#55554F;cursor:pointer" style-hover="border-color:#111110;color:#111110">{{ e }} ↗</span>
+              </sc-for>
+            </div>
+          </div>
+        </sc-for>
+      </div>
+      <div style="font-size:12px;color:#8B8B85;margin-top:14px;font-style:italic">สัญญาณความเสี่ยงไม่ใช่ข้อพิสูจน์การทุจริต — เป็นเพียงเหตุผลสำหรับการตรวจสอบเพิ่มเติม</div>
+
+      <h2 style="font-size:16px;font-weight:600;margin:40px 0 0">ไทม์ไลน์เอกสาร</h2>
+      <div style="margin-top:16px">
+        <sc-for list="{{ timeline }}" as="tl" hint-placeholder-count="6">
+          <div style="display:flex;gap:0">
+            <div style="width:104px;flex:none;font-size:12.5px;color:#8B8B85;padding:2px 0 22px">{{ tl.date }}</div>
+            <div style="flex:none;display:flex;flex-direction:column;align-items:center;margin-right:18px">
+              <div style="width:7px;height:7px;background:#111110;flex:none;margin-top:5px"></div>
+              <div style="width:1px;flex:1;background:#E4E4E0"></div>
+            </div>
+            <div style="padding:0 0 22px;min-width:0">
+              <div style="font-size:13.5px;line-height:1.55">{{ tl.text }}</div>
+              <div style="font-size:11.5px;color:#8B8B85;margin-top:3px;cursor:pointer;display:inline-block" style-hover="color:#111110">{{ tl.doc }} · ดูเอกสารต้นฉบับ ↗</div>
+            </div>
+          </div>
+        </sc-for>
+      </div>
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:36px">
+      <div>
+        <h2 style="font-size:13.5px;font-weight:600;margin:0">ผู้รับจ้าง</h2>
+        <div style="border:1px solid #E4E4E0;background:#fff;padding:18px 20px;margin-top:12px">
+          <div style="font-size:14.5px;font-weight:500">{{ winner.name }}</div>
+          <div style="font-size:12px;color:#55554F;margin-top:4px">{{ winner.contracts }} สัญญา · {{ winner.total }} · {{ winner.share }}</div>
+          <div onClick="{{ openWinner }}" style="font-size:12.5px;margin-top:12px;cursor:pointer;text-decoration:underline;text-underline-offset:2px;display:inline-block" style-hover="color:#6E6E6A">ดูโปรไฟล์ผู้รับจ้าง →</div>
+        </div>
+      </div>
+      <div>
+        <h2 style="font-size:13.5px;font-weight:600;margin:0">โครงการที่เกี่ยวข้อง</h2>
+        <div style="margin-top:12px;border-top:1px solid #111110">
+          <sc-for list="{{ related }}" as="rp" hint-placeholder-count="2">
+            <div onClick="{{ rp.open }}" style="padding:12px 0;border-bottom:1px solid #EEEEEA;cursor:pointer" style-hover="background:#F4F4F1">
+              <div style="font-size:13px">{{ rp.code }}</div>
+              <div style="font-size:11.5px;color:#8B8B85;margin-top:3px;line-height:1.5">{{ rp.note }}</div>
+            </div>
+          </sc-for>
+        </div>
+        <div onClick="{{ openGraph }}" style="font-size:12.5px;margin-top:12px;cursor:pointer;text-decoration:underline;text-underline-offset:2px;display:inline-block" style-hover="color:#6E6E6A">สำรวจในกราฟความสัมพันธ์ →</div>
+      </div>
+      <div>
+        <h2 style="font-size:13.5px;font-weight:600;margin:0">การตรวจสอบโดยเจ้าหน้าที่</h2>
+        <select value="{{ reviewValue }}" onChange="{{ setReview }}" style="width:100%;box-sizing:border-box;margin-top:12px;padding:11px 12px;font-size:13.5px;border:1px solid #C9C9C4;background:#fff;border-radius:0;outline:none">
+          <sc-for list="{{ reviewOptions }}" as="o" hint-placeholder-count="6"><option value="{{ o }}">{{ o }}</option></sc-for>
+        </select>
+        <div style="font-size:11.5px;color:#8B8B85;margin-top:8px;line-height:1.55">ทุกการตรวจสอบถูกบันทึกพร้อมชื่อผู้ดำเนินการ สามารถส่งออกรายงานหลักฐานได้</div>
+      </div>
+    </div>
+  </div>
+</div>
+</sc-if>
+
+<!-- ============ CONTRACTOR ============ -->
+<sc-if value="{{ isContractor }}" hint-placeholder-val="{{ false }}">
+<div data-screen-label="โปรไฟล์ผู้รับจ้าง" style="max-width:1160px;margin:0 auto;padding:36px 32px 80px;box-sizing:border-box">
+  <div onClick="{{ openDashboard }}" style="font-size:13px;color:#55554F;cursor:pointer;display:inline-block" style-hover="color:#111110">← แดชบอร์ด</div>
+  <div style="font-size:11px;letter-spacing:.08em;color:#8B8B85;font-weight:500;margin-top:24px">โปรไฟล์ผู้รับจ้าง</div>
+  <h1 style="font-size:28px;font-weight:500;margin:10px 0 6px">{{ co.name }}</h1>
+  <div style="font-size:13.5px;color:#55554F">เลขทะเบียนนิติบุคคล {{ co.reg }} · {{ co.address }}</div>
+
+  <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:0;border-top:1px solid #111110;border-bottom:1px solid #E4E4E0;margin-top:28px">
+    <div style="padding:20px 20px 20px 0;border-right:1px solid #EEEEEA;margin-right:20px"><div style="font-size:11px;color:#8B8B85">สัญญาที่ได้รับ</div><div style="font-size:26px;font-weight:500;margin-top:8px">{{ co.contracts }}</div></div>
+    <div style="padding:20px 20px 20px 0;border-right:1px solid #EEEEEA;margin-right:20px"><div style="font-size:11px;color:#8B8B85">มูลค่ารวม</div><div style="font-size:26px;font-weight:500;margin-top:8px">{{ co.total }}</div></div>
+    <div style="padding:20px 20px 20px 0;border-right:1px solid #EEEEEA;margin-right:20px"><div style="font-size:11px;color:#8B8B85">สัดส่วนของหน่วยงาน</div><div style="font-size:26px;font-weight:500;margin-top:8px">{{ co.shareNum }}</div></div>
+    <div style="padding:20px 0"><div style="font-size:11px;color:#8B8B85">หมวดงาน</div><div style="font-size:14px;font-weight:500;margin-top:12px;line-height:1.5">{{ co.cats }}</div></div>
+  </div>
+
+  <div style="display:grid;grid-template-columns:1fr 320px;gap:56px;margin-top:40px;align-items:start">
+    <div>
+      <h2 style="font-size:16px;font-weight:600;margin:0">สัญญา</h2>
+      <div style="margin-top:14px;border-top:1px solid #111110">
+        <div style="display:grid;grid-template-columns:104px 1fr 100px 92px 76px;gap:14px;padding:10px 0;border-bottom:1px solid #E4E4E0;font-size:11px;color:#8B8B85">
+          <div>โครงการ</div><div>รายละเอียด</div><div>ราคาที่ตกลง</div><div>วิธี</div><div>ปีงบ</div>
+        </div>
+        <sc-for list="{{ coContracts }}" as="cc" hint-placeholder-count="5">
+          <div onClick="{{ cc.open }}" style="display:grid;grid-template-columns:104px 1fr 100px 92px 76px;gap:14px;padding:13px 0;border-bottom:1px solid #EEEEEA;align-items:baseline;cursor:{{ cc.cursor }}" style-hover="background:#F4F4F1">
+            <div style="font-size:12.5px;color:#55554F">{{ cc.code }}</div>
+            <div style="font-size:13.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ cc.name }}</div>
+            <div style="font-size:13px">{{ cc.award }}</div>
+            <div style="font-size:12px;color:#55554F">{{ cc.method }}</div>
+            <div style="font-size:12px;color:#55554F">{{ cc.fy }}</div>
+          </div>
+        </sc-for>
+      </div>
+
+      <h2 style="font-size:16px;font-weight:600;margin:40px 0 0">สัญญาณความเสี่ยง</h2>
+      <div style="margin-top:14px;border-top:1px solid #111110">
+        <sc-for list="{{ coRisks }}" as="cr" hint-placeholder-count="3">
+          <div style="display:flex;gap:16px;align-items:baseline;padding:14px 0;border-bottom:1px solid #EEEEEA">
+            <div style="width:140px;flex:none;font-size:11px;letter-spacing:.04em;color:#8B8B85">{{ cr.tag }}</div>
+            <div style="flex:1;font-size:13.5px;line-height:1.55">{{ cr.text }}</div>
+            <span style="font-size:10px;letter-spacing:.06em;padding:3px 7px;border:1px solid {{ cr.sevBorder }};color:{{ cr.sevColor }};flex:none">{{ cr.sevLabel }}</span>
+          </div>
+        </sc-for>
+      </div>
+      <div style="font-size:12px;color:#8B8B85;margin-top:14px;font-style:italic">สัญญาณความเสี่ยงไม่ใช่ข้อพิสูจน์การทุจริต — เป็นเพียงเหตุผลสำหรับการตรวจสอบเพิ่มเติม</div>
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:36px">
+      <div>
+        <h2 style="font-size:13.5px;font-weight:600;margin:0">กรรมการและผู้ถือหุ้น</h2>
+        <div style="margin-top:12px;border-top:1px solid #111110">
+          <sc-for list="{{ coDirectors }}" as="d" hint-placeholder-count="2">
+            <div style="padding:12px 0;border-bottom:1px solid #EEEEEA">
+              <div style="font-size:13.5px">{{ d.name }}</div>
+              <div style="font-size:11.5px;color:{{ d.noteColor }};margin-top:3px;line-height:1.5">{{ d.note }}</div>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+      <div>
+        <h2 style="font-size:13.5px;font-weight:600;margin:0">ที่อยู่จดทะเบียน</h2>
+        <div style="font-size:13.5px;margin-top:12px;line-height:1.6">{{ co.address }}</div>
+        <div style="font-size:11.5px;color:{{ co.addrColor }};margin-top:5px">{{ co.addrNote }}</div>
+      </div>
+      <sc-if value="{{ hasRelated }}" hint-placeholder-val="{{ true }}">
+      <div>
+        <h2 style="font-size:13.5px;font-weight:600;margin:0">บริษัทที่อาจเกี่ยวข้องกัน</h2>
+        <div style="margin-top:12px;border-top:1px solid #111110">
+          <sc-for list="{{ coRelated }}" as="rel" hint-placeholder-count="1">
+            <div onClick="{{ rel.open }}" style="padding:12px 0;border-bottom:1px solid #EEEEEA;cursor:pointer" style-hover="background:#F4F4F1">
+              <div style="font-size:13.5px">{{ rel.name }}</div>
+              <div style="font-size:11.5px;color:#8B8B85;margin-top:4px;line-height:1.55">{{ rel.note }}</div>
+            </div>
+          </sc-for>
+        </div>
+        <div onClick="{{ openGraph }}" style="font-size:12.5px;margin-top:12px;cursor:pointer;text-decoration:underline;text-underline-offset:2px;display:inline-block" style-hover="color:#6E6E6A">สำรวจในกราฟความสัมพันธ์ →</div>
+      </div>
+      </sc-if>
+      <div>
+        <h2 style="font-size:13.5px;font-weight:600;margin:0">แหล่งอ้างอิง</h2>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">
+          <sc-for list="{{ coDocs }}" as="cd" hint-placeholder-count="3">
+            <span style="font-size:11.5px;padding:5px 10px;border:1px solid #DDDDD8;color:#55554F;cursor:pointer" style-hover="border-color:#111110;color:#111110">{{ cd }} ↗</span>
+          </sc-for>
+        </div>
+        <div style="font-size:11.5px;color:#8B8B85;margin-top:10px;line-height:1.55">ความสัมพันธ์ระหว่างบริษัทอ้างอิงจากประกาศผู้ชนะและข้อมูลทะเบียนนิติบุคคลสาธารณะเท่านั้น</div>
+      </div>
+    </div>
+  </div>
+</div>
+</sc-if>
+
+<!-- ============ GRAPH ============ -->
+<sc-if value="{{ isGraph }}" hint-placeholder-val="{{ false }}">
+<div data-screen-label="กราฟความสัมพันธ์" style="max-width:1160px;margin:0 auto;padding:36px 32px 80px;box-sizing:border-box">
+  <div style="display:flex;justify-content:space-between;align-items:flex-end;gap:24px;flex-wrap:wrap">
+    <div>
+      <div style="font-size:11px;letter-spacing:.08em;color:#8B8B85;font-weight:500">กราฟความสัมพันธ์</div>
+      <h1 style="font-size:26px;font-weight:500;margin:10px 0 4px">{{ graphHeader }}</h1>
+      <div style="font-size:13px;color:#55554F">{{ graphNote }}</div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:10px;align-items:flex-end">
+      <div style="display:flex;border:1px solid #111110">
+        <sc-for list="{{ layerTabs }}" as="lt" hint-placeholder-count="3">
+          <div onClick="{{ lt.set }}" style="font-size:12px;padding:7px 16px;background:{{ lt.bg }};color:{{ lt.color }};cursor:pointer;user-select:none;border-right:1px solid {{ lt.br }}">{{ lt.label }}</div>
+        </sc-for>
+      </div>
+      <sc-if value="{{ isLayerEntity }}" hint-placeholder-val="{{ true }}">
+        <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end">
+          <sc-for list="{{ gFilters }}" as="gf" hint-placeholder-count="5">
+            <div onClick="{{ gf.set }}" style="font-size:12px;padding:6px 13px;border:1px solid {{ gf.border }};background:{{ gf.bg }};color:{{ gf.color }};cursor:pointer;user-select:none">{{ gf.label }}</div>
+          </sc-for>
+        </div>
+      </sc-if>
+    </div>
+  </div>
+
+  <sc-if value="{{ isLayerEntity }}" hint-placeholder-val="{{ true }}">
+  <div style="display:grid;grid-template-columns:1fr 320px;gap:0;margin-top:24px;border:1px solid #E4E4E0;background:#fff;align-items:stretch">
+    <div style="position:relative;min-width:0">
+      {{ graphSvg }}
+      <div style="position:absolute;left:16px;bottom:12px;display:flex;gap:14px;flex-wrap:wrap;font-size:11px;color:#8B8B85;align-items:center">
+        <span style="display:flex;align-items:center;gap:5px"><span style="width:9px;height:9px;border-radius:50%;background:#111110;display:inline-block"></span>เทศบาล</span>
+        <span style="display:flex;align-items:center;gap:5px"><span style="width:9px;height:9px;border-radius:50%;background:#ECECE8;border:1px solid #B4B4AE;display:inline-block;box-sizing:border-box"></span>โครงการ</span>
+        <span style="display:flex;align-items:center;gap:5px"><span style="width:9px;height:9px;border-radius:50%;border:1.5px solid #111110;display:inline-block;box-sizing:border-box"></span>บริษัท</span>
+        <span style="display:flex;align-items:center;gap:5px"><span style="width:9px;height:9px;border-radius:50%;border:1px solid #8B8B85;display:inline-block;box-sizing:border-box"></span>บุคคล</span>
+        <span style="display:flex;align-items:center;gap:5px"><span style="width:9px;height:9px;border-radius:50%;border:1px dashed #55554F;display:inline-block;box-sizing:border-box"></span>ที่อยู่</span>
+        <span style="display:flex;align-items:center;gap:5px"><span style="width:9px;height:9px;border:1px solid #8B8B85;display:inline-block;box-sizing:border-box"></span>เอกสาร</span>
+      </div>
+    </div>
+    <div style="border-left:1px solid #E4E4E0;padding:24px;display:flex;flex-direction:column;min-width:0">
+      <div style="font-size:11px;letter-spacing:.06em;color:#8B8B85">{{ gSel.typeLabel }}</div>
+      <div style="font-size:17px;font-weight:600;margin-top:8px;line-height:1.4">{{ gSel.label }}</div>
+      <div style="font-size:12.5px;color:#55554F;margin-top:4px">{{ gSel.sub }}</div>
+      <div style="margin-top:18px;border-top:1px solid #E4E4E0">
+        <sc-for list="{{ gSelFacts }}" as="gfact" hint-placeholder-count="3">
+          <div style="font-size:12.5px;padding:9px 0;border-bottom:1px solid #EEEEEA;line-height:1.55;color:#26261F">{{ gfact }}</div>
+        </sc-for>
+      </div>
+      <div style="font-size:11px;letter-spacing:.06em;color:#8B8B85;margin-top:20px">การเชื่อมโยง · {{ gSelConnCount }}</div>
+      <div style="margin-top:8px">
+        <sc-for list="{{ gSelConns }}" as="gc" hint-placeholder-count="3">
+          <div onClick="{{ gc.go }}" style="display:flex;justify-content:space-between;gap:10px;font-size:12.5px;padding:8px 0;border-bottom:1px solid #EEEEEA;cursor:pointer" style-hover="background:#F4F4F1">
+            <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ gc.label }}</span>
+            <span style="font-size:10.5px;color:#8B8B85;flex:none">{{ gc.rel }}</span>
+          </div>
+        </sc-for>
+      </div>
+      <div style="font-size:11px;letter-spacing:.06em;color:#8B8B85;margin-top:20px">หลักฐาน</div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:10px">
+        <sc-for list="{{ gSelDocs }}" as="gd" hint-placeholder-count="2">
+          <span style="font-size:11px;padding:4px 9px;border:1px solid #DDDDD8;color:#55554F;cursor:pointer" style-hover="border-color:#111110;color:#111110">{{ gd }} ↗</span>
+        </sc-for>
+      </div>
+      <sc-if value="{{ gSelHasLink }}" hint-placeholder-val="{{ false }}">
+        <div onClick="{{ gSelOpen }}" style="margin-top:22px;border:1px solid #111110;padding:10px 14px;font-size:13px;text-align:center;cursor:pointer;user-select:none" style-hover="background:#111110;color:#FBFBF9">{{ gSelLinkLabel }}</div>
+      </sc-if>
+      <div style="flex:1"></div>
+      <div style="font-size:11px;color:#8B8B85;margin-top:24px;line-height:1.55;font-style:italic">ความสัมพันธ์เป็นเพียงตัวชี้ ไม่ใช่ข้อพิสูจน์ — การจับคู่นิติบุคคลที่ไม่แน่นอนจะถูกส่งให้เจ้าหน้าที่ตรวจสอบ</div>
+    </div>
+  </div>
+  </sc-if>
+
+  <sc-if value="{{ isLayerCluster }}" hint-placeholder-val="{{ false }}">
+  <div style="margin-top:24px;border-top:1px solid #111110">
+    <div style="display:grid;grid-template-columns:minmax(0,1fr) 190px 90px 80px;gap:16px;padding:10px 0;border-bottom:1px solid #E4E4E0;font-size:11px;color:#8B8B85">
+      <div>กลุ่มความสัมพันธ์</div><div>องค์ประกอบ</div><div>สัญญาณ</div><div style="text-align:right">ระดับ</div>
+    </div>
+    <sc-for list="{{ clusters }}" as="cl" hint-placeholder-count="3">
+      <div onClick="{{ cl.open }}" style="display:grid;grid-template-columns:minmax(0,1fr) 190px 90px 80px;gap:16px;padding:18px 0;border-bottom:1px solid #EEEEEA;cursor:pointer;align-items:baseline" style-hover="background:#F4F4F1">
+        <div style="min-width:0">
+          <div style="font-size:14.5px;font-weight:600;line-height:1.45">{{ cl.name }}</div>
+          <div style="font-size:12.5px;color:#55554F;margin-top:5px;line-height:1.55">{{ cl.sub }}</div>
+        </div>
+        <div style="font-size:12.5px;color:#55554F;line-height:1.55">{{ cl.comp }}</div>
+        <div style="font-size:13.5px">{{ cl.signals }} สัญญาณ</div>
+        <div style="display:flex;justify-content:flex-end"><span style="font-size:10px;letter-spacing:.06em;padding:3px 7px;border:1px solid {{ cl.sevBorder }};color:{{ cl.sevColor }}">{{ cl.sevLabel }}</span></div>
+      </div>
+    </sc-for>
+    <div style="font-size:12px;color:#8B8B85;margin-top:14px">คลิกกลุ่มเพื่อเจาะลงชั้นที่ 3 (กราฟรายหน่วย · บุคคล) — ทุกการจัดกลุ่มมีเอกสารต้นทางรองรับ</div>
+  </div>
+  </sc-if>
+
+  <sc-if value="{{ isLayerCountry }}" hint-placeholder-val="{{ false }}">
+  <div style="display:grid;grid-template-columns:minmax(0,1fr) 270px;gap:40px;margin-top:24px;align-items:start">
+    <div>
+      <div style="border-top:1px solid #111110">
+        <div style="display:grid;grid-template-columns:minmax(150px,1fr) 74px 74px 70px 100px;gap:12px;padding:10px 0;border-bottom:1px solid #E4E4E0;font-size:11px;color:#8B8B85">
+          <div>จังหวัด / สังกัด</div><div>หน่วยงาน</div><div>คลัสเตอร์</div><div>สัญญาณ</div><div>ความหนาแน่น</div>
+        </div>
+        <sc-for list="{{ provinces }}" as="pv" hint-placeholder-count="7">
+          <div onClick="{{ pv.open }}" style="display:grid;grid-template-columns:minmax(150px,1fr) 74px 74px 70px 100px;gap:12px;padding:13px 0;border-bottom:1px solid #EEEEEA;cursor:pointer;align-items:center" style-hover="background:#F4F4F1">
+            <div style="font-size:13.5px">{{ pv.label }}</div>
+            <div style="font-size:13px;color:#55554F">{{ pv.ag }}</div>
+            <div style="font-size:13px;color:#55554F">{{ pv.cl }}</div>
+            <div style="font-size:13px">{{ pv.sig }}</div>
+            <div style="height:3px;background:#ECECE8"><div style="height:3px;background:var(--accent);width:{{ pv.pct }}"></div></div>
+          </div>
+        </sc-for>
+      </div>
+      <div style="font-size:12px;color:#8B8B85;margin-top:14px">เรียงตามจำนวนสัญญาณ · คลิกแถวเพื่อเจาะลงชั้นที่ 2 (กลุ่มความสัมพันธ์)</div>
+    </div>
+    <div>
+      <h2 style="font-size:13.5px;font-weight:600;margin:0">ภาพรวมประเทศ</h2>
+      <div style="margin-top:12px;border-top:1px solid #111110">
+        <sc-for list="{{ countryStats }}" as="cs" hint-placeholder-count="4">
+          <div style="display:flex;justify-content:space-between;align-items:baseline;gap:12px;padding:11px 0;border-bottom:1px solid #EEEEEA">
+            <div style="font-size:12.5px;color:#55554F">{{ cs.label }}</div>
+            <div style="font-size:15px;font-weight:500">{{ cs.n }}</div>
+          </div>
+        </sc-for>
+      </div>
+      <div style="font-size:11.5px;color:#8B8B85;margin-top:12px;line-height:1.6">คลัสเตอร์ข้ามหน่วยงาน = กลุ่มนิติบุคคล/บุคคลเดียวกันที่ชนะการประมูลในหลายหน่วยงานหรือหลายจังหวัด — ชั้นข้อมูลนี้ใช้จัดลำดับความสำคัญการตรวจสอบระดับประเทศ</div>
+    </div>
+  </div>
+  </sc-if>
+</div>
+</sc-if>
+
+<!-- ============ ADMIN ============ -->
+<sc-if value="{{ isAdmin }}" hint-placeholder-val="{{ false }}">
+<div data-screen-label="ระบบภายใน" style="max-width:1160px;margin:0 auto;padding:36px 32px 80px;box-sizing:border-box">
+  <div style="display:flex;align-items:baseline;gap:14px">
+    <h1 style="font-size:26px;font-weight:500;margin:0">ระบบผู้ดูแล</h1>
+    <span style="font-size:10px;letter-spacing:.08em;padding:3px 8px;border:1px solid #C9C9C4;color:#55554F">ภายใน · จำกัดสิทธิ์</span>
+  </div>
+  <div style="display:flex;gap:26px;border-bottom:1px solid #E4E4E0;margin-top:24px;flex-wrap:wrap">
+    <sc-for list="{{ adminTabs }}" as="at" hint-placeholder-count="4">
+      <div onClick="{{ at.go }}" style="font-size:13.5px;padding:0 2px 12px;cursor:pointer;border-bottom:2px solid {{ at.border }};color:{{ at.color }};margin-bottom:-1px" style-hover="color:#111110">{{ at.label }}</div>
+    </sc-for>
+  </div>
+
+  <sc-if value="{{ adminCrawl }}" hint-placeholder-val="{{ true }}">
+    <div style="margin-top:28px">
+      <div style="display:grid;grid-template-columns:1fr 170px 110px 110px 90px;gap:16px;padding:10px 0;border-bottom:1px solid #E4E4E0;font-size:11px;color:#8B8B85">
+        <div>แหล่งข้อมูล</div><div>ประเภท</div><div>สถานะ</div><div>เก็บล่าสุด</div><div>เอกสาร</div>
+      </div>
+      <sc-for list="{{ sources }}" as="src" hint-placeholder-count="4">
+        <div style="display:grid;grid-template-columns:1fr 170px 110px 110px 90px;gap:16px;padding:14px 0;border-bottom:1px solid #EEEEEA;align-items:baseline">
+          <div style="font-size:13.5px">{{ src.url }}</div>
+          <div style="font-size:12.5px;color:#55554F">{{ src.type }}</div>
+          <div style="font-size:12px;color:{{ src.statusColor }}">{{ src.status }}</div>
+          <div style="font-size:12.5px;color:#55554F">{{ src.last }}</div>
+          <div style="font-size:12.5px">{{ src.docs }}</div>
+        </div>
+      </sc-for>
+      <div style="font-size:12px;color:#8B8B85;margin-top:14px">ตรวจแหล่งข้อมูลซ้ำทุก 24 ชม. — บันทึกเวลาดึงข้อมูลและค่าแฮชของไฟล์ทุกครั้ง</div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ adminQueue }}" hint-placeholder-val="{{ false }}">
+    <div style="margin-top:28px">
+      <div style="display:flex;gap:36px;padding-bottom:20px;border-bottom:1px solid #E4E4E0;flex-wrap:wrap">
+        <sc-for list="{{ queueStats }}" as="qs" hint-placeholder-count="4">
+          <div><div style="font-size:22px;font-weight:500">{{ qs.n }}</div><div style="font-size:11.5px;color:#8B8B85;margin-top:3px">{{ qs.label }}</div></div>
+        </sc-for>
+      </div>
+      <sc-for list="{{ queueRows }}" as="q" hint-placeholder-count="5">
+        <div style="display:grid;grid-template-columns:70px 1fr 170px 100px 170px;gap:16px;padding:14px 0;border-bottom:1px solid #EEEEEA;align-items:baseline">
+          <div style="font-size:12.5px;color:#55554F">{{ q.id }}</div>
+          <div style="font-size:13.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ q.title }}</div>
+          <div style="font-size:12.5px;color:#55554F">{{ q.type }}</div>
+          <div style="font-size:12.5px;color:#55554F">{{ q.fmt }}</div>
+          <div style="font-size:12px;color:{{ q.statusColor }}">{{ q.status }}</div>
+        </div>
+      </sc-for>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ adminEntities }}" hint-placeholder-val="{{ false }}">
+    <div style="margin-top:28px;display:flex;flex-direction:column;gap:16px">
+      <div style="font-size:13px;color:#55554F;max-width:680px;line-height:1.6">การจับคู่ที่ไม่แน่นอนจะไม่ถูกรวมโดยอัตโนมัติ — การรวมผิดอาจสร้างความสัมพันธ์เท็จ ทุกการตัดสินใจด้านล่างถูกบันทึกพร้อมชื่อผู้ดำเนินการ</div>
+      <sc-for list="{{ erRows }}" as="er" hint-placeholder-count="3">
+        <div style="border:1px solid #E4E4E0;background:#fff;padding:20px 24px">
+          <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+            <div style="font-size:14.5px;font-weight:500">{{ er.a }}</div>
+            <div style="font-size:12px;color:#8B8B85">≟</div>
+            <div style="font-size:14.5px;font-weight:500">{{ er.b }}</div>
+            <div style="flex:1"></div>
+            <div style="font-size:12px;color:#55554F">ความคล้าย {{ er.sim }}</div>
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">
+            <sc-for list="{{ er.ev }}" as="ee" hint-placeholder-count="3">
+              <span style="font-size:11.5px;padding:4px 10px;background:#F6F6F3;color:#55554F">{{ ee }}</span>
+            </sc-for>
+          </div>
+          <sc-if value="{{ er.pending }}" hint-placeholder-val="{{ true }}">
+            <div style="display:flex;gap:10px;margin-top:16px">
+              <div onClick="{{ er.merge }}" style="background:#111110;color:#FBFBF9;padding:9px 18px;font-size:12.5px;cursor:pointer;user-select:none" style-hover="background:#333331">รวมเป็นรายเดียวกัน</div>
+              <div onClick="{{ er.separate }}" style="border:1px solid #C9C9C4;padding:9px 18px;font-size:12.5px;cursor:pointer;user-select:none" style-hover="border-color:#111110">แยกไว้ต่างราย</div>
+            </div>
+          </sc-if>
+          <sc-if value="{{ er.decided }}" hint-placeholder-val="{{ false }}">
+            <div style="margin-top:16px;font-size:12.5px;color:#55554F">บันทึกผลแล้ว: <span style="font-weight:600;color:#111110">{{ er.decision }}</span> · ระบุชื่อผู้ตรวจ · ลงบันทึกตรวจสอบ</div>
+          </sc-if>
+        </div>
+      </sc-for>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ adminReview }}" hint-placeholder-val="{{ false }}">
+    <div style="margin-top:28px">
+      <div style="display:grid;grid-template-columns:104px 1fr 100px 220px;gap:16px;padding:10px 0;border-bottom:1px solid #E4E4E0;font-size:11px;color:#8B8B85">
+        <div>โครงการ</div><div>สัญญาณ</div><div>ระดับ</div><div>สถานะการตรวจสอบ</div>
+      </div>
+      <sc-for list="{{ reviewRows }}" as="rr" hint-placeholder-count="5">
+        <div style="display:grid;grid-template-columns:104px 1fr 100px 220px;gap:16px;padding:12px 0;border-bottom:1px solid #EEEEEA;align-items:center">
+          <div style="font-size:12.5px;color:#55554F">{{ rr.code }}</div>
+          <div style="font-size:13.5px">{{ rr.title }}</div>
+          <div><span style="font-size:10px;letter-spacing:.06em;padding:3px 7px;border:1px solid {{ rr.sevBorder }};color:{{ rr.sevColor }}">{{ rr.sevLabel }}</span></div>
+          <select value="{{ rr.status }}" onChange="{{ rr.setStatus }}" style="width:100%;box-sizing:border-box;padding:8px 10px;font-size:12.5px;border:1px solid #C9C9C4;background:#fff;border-radius:0;outline:none">
+            <sc-for list="{{ reviewOptions }}" as="o2" hint-placeholder-count="6"><option value="{{ o2 }}">{{ o2 }}</option></sc-for>
+          </select>
+        </div>
+      </sc-for>
+      <div style="font-size:12px;color:#8B8B85;margin-top:14px">ผู้ตรวจสามารถเพิ่มบันทึก แก้ไขค่าที่สกัดได้ แนบหลักฐาน และส่งออกรายงานหลักฐาน — ทุกการกระทำถูกลงบันทึกตรวจสอบ</div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ adminCase }}" hint-placeholder-val="{{ false }}">
+    <div style="margin-top:28px">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:24px;flex-wrap:wrap">
+        <div>
+          <div style="display:flex;align-items:center;gap:12px">
+            <div style="font-size:12.5px;color:#55554F">{{ cs.id }}</div>
+            <span style="font-size:10px;letter-spacing:.06em;padding:3px 8px;border:1px solid var(--accent);color:var(--accent)">{{ cs.status }}</span>
+          </div>
+          <h2 style="font-size:21px;font-weight:600;margin:10px 0 6px;max-width:720px;line-height:1.4">{{ cs.title }}</h2>
+          <div style="font-size:12.5px;color:#8B8B85">{{ cs.opened }} · {{ cs.owner }}</div>
+        </div>
+        <div style="border:1px solid #111110;padding:11px 18px;font-size:13px;cursor:pointer;user-select:none;flex:none" style-hover="background:#111110;color:#FBFBF9">ส่งออกสำนวนหลักฐาน (PDF)</div>
+      </div>
+      <p style="margin:20px 0 0;padding:18px 22px;background:#F6F6F3;font-size:13.5px;line-height:1.7;color:#26261F;max-width:900px;text-wrap:pretty">{{ cs.summary }}</p>
+
+      <div style="display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:48px;margin-top:36px;align-items:start">
+        <div>
+          <h2 style="font-size:15px;font-weight:600;margin:0">ไทม์ไลน์รวมของคดี</h2>
+          <div style="margin-top:16px">
+            <sc-for list="{{ caseTimeline }}" as="ct" hint-placeholder-count="6">
+              <div style="display:flex;gap:0">
+                <div style="width:104px;flex:none;font-size:12.5px;color:#8B8B85;padding:2px 0 20px">{{ ct.date }}</div>
+                <div style="flex:none;display:flex;flex-direction:column;align-items:center;margin-right:18px">
+                  <div style="width:7px;height:7px;background:#111110;flex:none;margin-top:5px"></div>
+                  <div style="width:1px;flex:1;background:#E4E4E0"></div>
+                </div>
+                <div style="padding:0 0 20px;min-width:0">
+                  <div style="font-size:13.5px;line-height:1.55">{{ ct.text }}</div>
+                  <div style="font-size:11.5px;color:#8B8B85;margin-top:3px;cursor:pointer;display:inline-block" style-hover="color:#111110">{{ ct.doc }} · ดูเอกสารต้นฉบับ ↗</div>
+                </div>
+              </div>
+            </sc-for>
+          </div>
+
+          <h2 style="font-size:15px;font-weight:600;margin:36px 0 0">คำถามที่ยังไม่มีคำตอบ</h2>
+          <div style="margin-top:14px;border-top:1px solid #111110">
+            <sc-for list="{{ caseQuestions }}" as="cq" hint-placeholder-count="3">
+              <div style="display:flex;justify-content:space-between;gap:20px;align-items:baseline;padding:13px 0;border-bottom:1px solid #EEEEEA">
+                <div style="font-size:13.5px;line-height:1.6">{{ cq.text }}</div>
+                <div style="font-size:11.5px;color:var(--accent);flex:none;text-align:right">{{ cq.status }}</div>
+              </div>
+            </sc-for>
+          </div>
+
+          <h2 style="font-size:15px;font-weight:600;margin:36px 0 0">บันทึกของผู้ตรวจ</h2>
+          <div style="margin-top:14px;border-top:1px solid #111110">
+            <sc-for list="{{ caseNotes }}" as="cn" hint-placeholder-count="2">
+              <div style="display:flex;gap:18px;padding:12px 0;border-bottom:1px solid #EEEEEA;align-items:baseline">
+                <div style="width:80px;flex:none;font-size:12px;color:#8B8B85">{{ cn.date }}</div>
+                <div style="font-size:13.5px;line-height:1.6">{{ cn.text }}</div>
+              </div>
+            </sc-for>
+          </div>
+          <div style="display:flex;gap:10px;margin-top:16px">
+            <input value="{{ caseNoteVal }}" onChange="{{ setCaseNote }}" placeholder="เพิ่มบันทึก — ถูกลงบันทึกตรวจสอบพร้อมชื่อผู้ตรวจ" style="flex:1;box-sizing:border-box;padding:11px 12px;font-size:13.5px;border:1px solid #C9C9C4;font-family:inherit;outline:none;border-radius:0">
+            <div onClick="{{ addCaseNote }}" style="background:#111110;color:#FBFBF9;padding:11px 20px;font-size:13px;cursor:pointer;user-select:none;flex:none" style-hover="background:#333331">บันทึก</div>
+          </div>
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:32px">
+          <div>
+            <h2 style="font-size:13.5px;font-weight:600;margin:0">คู่กรณีและบุคคลที่เกี่ยวข้อง</h2>
+            <div style="margin-top:12px;border-top:1px solid #111110">
+              <sc-for list="{{ caseParties }}" as="cp" hint-placeholder-count="5">
+                <div style="padding:11px 0;border-bottom:1px solid #EEEEEA">
+                  <div style="font-size:13.5px">{{ cp.name }}</div>
+                  <div style="font-size:11.5px;color:{{ cp.roleColor }};margin-top:3px;line-height:1.5">{{ cp.role }}</div>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+          <div>
+            <h2 style="font-size:13.5px;font-weight:600;margin:0">เส้นทางเงิน</h2>
+            <div style="margin-top:12px;border-top:1px solid #111110">
+              <sc-for list="{{ caseMoney }}" as="cm" hint-placeholder-count="4">
+                <div style="display:flex;justify-content:space-between;gap:12px;padding:10px 0;border-bottom:1px solid #EEEEEA;align-items:baseline">
+                  <div style="font-size:12.5px;color:#55554F;line-height:1.5">{{ cm.label }}</div>
+                  <div style="font-size:13px;font-weight:{{ cm.weight }};flex:none">{{ cm.value }}</div>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+          <div>
+            <h2 style="font-size:13.5px;font-weight:600;margin:0">แผนผังหลักฐาน</h2>
+            <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:12px">
+              <sc-for list="{{ caseEvidence }}" as="ce" hint-placeholder-count="6">
+                <span style="font-size:11px;padding:4px 9px;border:1px solid #DDDDD8;color:#55554F;cursor:pointer" style-hover="border-color:#111110;color:#111110">{{ ce }} ↗</span>
+              </sc-for>
+            </div>
+            <div style="font-size:11.5px;color:#8B8B85;margin-top:12px;line-height:1.6">{{ cs.signals }}</div>
+          </div>
+          <div style="font-size:11px;color:#8B8B85;line-height:1.55;font-style:italic">คดีนี้เป็นสำนวนภายในสำหรับการตรวจสอบ — ไม่ใช่ข้อกล่าวหาต่อสาธารณะ ทุกการกระทำถูกลงบันทึกตรวจสอบ</div>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+</div>
+</sc-if>
+
+
+<!-- ============ INFO PAGES ============ -->
+<sc-if value="{{ isInfo }}" hint-placeholder-val="{{ false }}">
+<div data-screen-label="หน้าข้อมูลสาธารณะ" style="min-height:100vh;display:flex;flex-direction:column;box-sizing:border-box">
+  <div style="border-bottom:1px solid #E4E4E0">
+    <div style="max-width:1160px;margin:0 auto;padding:0 32px;height:54px;display:flex;align-items:center;gap:20px">
+      <div onClick="{{ goHome }}" style="cursor:pointer;font-weight:700;font-size:15px;letter-spacing:.01em">TRACE<span style="color:#8B8B85">24</span></div>
+      <div style="flex:1"></div>
+      <div style="display:flex;gap:24px;align-items:center;height:100%">
+        <sc-for list="{{ infoTabs }}" as="it" hint-placeholder-count="4">
+          <div onClick="{{ it.go }}" style="cursor:pointer;font-size:13px;height:100%;display:flex;align-items:center;border-bottom:2px solid {{ it.border }};color:{{ it.color }};margin-bottom:-1px" style-hover="color:#111110">{{ it.label }}</div>
+        </sc-for>
+      </div>
+    </div>
+  </div>
+
+  <div style="max-width:820px;width:100%;margin:0 auto;padding:56px 32px 96px;box-sizing:border-box;flex:1">
+
+    <!-- ระเบียบวิธี -->
+    <sc-if value="{{ isMethod }}" hint-placeholder-val="{{ true }}">
+      <div style="font-size:11px;letter-spacing:.08em;color:#8B8B85;font-weight:500">ระเบียบวิธี</div>
+      <h1 style="font-size:32px;font-weight:500;margin:12px 0 14px;line-height:1.3">จากเอกสารสาธารณะ สู่สัญญาณที่ตรวจสอบซ้ำได้</h1>
+      <p style="margin:0;font-size:15px;color:#55554F;line-height:1.7;text-wrap:pretty">แพลตฟอร์มนี้ไม่ตัดสินว่าผู้ใดทุจริต — ระบบใช้ข้อมูลสาธารณะ กฎที่อธิบายได้ และการเปรียบเทียบกับกลุ่มหน่วยงานลักษณะเดียวกัน เพื่อชี้รายการที่สมควรได้รับการตรวจสอบเพิ่มเติมโดยมนุษย์ ทุกขั้นตอนด้านล่างเปิดเผยต่อสาธารณะ</p>
+
+      <h2 style="font-size:16px;font-weight:600;margin:48px 0 0">ขั้นตอนการทำงาน</h2>
+      <div style="margin-top:16px;border-top:1px solid #111110">
+        <div style="display:flex;gap:20px;padding:16px 0;border-bottom:1px solid #EEEEEA"><div style="width:32px;flex:none;font-size:13px;color:#8B8B85">01</div><div><div style="font-size:14.5px;font-weight:600">ระบุหน่วยงาน</div><div style="font-size:13.5px;color:#55554F;margin-top:4px;line-height:1.6">จับคู่จากชื่อทางการ ประเภท จังหวัด อำเภอ รหัสหน่วยงาน และการสะกดแบบอื่น — ไม่ใช้ AI คาดเดาหน่วยงาน</div></div></div>
+        <div style="display:flex;gap:20px;padding:16px 0;border-bottom:1px solid #EEEEEA"><div style="width:32px;flex:none;font-size:13px;color:#8B8B85">02</div><div><div style="font-size:14.5px;font-weight:600">ค้นหาแหล่งข้อมูลทางการ</div><div style="font-size:13.5px;color:#55554F;margin-top:4px;line-height:1.6">หน้าจัดซื้อจัดจ้าง งบประมาณ และทำเนียบผู้บริหารทุกระดับบนเว็บไซต์หน่วยงาน คำสั่งแต่งตั้ง และประกาศในระบบ e-GP</div></div></div>
+        <div style="display:flex;gap:20px;padding:16px 0;border-bottom:1px solid #EEEEEA"><div style="width:32px;flex:none;font-size:13px;color:#8B8B85">03</div><div><div style="font-size:14.5px;font-weight:600">เก็บและดาวน์โหลดเอกสาร</div><div style="font-size:13.5px;color:#55554F;margin-top:4px;line-height:1.6">บันทึก URL ต้นทาง เวลาดึงข้อมูล และค่าแฮชของทุกไฟล์ — เก็บต้นฉบับถาวร</div></div></div>
+        <div style="display:flex;gap:20px;padding:16px 0;border-bottom:1px solid #EEEEEA"><div style="width:32px;flex:none;font-size:13px;color:#8B8B85">04</div><div><div style="font-size:14.5px;font-weight:600">แยกวิเคราะห์และ OCR</div><div style="font-size:13.5px;color:#55554F;margin-top:4px;line-height:1.6">สกัดข้อความ PDF โดยตรงก่อน จึงใช้ OCR ภาษาไทยสำหรับเอกสารสแกน — หน้าที่ความเชื่อมั่นต่ำส่งให้เจ้าหน้าที่ตรวจ</div></div></div>
+        <div style="display:flex;gap:20px;padding:16px 0;border-bottom:1px solid #EEEEEA"><div style="width:32px;flex:none;font-size:13px;color:#8B8B85">05</div><div><div style="font-size:14.5px;font-weight:600">สกัดข้อเท็จจริงเชิงโครงสร้าง</div><div style="font-size:13.5px;color:#55554F;margin-top:4px;line-height:1.6">โครงการ วงเงิน ราคากลาง ราคาที่ตกลง ผู้ชนะ วันที่ และวิธีจัดซื้อ — ทุกค่ามีค่าความเชื่อมั่นและอ้างอิงถึงหน้าเอกสารต้นทาง</div></div></div>
+        <div style="display:flex;gap:20px;padding:16px 0;border-bottom:1px solid #EEEEEA"><div style="width:32px;flex:none;font-size:13px;color:#8B8B85">06</div><div><div style="font-size:14.5px;font-weight:600">จับคู่นิติบุคคลและสร้างกราฟ</div><div style="font-size:13.5px;color:#55554F;margin-top:4px;line-height:1.6">รวมการสะกดชื่อบริษัทที่ต่างกันด้วยเลขทะเบียน ที่อยู่ กรรมการ และผู้ถือหุ้น พร้อมเชื่อมทำเนียบผู้บริหารทุกระดับของหน่วยงานเข้ากราฟ เพื่อตรวจความเชื่อมโยงกับผู้ชนะการประมูล — การจับคู่ที่ไม่แน่นอนจะไม่ถูกรวมอัตโนมัติ</div></div></div>
+        <div style="display:flex;gap:20px;padding:16px 0;border-bottom:1px solid #EEEEEA"><div style="width:32px;flex:none;font-size:13px;color:#8B8B85">07</div><div><div style="font-size:14.5px;font-weight:600">ประมวลกฎความเสี่ยงและเปรียบเทียบ</div><div style="font-size:13.5px;color:#55554F;margin-top:4px;line-height:1.6">กฎที่อธิบายได้ 13 ข้อ และการเทียบกับกลุ่มหน่วยงานลักษณะเดียวกัน — AI ช่วยอ่านเอกสาร แต่ไม่ใช่ผู้ให้คะแนนความเสี่ยง</div></div></div>
+      </div>
+
+      <h2 style="font-size:16px;font-weight:600;margin:48px 0 0">กฎความเสี่ยง 13 ข้อ</h2>
+      <div style="margin-top:16px;border-top:1px solid #111110">
+        <div style="display:grid;grid-template-columns:44px 1fr 130px;gap:14px;padding:11px 0;border-bottom:1px solid #EEEEEA;align-items:baseline"><div style="font-size:12px;color:#8B8B85">R1</div><div style="font-size:13.5px">ผู้ชนะรายเดิมซ้ำในหมวดงานเดียวกัน</div><div style="font-size:11.5px;color:#8B8B85;text-align:right">การแข่งขัน</div></div>
+        <div style="display:grid;grid-template-columns:44px 1fr 130px;gap:14px;padding:11px 0;border-bottom:1px solid #EEEEEA;align-items:baseline"><div style="font-size:12px;color:#8B8B85">R2</div><div style="font-size:13.5px">ความกระจุกตัวของผู้รับจ้างสูง / ผู้เสนอราคาน้อยราย</div><div style="font-size:11.5px;color:#8B8B85;text-align:right">การแข่งขัน</div></div>
+        <div style="display:grid;grid-template-columns:44px 1fr 130px;gap:14px;padding:11px 0;border-bottom:1px solid #EEEEEA;align-items:baseline"><div style="font-size:12px;color:#8B8B85">R3</div><div style="font-size:13.5px">ใช้วิธีเฉพาะเจาะจงซ้ำผิดปกติ</div><div style="font-size:11.5px;color:#8B8B85;text-align:right">กระบวนการ</div></div>
+        <div style="display:grid;grid-template-columns:44px 1fr 130px;gap:14px;padding:11px 0;border-bottom:1px solid #EEEEEA;align-items:baseline"><div style="font-size:12px;color:#8B8B85">R4</div><div style="font-size:13.5px">ราคาที่ตกลงใกล้ราคากลางมาก</div><div style="font-size:11.5px;color:#8B8B85;text-align:right">ราคา</div></div>
+        <div style="display:grid;grid-template-columns:44px 1fr 130px;gap:14px;padding:11px 0;border-bottom:1px solid #EEEEEA;align-items:baseline"><div style="font-size:12px;color:#8B8B85">R5</div><div style="font-size:13.5px">สัญญาคล้ายกันหลายฉบับในช่วงเวลาสั้น</div><div style="font-size:11.5px;color:#8B8B85;text-align:right">กระบวนการ</div></div>
+        <div style="display:grid;grid-template-columns:44px 1fr 130px;gap:14px;padding:11px 0;border-bottom:1px solid #EEEEEA;align-items:baseline"><div style="font-size:12px;color:#8B8B85">R6</div><div style="font-size:13.5px">อาจมีการแบ่งซื้อแบ่งจ้าง</div><div style="font-size:11.5px;color:#8B8B85;text-align:right">กระบวนการ</div></div>
+        <div style="display:grid;grid-template-columns:44px 1fr 130px;gap:14px;padding:11px 0;border-bottom:1px solid #EEEEEA;align-items:baseline"><div style="font-size:12px;color:#8B8B85">R7</div><div style="font-size:13.5px">โครงการกระจุกตัวใต้เกณฑ์วงเงินจัดซื้อ</div><div style="font-size:11.5px;color:#8B8B85;text-align:right">กระบวนการ</div></div>
+        <div style="display:grid;grid-template-columns:44px 1fr 130px;gap:14px;padding:11px 0;border-bottom:1px solid #EEEEEA;align-items:baseline"><div style="font-size:12px;color:#8B8B85">R8</div><div style="font-size:13.5px">คำบรรยายโครงการซ้ำหรือคล้ายกันผิดปกติ</div><div style="font-size:11.5px;color:#8B8B85;text-align:right">กระบวนการ</div></div>
+        <div style="display:grid;grid-template-columns:44px 1fr 130px;gap:14px;padding:11px 0;border-bottom:1px solid #EEEEEA;align-items:baseline"><div style="font-size:12px;color:#8B8B85">R9</div><div style="font-size:13.5px">ถ้อยคำ TOR ซ้ำกันระหว่างโครงการ</div><div style="font-size:11.5px;color:#8B8B85;text-align:right">กระบวนการ</div></div>
+        <div style="display:grid;grid-template-columns:44px 1fr 130px;gap:14px;padding:11px 0;border-bottom:1px solid #EEEEEA;align-items:baseline"><div style="font-size:12px;color:#8B8B85">R10</div><div style="font-size:13.5px">ราคาสูงกว่ากลุ่มหน่วยงานเปรียบเทียบ</div><div style="font-size:11.5px;color:#8B8B85;text-align:right">ราคา</div></div>
+        <div style="display:grid;grid-template-columns:44px 1fr 130px;gap:14px;padding:11px 0;border-bottom:1px solid #EEEEEA;align-items:baseline"><div style="font-size:12px;color:#8B8B85">R11</div><div style="font-size:13.5px">เอกสารที่ต้องเปิดเผยหายไปหรือเข้าถึงไม่ได้</div><div style="font-size:11.5px;color:#8B8B85;text-align:right">การเปิดเผยข้อมูล</div></div>
+        <div style="display:grid;grid-template-columns:44px 1fr 130px;gap:14px;padding:11px 0;border-bottom:1px solid #EEEEEA;align-items:baseline"><div style="font-size:12px;color:#8B8B85">R12</div><div style="font-size:13.5px">ตัวเลขหรือวันที่ขัดแย้งกันระหว่างเอกสาร</div><div style="font-size:11.5px;color:#8B8B85;text-align:right">คุณภาพข้อมูล</div></div>
+        <div style="display:grid;grid-template-columns:44px 1fr 130px;gap:14px;padding:11px 0;border-bottom:1px solid #EEEEEA;align-items:baseline"><div style="font-size:12px;color:#8B8B85">R13</div><div style="font-size:13.5px">ผู้บริหารหน่วยงานเชื่อมโยงกับกรรมการหรือผู้ถือหุ้นของผู้ชนะการประมูล</div><div style="font-size:11.5px;color:#8B8B85;text-align:right">ความสัมพันธ์</div></div>
+      </div>
+      <div style="font-size:12.5px;color:#8B8B85;margin-top:14px;line-height:1.6">ทุกสัญญาณแสดงค่าที่สังเกตได้ คำอธิบาย ระดับ ความเชื่อมั่น คำอธิบายโดยสุจริตที่เป็นไปได้ และเอกสารหลักฐาน — แต่ละหมวดแยกจากกัน ไม่รวมเป็นคะแนนเดียว</div>
+
+      <h2 style="font-size:16px;font-weight:600;margin:48px 0 0">เครื่องมือวิเคราะห์หลัก</h2>
+      <p style="margin:14px 0 0;font-size:13.5px;color:#55554F;line-height:1.7;text-wrap:pretty">ความสามารถการวิเคราะห์ที่แพลตฟอร์มใช้และกำลังพัฒนา — P0 คือแกนหลักที่ทุกสัญญาณต้องพึ่งพา P1 คือชั้นวิเคราะห์ขั้นสูงที่ต่อยอดจากข้อมูลเดียวกัน</p>
+      <div style="margin-top:16px;border-top:1px solid #111110">
+        <div style="display:grid;grid-template-columns:200px minmax(0,1fr) 46px 96px;gap:16px;padding:10px 0;border-bottom:1px solid #E4E4E0;font-size:11px;color:#8B8B85"><div>ความสามารถ</div><div>สิ่งที่เผยให้เห็น · ตัวอย่าง</div><div>ระดับ</div><div style="text-align:right">สถานะ</div></div>
+        <div style="display:grid;grid-template-columns:200px minmax(0,1fr) 46px 96px;gap:16px;padding:14px 0;border-bottom:1px solid #EEEEEA;align-items:baseline"><div><div style="font-size:13.5px;font-weight:600">การจับคู่นิติบุคคล</div><div style="font-size:11px;color:#8B8B85;margin-top:3px">Entity Resolution</div></div><div style="font-size:13px;color:#55554F;line-height:1.6">ชื่อที่เขียนต่างกันเป็นรายเดียวกันหรือไม่ — เช่น "หจก. ป่าไผ่การโยธา" / "ห้างหุ้นส่วนจำกัด ป่าไผ่ การโยธา" + ที่อยู่และกรรมการเดียวกัน</div><div><span style="font-size:10px;letter-spacing:.06em;padding:3px 7px;border:1px solid #111110;color:#111110">P0</span></div><div style="font-size:11.5px;color:#111110;text-align:right">มีในต้นแบบ</div></div>
+        <div style="display:grid;grid-template-columns:200px minmax(0,1fr) 46px 96px;gap:16px;padding:14px 0;border-bottom:1px solid #EEEEEA;align-items:baseline"><div><div style="font-size:13.5px;font-weight:600">กราฟเหตุการณ์ตามเวลา</div><div style="font-size:11px;color:#8B8B85;margin-top:3px">Temporal Event Graph</div></div><div style="font-size:13px;color:#55554F;line-height:1.6">อะไรเกิดขึ้น ลำดับใด และความสัมพันธ์ ณ เวลานั้น — เช่น กรรมการเข้ารับตำแหน่งก่อนประกวดราคาไม่นาน และลาออกหลังรับเงิน</div><div><span style="font-size:10px;letter-spacing:.06em;padding:3px 7px;border:1px solid #111110;color:#111110">P0</span></div><div style="font-size:11.5px;color:#55554F;text-align:right">บางส่วน</div></div>
+        <div style="display:grid;grid-template-columns:200px minmax(0,1fr) 46px 96px;gap:16px;padding:14px 0;border-bottom:1px solid #EEEEEA;align-items:baseline"><div><div style="font-size:13.5px;font-weight:600">ที่มาของหลักฐาน</div><div style="font-size:11px;color:#8B8B85;margin-top:3px">Evidence Provenance</div></div><div style="font-size:13px;color:#55554F;line-height:1.6">ทุกข้อเท็จจริงมาจากไหน และเปลี่ยนแปลงหรือไม่ — URL ต้นทาง เลขหน้า เวลาดึงข้อมูล แฮชไฟล์ และข้อความต้นฉบับ</div><div><span style="font-size:10px;letter-spacing:.06em;padding:3px 7px;border:1px solid #111110;color:#111110">P0</span></div><div style="font-size:11.5px;color:#111110;text-align:right">มีในต้นแบบ</div></div>
+        <div style="display:grid;grid-template-columns:200px minmax(0,1fr) 46px 96px;gap:16px;padding:14px 0;border-bottom:1px solid #EEEEEA;align-items:baseline"><div><div style="font-size:13.5px;font-weight:600">กฎสัญญาณเตือน</div><div style="font-size:11px;color:#8B8B85;margin-top:3px">Rule / Red-Flag Engine</div></div><div style="font-size:13px;color:#55554F;line-height:1.6">รูปแบบเตือนภัยการทุจริตและจัดซื้อที่รู้จัก — แบ่งซื้อแบ่งจ้าง ผู้เสนอราคารายเดียว ระยะประกาศสั้นผิดปกติ แก้ไขสัญญาซ้ำ</div><div><span style="font-size:10px;letter-spacing:.06em;padding:3px 7px;border:1px solid #111110;color:#111110">P0</span></div><div style="font-size:11.5px;color:#111110;text-align:right">มีในต้นแบบ</div></div>
+        <div style="display:grid;grid-template-columns:200px minmax(0,1fr) 46px 96px;gap:16px;padding:14px 0;border-bottom:1px solid #EEEEEA;align-items:baseline"><div><div style="font-size:13.5px;font-weight:600">เปรียบเทียบกลุ่มเทียบเคียง</div><div style="font-size:11px;color:#8B8B85;margin-top:3px">Peer Benchmarking</div></div><div style="font-size:13px;color:#55554F;line-height:1.6">ธุรกรรมต่างจากธุรกรรมลักษณะเดียวกันหรือไม่ — เช่น ค่าก่อสร้างถนนต่อกิโลเมตรสูงกว่าหน่วยงานเทียบเคียง 45%</div><div><span style="font-size:10px;letter-spacing:.06em;padding:3px 7px;border:1px solid #111110;color:#111110">P0</span></div><div style="font-size:11.5px;color:#111110;text-align:right">มีในต้นแบบ</div></div>
+        <div style="display:grid;grid-template-columns:200px minmax(0,1fr) 46px 96px;gap:16px;padding:14px 0;border-bottom:1px solid #EEEEEA;align-items:baseline"><div><div style="font-size:13.5px;font-weight:600">ตรวจจับความผิดปกติเชิงสถิติ</div><div style="font-size:11px;color:#8B8B85;margin-top:3px">Statistical Anomaly Detection</div></div><div style="font-size:13px;color:#55554F;line-height:1.6">พฤติกรรมผิดปกติที่ไม่เคยพบมาก่อน — เช่น จัดซื้อฉุกเฉินเพิ่มขึ้นกะทันหัน หรือผู้ขายรายใหม่ได้งานจำนวนมาก</div><div><span style="font-size:10px;letter-spacing:.06em;padding:3px 7px;border:1px solid #C9C9C4;color:#55554F">P1</span></div><div style="font-size:11.5px;color:#8B8B85;text-align:right">กำลังพัฒนา</div></div>
+        <div style="display:grid;grid-template-columns:200px minmax(0,1fr) 46px 96px;gap:16px;padding:14px 0;border-bottom:1px solid #EEEEEA;align-items:baseline"><div><div style="font-size:13.5px;font-weight:600">วิทยาการข้อมูลกราฟ</div><div style="font-size:11px;color:#8B8B85;margin-top:3px">Graph Data Science</div></div><div style="font-size:13px;color:#55554F;line-height:1.6">กลุ่มซ่อนเร้น ตัวกลาง และพฤติกรรมประสานกัน — เช่น วงผู้เสนอราคาที่ผลัดกันชนะการประมูล</div><div><span style="font-size:10px;letter-spacing:.06em;padding:3px 7px;border:1px solid #C9C9C4;color:#55554F">P1</span></div><div style="font-size:11.5px;color:#55554F;text-align:right">บางส่วน</div></div>
+        <div style="display:grid;grid-template-columns:200px minmax(0,1fr) 46px 96px;gap:16px;padding:14px 0;border-bottom:1px solid #EEEEEA;align-items:baseline"><div><div style="font-size:13.5px;font-weight:600">การวิเคราะห์กระบวนการ</div><div style="font-size:11px;color:#8B8B85;margin-top:3px">Process Mining</div></div><div style="font-size:13px;color:#55554F;line-height:1.6">ขั้นตอนเบี่ยงเบนจากกระบวนการจัดซื้อที่ควรเป็น — เช่น อนุมัติก่อนการประเมิน หรือตรวจรับทันทีหลังส่งมอบ</div><div><span style="font-size:10px;letter-spacing:.06em;padding:3px 7px;border:1px solid #C9C9C4;color:#55554F">P1</span></div><div style="font-size:11.5px;color:#8B8B85;text-align:right">กำลังพัฒนา</div></div>
+        <div style="display:grid;grid-template-columns:200px minmax(0,1fr) 46px 96px;gap:16px;padding:14px 0;border-bottom:1px solid #EEEEEA;align-items:baseline"><div><div style="font-size:13.5px;font-weight:600">ความคล้ายและนิติวิทยาเอกสาร</div><div style="font-size:11px;color:#8B8B85;margin-top:3px">Document Similarity & Forensics</div></div><div style="font-size:13px;color:#55554F;line-height:1.6">สเปกที่คัดลอกกัน เอกสารที่ประสานกัน และแม่แบบน่าสงสัย — เช่น TOR ของโครงการที่อ้างว่าไม่เกี่ยวข้องกันเหมือนกันเกือบทั้งหมด</div><div><span style="font-size:10px;letter-spacing:.06em;padding:3px 7px;border:1px solid #C9C9C4;color:#55554F">P1</span></div><div style="font-size:11.5px;color:#111110;text-align:right">มีในต้นแบบ</div></div>
+        <div style="display:grid;grid-template-columns:200px minmax(0,1fr) 46px 96px;gap:16px;padding:14px 0;border-bottom:1px solid #EEEEEA;align-items:baseline"><div><div style="font-size:13.5px;font-weight:600">ข่าวกรองภูมิสารสนเทศ</div><div style="font-size:11px;color:#8B8B85;margin-top:3px">Geospatial Intelligence</div></div><div style="font-size:13px;color:#55554F;line-height:1.6">รูปแบบเชิงพื้นที่และความขัดแย้งทางกายภาพ — เช่น ผู้รับจ้างต่างรายใช้ที่อยู่ติดกัน หรือโครงการซ้อนทับพื้นที่กัน</div><div><span style="font-size:10px;letter-spacing:.06em;padding:3px 7px;border:1px solid #C9C9C4;color:#55554F">P1</span></div><div style="font-size:11.5px;color:#8B8B85;text-align:right">กำลังพัฒนา</div></div>
+        <div style="display:grid;grid-template-columns:200px minmax(0,1fr) 46px 96px;gap:16px;padding:14px 0;border-bottom:1px solid #EEEEEA;align-items:baseline"><div><div style="font-size:13.5px;font-weight:600">ข่าวกรองราคาและ BOQ</div><div style="font-size:11px;color:#8B8B85;margin-top:3px">Price & BOQ Intelligence</div></div><div style="font-size:13px;color:#55554F;line-height:1.6">ราคาแพงเกินจริงและต้นทุนต่อหน่วยผิดปกติ — เช่น คอนกรีต เสาไฟ หรือยานพาหนะ ราคาสูงกว่าช่วงอ้างอิงของภูมิภาค</div><div><span style="font-size:10px;letter-spacing:.06em;padding:3px 7px;border:1px solid #C9C9C4;color:#55554F">P1</span></div><div style="font-size:11.5px;color:#55554F;text-align:right">บางส่วน</div></div>
+        <div style="display:grid;grid-template-columns:200px minmax(0,1fr) 46px 96px;gap:16px;padding:14px 0;border-bottom:1px solid #EEEEEA;align-items:baseline"><div><div style="font-size:13.5px;font-weight:600">เครื่องมือสมมติฐานและข้อโต้แย้ง</div><div style="font-size:11px;color:#8B8B85;margin-top:3px">Hypothesis & Contradiction Engine</div></div><div style="font-size:13px;color:#55554F;line-height:1.6">หลักฐานทั้งที่สนับสนุนและคัดค้านทฤษฎีการสอบสวน — ระบบชี้หลักฐานการฮั้ว พร้อมคำอธิบายโดยสุจริตที่เป็นไปได้เสมอ</div><div><span style="font-size:10px;letter-spacing:.06em;padding:3px 7px;border:1px solid #C9C9C4;color:#55554F">P1</span></div><div style="font-size:11.5px;color:#55554F;text-align:right">บางส่วน</div></div>
+        <div style="display:grid;grid-template-columns:200px minmax(0,1fr) 46px 96px;gap:16px;padding:14px 0;border-bottom:1px solid #EEEEEA;align-items:baseline"><div><div style="font-size:13.5px;font-weight:600">พื้นที่ทำงานคดี</div><div style="font-size:11px;color:#8B8B85;margin-top:3px">Case Management Workspace</div></div><div style="font-size:13px;color:#55554F;line-height:1.6">แปลงสัญญาณเป็นสำนวนพร้อมสอบสวน — ไทม์ไลน์ คู่กรณี เส้นทางเงิน แผนผังหลักฐาน บันทึก และคำถามที่ค้างอยู่</div><div><span style="font-size:10px;letter-spacing:.06em;padding:3px 7px;border:1px solid #C9C9C4;color:#55554F">P1</span></div><div style="font-size:11.5px;color:#8B8B85;text-align:right">กำลังพัฒนา</div></div>
+      </div>
+
+      <h2 style="font-size:16px;font-weight:600;margin:48px 0 0">ข้อกำหนดด้านหลักฐาน</h2>
+      <p style="margin:14px 0 0;font-size:13.5px;color:#55554F;line-height:1.7">ข้อเท็จจริงทุกรายการที่ระบบสกัดจะเก็บ: เอกสารต้นทางและเลขหน้า · URL และเวลาดึงข้อมูล · วิธีสกัดและเวอร์ชันโมเดล · ค่าความเชื่อมั่น · สถานะการตรวจโดยเจ้าหน้าที่</p>
+      <div style="margin-top:18px;border:1px solid #111110;padding:20px 24px;font-size:14.5px;line-height:1.7;background:#fff">เอกสารต้นฉบับ + ข้อเท็จจริงที่สกัดได้ + กฎหรือการคำนวณที่ระบุชัด<br><span style="color:#8B8B85">= ทุกสัญญาณความเสี่ยงต้องทำซ้ำและตรวจสอบได้</span></div>
+
+      <h2 style="font-size:16px;font-weight:600;margin:48px 0 0">สิ่งที่แพลตฟอร์มไม่ทำ</h2>
+      <div style="margin-top:16px;border-top:1px solid #111110">
+        <div style="display:flex;gap:14px;padding:12px 0;border-bottom:1px solid #EEEEEA;font-size:13.5px;line-height:1.6"><span style="color:#8B8B85">✕</span><span>ไม่ให้ "คะแนนทุจริต" หรือรวมความเสี่ยงเป็นตัวเลขเดียว</span></div>
+        <div style="display:flex;gap:14px;padding:12px 0;border-bottom:1px solid #EEEEEA;font-size:13.5px;line-height:1.6"><span style="color:#8B8B85">✕</span><span>ไม่ประกาศหรือชี้นำว่าบุคคล บริษัท หรือหน่วยงานใดทุจริต</span></div>
+        <div style="display:flex;gap:14px;padding:12px 0;border-bottom:1px solid #EEEEEA;font-size:13.5px;line-height:1.6"><span style="color:#8B8B85">✕</span><span>ไม่ใช้ AI เป็นผู้ตัดสินคะแนนความเสี่ยงขั้นสุดท้าย — AI ช่วยอ่านและสกัดข้อมูลเท่านั้น</span></div>
+        <div style="display:flex;gap:14px;padding:12px 0;border-bottom:1px solid #EEEEEA;font-size:13.5px;line-height:1.6"><span style="color:#8B8B85">✕</span><span>ไม่ใช้ข้อมูลหลุด ข้อมูลส่วนบุคคลเกินจำเป็น และไม่ข้ามระบบล็อกอินใด ๆ</span></div>
+        <div style="display:flex;gap:14px;padding:12px 0;border-bottom:1px solid #EEEEEA;font-size:13.5px;line-height:1.6"><span style="color:#8B8B85">✕</span><span>ไม่สรุปความเป็นเครือญาติจากนามสกุลที่ตรงกันเพียงอย่างเดียว — ความเชื่อมโยงบุคคลทุกรายการต้องมีเอกสารรองรับ หรือถูกทำเครื่องหมาย "รอยืนยัน" ให้เจ้าหน้าที่ตรวจ</span></div>
+      </div>
+    </sc-if>
+
+    <!-- แหล่งข้อมูล -->
+    <sc-if value="{{ isSources }}" hint-placeholder-val="{{ false }}">
+      <div style="font-size:11px;letter-spacing:.08em;color:#8B8B85;font-weight:500">แหล่งข้อมูล</div>
+      <h1 style="font-size:32px;font-weight:500;margin:12px 0 14px;line-height:1.3">ข้อมูลสาธารณะเท่านั้น — บันทึกที่มาทุกรายการ</h1>
+      <p style="margin:0;font-size:15px;color:#55554F;line-height:1.7;text-wrap:pretty">ระบบเก็บเฉพาะเอกสารที่หน่วยงานรัฐเผยแพร่ต่อสาธารณะตามกฎหมาย ทุกไฟล์ถูกบันทึกพร้อม URL ต้นทาง เวลาดึงข้อมูล และค่าแฮช เพื่อให้ตรวจสอบย้อนกลับได้เสมอ</p>
+
+      <h2 style="font-size:16px;font-weight:600;margin:48px 0 0">ประเภทแหล่งข้อมูล</h2>
+      <div style="margin-top:16px;border-top:1px solid #111110">
+        <div style="display:grid;grid-template-columns:220px 1fr;gap:20px;padding:16px 0;border-bottom:1px solid #EEEEEA"><div style="font-size:14px;font-weight:600">เว็บไซต์หน่วยงานรัฐ</div><div style="font-size:13.5px;color:#55554F;line-height:1.6">ประกาศจัดซื้อจัดจ้าง ประกาศผู้ชนะ ราคากลาง TOR แผนจัดซื้อประจำปี ข้อบัญญัติงบประมาณ และสรุปผลรายเดือน (สขร.1) — ครอบคลุมเทศบาล อบต. อำเภอ จังหวัด กระทรวง กรม โรงพยาบาล โรงเรียน หน่วยตำรวจและทหาร</div></div>
+        <div style="display:grid;grid-template-columns:220px 1fr;gap:20px;padding:16px 0;border-bottom:1px solid #EEEEEA"><div style="font-size:14px;font-weight:600">ระบบ e-GP กรมบัญชีกลาง</div><div style="font-size:13.5px;color:#55554F;line-height:1.6">ประกาศจัดซื้อจัดจ้างภาครัฐส่วนกลาง ใช้ตรวจทานกับประกาศบนเว็บไซต์หน่วยงาน</div></div>
+        <div style="display:grid;grid-template-columns:220px 1fr;gap:20px;padding:16px 0;border-bottom:1px solid #EEEEEA"><div style="font-size:14px;font-weight:600">ทะเบียนนิติบุคคล (DBD)</div><div style="font-size:13.5px;color:#55554F;line-height:1.6">ข้อมูลจดทะเบียนนิติบุคคลที่เปิดเผยต่อสาธารณะ: เลขทะเบียน ที่อยู่ กรรมการ และบัญชีรายชื่อผู้ถือหุ้น (บอจ.5) — ใช้จับคู่ชื่อบริษัทและตรวจความสัมพันธ์กับผู้ชนะการประมูล</div></div>
+        <div style="display:grid;grid-template-columns:220px 1fr;gap:20px;padding:16px 0;border-bottom:1px solid #EEEEEA"><div style="font-size:14px;font-weight:600">ทำเนียบผู้บริหารหน่วยงาน</div><div style="font-size:13.5px;color:#55554F;line-height:1.6">รายชื่อผู้บริหารทุกระดับจากเว็บไซต์ทางการ คำสั่งแต่งตั้ง และราชกิจจานุเบกษา — นายกฯ/ผู้อำนวยการ รองฯ ปลัด หัวหน้าส่วน และเจ้าหน้าที่พัสดุ — ใช้ตรวจความเชื่อมโยงกับกรรมการและผู้ถือหุ้นของบริษัทที่ชนะการประมูล</div></div>
+        <div style="display:grid;grid-template-columns:220px 1fr;gap:20px;padding:16px 0;border-bottom:1px solid #EEEEEA"><div style="font-size:14px;font-weight:600">ข้อมูลเปิดภาครัฐอื่น ๆ</div><div style="font-size:13.5px;color:#55554F;line-height:1.6">ชุดข้อมูลเปิดของหน่วยงานกำกับดูแล ใช้เป็นกลุ่มเปรียบเทียบราคาและความกระจุกตัว</div></div>
+      </div>
+
+      <h2 style="font-size:16px;font-weight:600;margin:48px 0 0">หลักปฏิบัติในการเก็บข้อมูล</h2>
+      <div style="margin-top:16px;border-top:1px solid #111110">
+        <div style="display:flex;gap:14px;padding:12px 0;border-bottom:1px solid #EEEEEA;font-size:13.5px;line-height:1.6"><span style="color:#8B8B85">·</span><span>เข้าถึงเฉพาะหน้าที่เปิดเผยต่อสาธารณะ — ไม่ข้ามระบบล็อกอินหรือมาตรการความปลอดภัยใด ๆ</span></div>
+        <div style="display:flex;gap:14px;padding:12px 0;border-bottom:1px solid #EEEEEA;font-size:13.5px;line-height:1.6"><span style="color:#8B8B85">·</span><span>บันทึก URL ต้นทาง เวลาดึงข้อมูล และค่าแฮชของทุกไฟล์ — เก็บเอกสารต้นฉบับถาวร ไม่แก้ไข</span></div>
+        <div style="display:flex;gap:14px;padding:12px 0;border-bottom:1px solid #EEEEEA;font-size:13.5px;line-height:1.6"><span style="color:#8B8B85">·</span><span>ตรวจแหล่งข้อมูลซ้ำทุก 24 ชั่วโมง — บันทึกเมื่อเอกสารถูกลบหรือลิงก์เสีย</span></div>
+        <div style="display:flex;gap:14px;padding:12px 0;border-bottom:1px solid #EEEEEA;font-size:13.5px;line-height:1.6"><span style="color:#8B8B85">·</span><span>ไม่เก็บข้อมูลส่วนบุคคลเกินกว่าที่ปรากฏในเอกสารราชการสาธารณะ</span></div>
+      </div>
+
+      <h2 style="font-size:16px;font-weight:600;margin:48px 0 0">สิ่งที่เราไม่เก็บ</h2>
+      <div style="margin-top:16px;border-top:1px solid #111110">
+        <div style="display:flex;gap:14px;padding:12px 0;border-bottom:1px solid #EEEEEA;font-size:13.5px;line-height:1.6"><span style="color:#8B8B85">✕</span><span>ข้อมูลหลุด ข้อมูลจากผู้แจ้งเบาะแส หรือเอกสารภายในที่ไม่เปิดเผย</span></div>
+        <div style="display:flex;gap:14px;padding:12px 0;border-bottom:1px solid #EEEEEA;font-size:13.5px;line-height:1.6"><span style="color:#8B8B85">✕</span><span>ข้อมูลธุรกรรมการเงินส่วนบุคคลหรือข้อมูลธนาคาร</span></div>
+        <div style="display:flex;gap:14px;padding:12px 0;border-bottom:1px solid #EEEEEA;font-size:13.5px;line-height:1.6"><span style="color:#8B8B85">✕</span><span>ข้อมูลชีวมิติหรือข้อมูลอ่อนไหวตามกฎหมายคุ้มครองข้อมูลส่วนบุคคล</span></div>
+      </div>
+    </sc-if>
+
+    <!-- ขอแก้ไขข้อมูล -->
+    <sc-if value="{{ isCorrections }}" hint-placeholder-val="{{ false }}">
+      <div style="font-size:11px;letter-spacing:.08em;color:#8B8B85;font-weight:500">ขอแก้ไขข้อมูล</div>
+      <h1 style="font-size:32px;font-weight:500;margin:12px 0 14px;line-height:1.3">พบข้อมูลไม่ถูกต้อง — แจ้งเราได้ทันที</h1>
+      <p style="margin:0;font-size:15px;color:#55554F;line-height:1.7;text-wrap:pretty">ความน่าเชื่อถือของแพลตฟอร์มขึ้นอยู่กับความถูกต้องของข้อมูล หน่วยงาน บริษัท หรือบุคคลที่ถูกอ้างถึง สามารถยื่นคำขอแก้ไขได้ ทุกคำขอถูกตรวจกับเอกสารต้นทางและบันทึกผลต่อสาธารณะ</p>
+
+      <h2 style="font-size:16px;font-weight:600;margin:44px 0 0">กระบวนการ</h2>
+      <div style="margin-top:16px;border-top:1px solid #111110">
+        <div style="display:flex;gap:20px;padding:14px 0;border-bottom:1px solid #EEEEEA"><div style="width:32px;flex:none;font-size:13px;color:#8B8B85">01</div><div style="font-size:13.5px;line-height:1.6"><span style="font-weight:600">ยื่นคำขอ</span> — ระบุหน้าหรือเอกสารที่เกี่ยวข้อง และข้อมูลที่เห็นว่าไม่ถูกต้อง</div></div>
+        <div style="display:flex;gap:20px;padding:14px 0;border-bottom:1px solid #EEEEEA"><div style="width:32px;flex:none;font-size:13px;color:#8B8B85">02</div><div style="font-size:13.5px;line-height:1.6"><span style="font-weight:600">ยืนยันรับคำขอภายใน 7 วัน</span> — พร้อมหมายเลขอ้างอิงสำหรับติดตาม</div></div>
+        <div style="display:flex;gap:20px;padding:14px 0;border-bottom:1px solid #EEEEEA"><div style="width:32px;flex:none;font-size:13px;color:#8B8B85">03</div><div style="font-size:13.5px;line-height:1.6"><span style="font-weight:600">ตรวจกับเอกสารต้นทาง</span> — เจ้าหน้าที่เทียบคำขอกับเอกสารต้นฉบับและข้อมูลที่สกัดได้</div></div>
+        <div style="display:flex;gap:20px;padding:14px 0;border-bottom:1px solid #EEEEEA"><div style="width:32px;flex:none;font-size:13px;color:#8B8B85">04</div><div style="font-size:13.5px;line-height:1.6"><span style="font-weight:600">แจ้งผลและบันทึกสาธารณะ</span> — แก้ไข เพิ่มหมายเหตุ หรือคงเดิมพร้อมคำอธิบาย — ทุกผลถูกบันทึกในทะเบียนการแก้ไขที่เปิดเผย</div></div>
+      </div>
+
+      <h2 style="font-size:16px;font-weight:600;margin:44px 0 0">แบบฟอร์มคำขอ</h2>
+      <sc-if value="{{ corrNotSent }}" hint-placeholder-val="{{ true }}">
+        <div style="border:1px solid #E4E4E0;background:#fff;padding:28px;margin-top:16px">
+          <div style="font-size:12px;color:#55554F;margin-bottom:6px">ประเภทคำขอ</div>
+          <select value="{{ corrType }}" onChange="{{ setCorrType }}" style="width:100%;box-sizing:border-box;padding:11px 12px;font-size:13.5px;border:1px solid #C9C9C4;background:#fff;border-radius:0;outline:none">
+            <option value="ข้อมูลที่สกัดไม่ถูกต้อง">ข้อมูลที่สกัดไม่ถูกต้อง (จำนวนเงิน วันที่ ชื่อ)</option>
+            <option value="การจับคู่นิติบุคคลผิด">การจับคู่นิติบุคคลผิด — บริษัทถูกเชื่อมโยงผิดราย</option>
+            <option value="เอกสารไม่ครบหรือขาดบริบท">เอกสารไม่ครบหรือขาดบริบท</option>
+            <option value="อื่น ๆ">อื่น ๆ</option>
+          </select>
+          <div style="font-size:12px;color:#55554F;margin:18px 0 6px">หน้าหรือเอกสารที่เกี่ยวข้อง</div>
+          <input value="{{ corrRefVal }}" onChange="{{ setCorrRef }}" placeholder="เช่น P-2568-014 หรือ D-268" style="width:100%;box-sizing:border-box;padding:11px 12px;font-size:13.5px;border:1px solid #C9C9C4;font-family:inherit;outline:none;border-radius:0">
+          <div style="font-size:12px;color:#55554F;margin:18px 0 6px">รายละเอียด</div>
+          <textarea value="{{ corrDetail }}" onChange="{{ setCorrDetail }}" rows="4" placeholder="อธิบายว่าข้อมูลใดไม่ถูกต้อง และข้อมูลที่ถูกต้องคืออะไร พร้อมหลักฐานหากมี" style="width:100%;box-sizing:border-box;padding:11px 12px;font-size:13.5px;border:1px solid #C9C9C4;font-family:inherit;outline:none;border-radius:0;resize:vertical"></textarea>
+          <div style="font-size:12px;color:#55554F;margin:18px 0 6px">อีเมลสำหรับติดต่อกลับ</div>
+          <input value="{{ corrEmail }}" onChange="{{ setCorrEmail }}" placeholder="name@example.com" style="width:100%;box-sizing:border-box;padding:11px 12px;font-size:13.5px;border:1px solid #C9C9C4;font-family:inherit;outline:none;border-radius:0">
+          <div style="display:flex;align-items:center;gap:16px;margin-top:24px">
+            <div onClick="{{ submitCorr }}" style="background:#111110;color:#FBFBF9;padding:12px 24px;font-size:13.5px;cursor:pointer;user-select:none" style-hover="background:#333331">ส่งคำขอแก้ไข</div>
+            <div style="font-size:11.5px;color:#8B8B85;line-height:1.5">ข้อมูลติดต่อใช้เพื่อแจ้งผลเท่านั้น ไม่เปิดเผยต่อสาธารณะ</div>
+          </div>
+        </div>
+      </sc-if>
+      <sc-if value="{{ corrSent }}" hint-placeholder-val="{{ false }}">
+        <div style="border:1px solid #111110;background:#fff;padding:28px;margin-top:16px">
+          <div style="font-size:15px;font-weight:600">รับคำขอแล้ว — หมายเลขอ้างอิง CR-2569-0142</div>
+          <p style="margin:10px 0 0;font-size:13.5px;color:#55554F;line-height:1.7">เราจะยืนยันรับคำขอทางอีเมลภายใน 7 วัน และแจ้งผลการตรวจสอบพร้อมเหตุผล ผลทุกรายการถูกบันทึกในทะเบียนการแก้ไขสาธารณะ</p>
+          <div onClick="{{ resetCorr }}" style="font-size:12.5px;margin-top:16px;cursor:pointer;text-decoration:underline;text-underline-offset:2px;display:inline-block" style-hover="color:#6E6E6A">ยื่นคำขอเพิ่มเติม</div>
+        </div>
+      </sc-if>
+    </sc-if>
+
+    <!-- เกี่ยวกับเรา -->
+    <sc-if value="{{ isAbout }}" hint-placeholder-val="{{ false }}">
+      <div style="font-size:11px;letter-spacing:.08em;color:#8B8B85;font-weight:500">เกี่ยวกับเรา</div>
+      <h1 style="font-size:32px;font-weight:500;margin:12px 0 14px;line-height:1.3">องค์กรอิสระเพื่อความโปร่งใสของเงินสาธารณะ</h1>
+      <p style="margin:0;font-size:15px;color:#55554F;line-height:1.7;text-wrap:pretty">TRACE24 เป็นแพลตฟอร์มเทคโนโลยีเพื่อประโยชน์สาธารณะ ไม่สังกัดพรรคการเมือง ไม่แสวงหากำไร และไม่รับงานจากผู้มีส่วนได้เสียในการจัดซื้อจัดจ้างที่ระบบวิเคราะห์</p>
+
+      <div style="border:1px solid #111110;background:#fff;padding:28px 32px;margin-top:36px">
+        <div style="font-size:11px;letter-spacing:.08em;color:#8B8B85">พันธกิจ</div>
+        <div style="font-size:21px;font-weight:500;line-height:1.55;margin-top:10px">ทำให้เงินสาธารณะทุกบาท ตามรอยได้ เปรียบเทียบได้ และซ่อนได้ยาก</div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:0;border-top:1px solid #111110;border-bottom:1px solid #E4E4E0;margin-top:36px">
+        <div style="padding:22px 24px 22px 0;border-right:1px solid #EEEEEA;margin-right:24px"><div style="font-size:14.5px;font-weight:600">อิสระและเป็นกลาง</div><div style="font-size:13px;color:#55554F;margin-top:8px;line-height:1.65">ไม่ฝักใฝ่การเมือง ไม่รับเงินจากผู้รับจ้างหรือหน่วยงานที่ถูกวิเคราะห์ เปิดเผยแหล่งเงินทุนทั้งหมด</div></div>
+        <div style="padding:22px 24px 22px 0;border-right:1px solid #EEEEEA;margin-right:24px"><div style="font-size:14.5px;font-weight:600">ยึดหลักฐานเป็นหลัก</div><div style="font-size:13px;color:#55554F;margin-top:8px;line-height:1.65">ทุกข้อค้นพบอ้างอิงเอกสารต้นทางที่ตรวจสอบซ้ำได้ — ไม่มีข้อกล่าวหาที่ไม่มีเอกสารรองรับ</div></div>
+        <div style="padding:22px 0"><div style="font-size:14.5px;font-weight:600">มนุษย์เป็นผู้ตัดสิน</div><div style="font-size:13px;color:#55554F;margin-top:8px;line-height:1.65">ระบบชี้รายการที่ควรตรวจสอบ — การประเมินและการดำเนินการเป็นหน้าที่ของผู้ตรวจสอบที่มีอำนาจ</div></div>
+      </div>
+
+      <h2 style="font-size:16px;font-weight:600;margin:48px 0 0">นโยบายความโปร่งใส</h2>
+      <div style="margin-top:16px;border-top:1px solid #111110">
+        <div onClick="{{ openMethod }}" style="display:flex;justify-content:space-between;gap:16px;padding:13px 0;border-bottom:1px solid #EEEEEA;font-size:13.5px;cursor:pointer" style-hover="background:#F4F4F1"><span>ระเบียบวิธีฉบับเปิดเผย</span><span style="color:#8B8B85">→</span></div>
+        <div onClick="{{ openCorrections }}" style="display:flex;justify-content:space-between;gap:16px;padding:13px 0;border-bottom:1px solid #EEEEEA;font-size:13.5px;cursor:pointer" style-hover="background:#F4F4F1"><span>กระบวนการขอแก้ไขข้อมูลและทะเบียนการแก้ไขสาธารณะ</span><span style="color:#8B8B85">→</span></div>
+        <div style="display:flex;justify-content:space-between;gap:16px;padding:13px 0;border-bottom:1px solid #EEEEEA;font-size:13.5px;color:#55554F"><span>นโยบายผลประโยชน์ทับซ้อน</span><span style="color:#C9C9C4">เร็ว ๆ นี้</span></div>
+        <div style="display:flex;justify-content:space-between;gap:16px;padding:13px 0;border-bottom:1px solid #EEEEEA;font-size:13.5px;color:#55554F"><span>ความโปร่งใสด้านแหล่งเงินทุน</span><span style="color:#C9C9C4">เร็ว ๆ นี้</span></div>
+        <div style="display:flex;justify-content:space-between;gap:16px;padding:13px 0;border-bottom:1px solid #EEEEEA;font-size:13.5px;color:#55554F"><span>นโยบายความเป็นส่วนตัวและข้อกำหนดการใช้งาน</span><span style="color:#C9C9C4">เร็ว ๆ นี้</span></div>
+      </div>
+
+      <h2 style="font-size:16px;font-weight:600;margin:48px 0 0">สิ่งที่เราไม่ใช่</h2>
+      <p style="margin:14px 0 0;font-size:13.5px;color:#55554F;line-height:1.75;text-wrap:pretty">แพลตฟอร์มนี้ไม่ใช่ศาล ไม่ใช่หน่วยงานสอบสวน และไม่ตัดสินว่าผู้ใดทุจริต — เราใช้ AI เอกสารสาธารณะ และการวิเคราะห์ความสัมพันธ์ เพื่อชี้รูปแบบที่ผิดปกติ แสดงหลักฐานประกอบ และช่วยให้ผู้มีอำนาจตรวจสอบตัดสินใจได้ว่าสิ่งใดสมควรได้รับการสอบสวนต่อ</p>
+    </sc-if>
+  </div>
+
+  <div style="border-top:1px solid #E4E4E0">
+    <div style="max-width:1160px;margin:0 auto;padding:20px 32px;display:flex;justify-content:space-between;gap:24px;flex-wrap:wrap">
+      <div style="font-size:12px;color:#8B8B85;line-height:1.5">สัญญาณความเสี่ยงไม่ใช่ข้อพิสูจน์การทุจริต — เป็นเพียงเหตุผลสำหรับการตรวจสอบเพิ่มเติม</div>
+      <div style="font-size:12px;color:#8B8B85">ต้นแบบ · หน่วยงาน บริษัท และเอกสารทั้งหมดเป็นข้อมูลสมมติ</div>
+    </div>
+  </div>
+</div>
+</sc-if></x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;: {&quot;width&quot;: &quot;100%&quot;, &quot;height&quot;: 900}, &quot;accent&quot;: {&quot;editor&quot;: &quot;color&quot;, &quot;default&quot;: &quot;#8A5A1C&quot;, &quot;options&quot;: [&quot;#8A5A1C&quot;, &quot;#6B1F1F&quot;, &quot;#1F4D6B&quot;, &quot;#3B3B36&quot;], &quot;tsType&quot;: &quot;string&quot;, &quot;section&quot;: &quot;ธีม&quot;}, &quot;instantScan&quot;: {&quot;editor&quot;: &quot;boolean&quot;, &quot;default&quot;: false, &quot;tsType&quot;: &quot;boolean&quot;, &quot;section&quot;: &quot;พฤติกรรม&quot;}}">
+class Component extends DCLogic {
+  state = {
+    page: 'home', query: '', selMuniId: null, scannedId: null, scanStep: -1,
+    selProjectId: 'p14', selContractorId: 'c1', selNodeId: 'c1',
+    graphFilter: 'all', graphLayer: 'entity', adminTab: 'crawl', erDecisions: {}, reviewStates: {}, projectReview: {},
+    caseNote: '', caseNotesAdded: {},
+    corrType: 'ข้อมูลที่สกัดไม่ถูกต้อง', corrRef: '', corrDetail: '', corrEmail: '', corrSent: false
+  };
+
+  componentDidMount() { this.syncAccent(); }
+  componentDidUpdate() { this.syncAccent(); }
+  componentWillUnmount() { clearInterval(this._t); }
+  syncAccent() { document.body.style.setProperty('--accent', this.props.accent ?? '#8A5A1C'); }
+
+  go(page, extra) { clearInterval(this._t); this.setState(Object.assign({ page }, extra || {})); window.scrollTo(0, 0); }
+
+  startScan() {
+    const id = this.state.selMuniId;
+    const ds = id === 'm9' ? this.H : this.D;
+    const extra = { scannedId: id, selProjectId: ds.def.project, selContractorId: ds.def.contractor, selNodeId: ds.def.node, graphFilter: 'all', graphLayer: 'entity' };
+    if (this.props.instantScan) { this.go('scan', Object.assign({ scanStep: 11 }, extra)); return; }
+    this.go('scan', Object.assign({ scanStep: 0 }, extra));
+    this._t = setInterval(() => {
+      this.setState(s => {
+        const n = s.scanStep + 1;
+        if (n >= 11) clearInterval(this._t);
+        return { scanStep: Math.min(n, 11) };
+      });
+    }, 600);
+  }
+
+  sev(s) {
+    if (s === 'High') return { sevLabel: 'สูง', sevColor: 'var(--accent)', sevBorder: 'var(--accent)' };
+    if (s === 'Medium') return { sevLabel: 'ปานกลาง', sevColor: '#55554F', sevBorder: '#B4B4AE' };
+    return { sevLabel: 'ต่ำ', sevColor: '#8B8B85', sevBorder: '#DDDDD8' };
+  }
+
+  D = {
+    def: { project: 'p14', contractor: 'c1', node: 'c1' },
+    clusters: [
+      { name: 'เครือข่ายป่าไผ่การโยธา — ดอยสะเก็ดคอนกรีต', sub: 'กรรมการร่วม · ที่อยู่จดทะเบียนเดียวกัน · เสนอราคาแข่งกัน 5 ครั้ง ผลชนะ 5–0 · นามสกุลตรงกับรองนายกเทศมนตรี (รอยืนยัน)', comp: '2 นิติบุคคล · 3 บุคคล · 1 ที่อยู่ · 6 โครงการ', signals: 11, sevKey: 'High', node: 'c1' },
+      { name: 'กลุ่มงานระบายน้ำ — เชียงใหม่ธาราวิศว์', sub: 'ผู้เสนอราคารายเดียวในการประมูล e-bidding แบบเปิด', comp: '1 นิติบุคคล · 2 โครงการ', signals: 3, sevKey: 'Medium', node: 'muni' },
+      { name: 'กลุ่มครุภัณฑ์ยานพาหนะ — นครพิงค์เทรดดิ้ง', sub: 'ราคาสูงกว่ากลุ่มเปรียบเทียบ +8.4% · ไม่พบเอกสารราคากลาง', comp: '1 นิติบุคคล · 1 โครงการ', signals: 3, sevKey: 'Medium', node: 'muni' }
+    ],
+    meta: {
+      scanSummary: 'สัญญาณความเสี่ยง 23 รายการ · เชื่อมโยงหลักฐาน 100%',
+      dataPct: '78%', dataGapNote: 'เอกสาร 6 ประเภท · มีช่องว่าง 2 ประเภท',
+      priorityNote: 'เรียงตามระดับสัญญาณ · 6 จาก 251 โครงการ',
+      concNote: 'ผู้รับจ้าง 3 อันดับแรกถือครอง 52.9% ของมูลค่ารวม — ความกระจุกตัวสูงเมื่อเทียบกับกลุ่มเปรียบเทียบ',
+      vendorsTitle: 'ผู้รับจ้างรายใหญ่ตามมูลค่าที่ได้รับ',
+      graphTitle: 'กลุ่มโครงการถนนสายบ้านป่าไผ่เหนือ',
+      graphNote: 'แสดง 16 จาก 2,114 ความสัมพันธ์ · ทุกเส้นเชื่อมมีเอกสารต้นทางรองรับ'
+    },
+    caseFile: {
+      id: 'CASE-2568-004', status: 'กำลังสอบสวน', opened: 'เปิดคดี 2 ก.ค. 2568', owner: 'ผู้ตรวจ: ทีมตรวจสอบภาคเหนือ',
+      title: 'การแบ่งจ้างถนนสายบ้านป่าไผ่เหนือ และเครือข่ายป่าไผ่การโยธา',
+      summary: 'ถนนสายเดียวกันถูกแบ่งจัดจ้างเป็น 3 สัญญาใต้เกณฑ์ ฿500,000 ภายใน 45 วัน ผู้ชนะทั้งหมดคือ หจก. ป่าไผ่การโยธา ซึ่งมีกรรมการ ผู้ถือหุ้น และที่อยู่จดทะเบียนร่วมกับผู้เสนอราคาแข่ง และนามสกุลตรงกับรองนายกเทศมนตรี (รอยืนยัน) — มูลค่ารวมที่เกี่ยวข้อง ฿1,490,700',
+      signals: 'สัญญาณที่รวมในคดี: 11 รายการจาก 6 กฎ (R1 R4 R5 R6 R9 R13) — ครอบคลุม 3 โครงการ 2 นิติบุคคล 3 บุคคล',
+      timeline: [
+        ['30 เม.ย. 2568', 'ถนนทั้งสายปรากฏในแผนจัดซื้อจัดจ้างเป็นรายการเดียว', 'D-102'],
+        ['2 พ.ค. 2568', 'ราคากลางและ TOR ช่วงที่ 1 — ฿496,000', 'D-209 · D-214'],
+        ['12 พ.ค. 2568', 'ราคากลางและ TOR ช่วงที่ 2 — ข้อความเหมือนช่วงที่ 1 ถึง 94% รวมคำพิมพ์ผิดข้อ 4.2', 'D-231 · D-232'],
+        ['19 พ.ค. 2568', 'ประกาศผู้ชนะช่วงที่ 1 — หจก. ป่าไผ่การโยธา ฿495,000', 'D-226'],
+        ['9 มิ.ย. 2568', 'ราคากลางและ TOR ช่วงที่ 3 — ฿499,000', 'D-257 · D-258'],
+        ['26 มิ.ย. 2568', 'ประกาศผู้ชนะช่วงที่ 2 — ผู้ชนะรายเดียวกัน ฿497,500', 'D-268'],
+        ['3 ก.ค. 2568', 'ประกาศผู้ชนะช่วงที่ 3 — ผู้ชนะรายเดียวกัน ฿498,200', 'D-275'],
+        ['10 ก.ค. 2568', 'ลงนามสัญญาช่วงที่ 2', 'D-281']
+      ],
+      parties: [
+        ['หจก. ป่าไผ่การโยธา', 'ผู้ชนะทั้ง 3 สัญญา · 25.2% ของมูลค่าหน่วยงาน', true],
+        ['หจก. ดอยสะเก็ดคอนกรีต', 'ผู้เสนอราคาแข่ง · กรรมการและที่อยู่ร่วมกับผู้ชนะ', true],
+        ['นายสมชาย ใจดี', 'กรรมการ 2 นิติบุคคล · ผู้ถือหุ้น 55% ของผู้ชนะ', true],
+        ['นายวิชัย ใจดี', 'รองนายกเทศมนตรี · นามสกุลร่วมกับกรรมการผู้ชนะ — รอยืนยัน', true],
+        ['เทศบาลตำบลป่าไผ่', 'หน่วยงานจัดจ้าง', false]
+      ],
+      money: [
+        ['ข้อบัญญัติงบ 2568 — ตั้งถนนทั้งสายเป็นรายการเดียว', '฿1,493,000', false],
+        ['สัญญาช่วงที่ 1 (P-2568-013)', '฿495,000', false],
+        ['สัญญาช่วงที่ 2 (P-2568-014)', '฿497,500', false],
+        ['สัญญาช่วงที่ 3 (P-2568-015)', '฿498,200', false],
+        ['รวมราคาที่ตกลง — ผู้รับเงินรายเดียว', '฿1,490,700', true]
+      ],
+      questions: [
+        ['งบถูกตั้งเป็นรายการเดียว เหตุใดจึงแยกจัดจ้าง 3 สัญญาใต้เกณฑ์วิธีแข่งขัน', 'รอคำชี้แจงจากเทศบาล'],
+        ['นายวิชัย ใจดี เป็นเครือญาติกับกรรมการ/ผู้ถือหุ้นของผู้ชนะหรือไม่', 'รอตรวจผ่านหน่วยงานที่มีอำนาจ'],
+        ['มีผู้รับเหมารายอื่นในอำเภอที่มีคุณสมบัติแต่ไม่ได้รับหนังสือเชิญหรือไม่', 'กำลังรวบรวม'],
+        ['การเสนอราคาแข่ง 5 ครั้งของสองนิติบุคคลที่เกี่ยวข้องกัน มีรูปแบบราคาประสานกันหรือไม่', 'กำลังวิเคราะห์']
+      ],
+      evidence: ['D-102 · แผนจัดซื้อ', 'D-214 · TOR ช่วง 1', 'D-232 · TOR ช่วง 2', 'D-226 · ผู้ชนะช่วง 1', 'D-268 · ผู้ชนะช่วง 2', 'D-275 · ผู้ชนะช่วง 3', 'D-281 · สัญญา', 'ทะเบียน DBD × 2', 'บอจ.5', 'ทำเนียบผู้บริหาร'],
+      notes: [
+        ['8 ก.ค.', 'ส่งหนังสือขอข้อมูลจำนวนผู้ได้รับหนังสือเชิญเสนอราคาทั้ง 3 ช่วงไปยังเทศบาลแล้ว'],
+        ['5 ก.ค.', 'เทียบ TOR ทั้ง 3 ช่วง: ปริมาณงานและคำพิมพ์ผิดข้อ 4.2 ตรงกันทุกฉบับ — แนบผลเทียบเข้าสำนวนแล้ว']
+      ]
+    },
+    munis: [
+      { id: 'm1', th: 'เทศบาลตำบลป่าไผ่', en: 'Pa Phai Subdistrict Municipality', prov: 'เชียงใหม่', dist: 'ดอยสะเก็ด', type: 'อปท. — เทศบาลตำบล', tshort: 'เทศบาลตำบล', loc: 'อ.ดอยสะเก็ด · จ.เชียงใหม่', code: '05500408', web: 'papai.go.th' },
+      { id: 'm2', th: 'เทศบาลตำบลเชิงดอย', en: 'Choeng Doi Subdistrict Municipality', prov: 'เชียงใหม่', dist: 'ดอยสะเก็ด', type: 'อปท. — เทศบาลตำบล', tshort: 'เทศบาลตำบล', loc: 'อ.ดอยสะเก็ด · จ.เชียงใหม่', code: '05500401', web: 'choengdoi.go.th' },
+      { id: 'm3', th: 'เทศบาลตำบลสันปูเลย', en: 'San Pu Loei Subdistrict Municipality', prov: 'เชียงใหม่', dist: 'ดอยสะเก็ด', type: 'อปท. — เทศบาลตำบล', tshort: 'เทศบาลตำบล', loc: 'อ.ดอยสะเก็ด · จ.เชียงใหม่', code: '05500403', web: 'sanpuloei.go.th' },
+      { id: 'm4', th: 'เทศบาลนครเชียงใหม่', en: 'Chiang Mai City Municipality', prov: 'เชียงใหม่', dist: 'เมือง', type: 'อปท. — เทศบาลนคร', tshort: 'เทศบาลนคร', loc: 'อ.เมือง · จ.เชียงใหม่', code: '03500102', web: 'cmcity.go.th' },
+      { id: 'm5', th: 'เทศบาลเมืองลำพูน', en: 'Lamphun Town Municipality', prov: 'ลำพูน', dist: 'เมือง', type: 'อปท. — เทศบาลเมือง', tshort: 'เทศบาลเมือง', loc: 'อ.เมือง · จ.ลำพูน', code: '04510102', web: 'lamphuncity.go.th' },
+      { id: 'm6', th: 'องค์การบริหารส่วนตำบลแม่โป่ง', en: 'Mae Pong Subdistrict Administrative Organization', prov: 'เชียงใหม่', dist: 'ดอยสะเก็ด', type: 'อปท. — อบต.', tshort: 'อบต.', loc: 'อ.ดอยสะเก็ด · จ.เชียงใหม่', code: '06500711', web: 'maepong.go.th' },
+      { id: 'm7', th: 'ที่ทำการปกครองอำเภอดอยสะเก็ด', en: 'Doi Saket District Office', prov: 'เชียงใหม่', dist: 'ดอยสะเก็ด', type: 'ราชการส่วนภูมิภาค — อำเภอ', tshort: 'อำเภอ', loc: 'อ.ดอยสะเก็ด · จ.เชียงใหม่', code: '15500700', web: 'doisaket.chiangmai.go.th' },
+      { id: 'm8', th: 'สำนักงานจังหวัดเชียงใหม่', en: 'Chiang Mai Provincial Office', prov: 'เชียงใหม่', dist: 'เมือง', type: 'ราชการส่วนภูมิภาค — จังหวัด', tshort: 'จังหวัด', loc: 'จ.เชียงใหม่', code: '15000100', web: 'chiangmai.go.th' },
+      { id: 'm9', th: 'โรงพยาบาลดอยสะเก็ด', en: 'Doi Saket Hospital', prov: 'เชียงใหม่', dist: 'ดอยสะเก็ด', type: 'โรงพยาบาลรัฐ — กระทรวงสาธารณสุข', tshort: 'โรงพยาบาล', loc: 'อ.ดอยสะเก็ด · จ.เชียงใหม่', code: '21002177', web: 'doisakethospital.go.th' },
+      { id: 'm10', th: 'สำนักงานสาธารณสุขจังหวัดเชียงใหม่', en: 'Chiang Mai Provincial Public Health Office', prov: 'เชียงใหม่', dist: 'เมือง', type: 'ราชการส่วนภูมิภาค — กระทรวงสาธารณสุข', tshort: 'สสจ.', loc: 'อ.เมือง · จ.เชียงใหม่', code: '21000053', web: 'chiangmaihealth.go.th' },
+      { id: 'm11', th: 'โรงเรียนดอยสะเก็ดวิทยาคม', en: 'Doi Saket Wittayakom School', prov: 'เชียงใหม่', dist: 'ดอยสะเก็ด', type: 'โรงเรียน — สพฐ. กระทรวงศึกษาธิการ', tshort: 'โรงเรียน', loc: 'อ.ดอยสะเก็ด · จ.เชียงใหม่', code: '20012845', web: 'dsw.ac.th' },
+      { id: 'm12', th: 'สถานีตำรวจภูธรดอยสะเก็ด', en: 'Doi Saket Provincial Police Station', prov: 'เชียงใหม่', dist: 'ดอยสะเก็ด', type: 'ตำรวจ — สำนักงานตำรวจแห่งชาติ', tshort: 'ตำรวจ', loc: 'อ.ดอยสะเก็ด · จ.เชียงใหม่', code: '25060312', web: 'doisaket.police.go.th' },
+      { id: 'm13', th: 'มณฑลทหารบกที่ 33', en: '33rd Military Circle, Royal Thai Army', prov: 'เชียงใหม่', dist: 'เมือง', type: 'ทหาร — กองทัพบก กระทรวงกลาโหม', tshort: 'ทหาร', loc: 'อ.เมือง · จ.เชียงใหม่', code: '23300433', web: 'mtb33.rta.mi.th' },
+      { id: 'm14', th: 'แขวงทางหลวงเชียงใหม่ที่ 2', en: 'Chiang Mai Highway District 2', prov: 'เชียงใหม่', dist: 'เมือง', type: 'ราชการส่วนกลาง — กรมทางหลวง', tshort: 'กรมทางหลวง', loc: 'อ.เมือง · จ.เชียงใหม่', code: '08006302', web: 'chiangmai2.doh.go.th' }
+    ],
+    stages: [
+      ['ระบุหน่วยงานสำเร็จ', 'ยืนยัน papai.go.th'],
+      ['ค้นพบแหล่งข้อมูล', 'แหล่งสาธารณะ 5 แหล่ง'],
+      ['สแกนหน้าเว็บ', '1,182 หน้า'],
+      ['ดาวน์โหลดเอกสาร', '534 ไฟล์'],
+      ['แยกวิเคราะห์เอกสาร', 'PDF ข้อความ 489 ไฟล์'],
+      ['ประมวล OCR หน้าสแกน', '61 หน้า'],
+      ['สกัดข้อมูลโครงการ', '251 รายการ'],
+      ['ระบุผู้รับจ้าง', '43 ราย'],
+      ['สร้างความสัมพันธ์ในกราฟ', '2,114 เส้นเชื่อม'],
+      ['ประมวลกฎความเสี่ยง', '13 กฎ · 23 สัญญาณ'],
+      ['รายงานพร้อมแล้ว', 'ปีงบ 2566–2568']
+    ],
+    stats: [
+      { label: 'มูลค่าจัดซื้อจัดจ้าง', value: '฿86.4 ล.', sub: '3 ปีงบประมาณ' },
+      { label: 'โครงการ', value: '251', sub: 'งานก่อสร้าง 182 · จัดซื้อ 69' },
+      { label: 'ผู้รับจ้าง', value: '43', sub: '5 รายถือครอง 71% ของมูลค่า' },
+      { label: 'เอกสาร', value: '534', sub: 'แยกวิเคราะห์ 489 · OCR 45' },
+      { label: 'สัญญาณความเสี่ยง', value: '23', sub: 'ใน 5 หมวด' }
+    ],
+    years: [
+      { label: 'ปีงบ 2566', value: '฿24.1 ล.', pct: '70%' },
+      { label: 'ปีงบ 2567', value: '฿27.9 ล.', pct: '81%' },
+      { label: 'ปีงบ 2568', value: '฿34.4 ล.', pct: '100%' }
+    ],
+    methods: [
+      { label: 'เฉพาะเจาะจง', n: '154', pct: '61%' },
+      { label: 'e-bidding', n: '71', pct: '28%' },
+      { label: 'คัดเลือก', n: '19', pct: '8%' },
+      { label: 'อื่น ๆ', n: '7', pct: '3%' }
+    ],
+    riskCats: [
+      { label: 'การแข่งขัน', count: 7, pct: '100%' },
+      { label: 'ราคา', count: 6, pct: '86%' },
+      { label: 'กระบวนการ', count: 5, pct: '71%' },
+      { label: 'ความสัมพันธ์', count: 3, pct: '43%' },
+      { label: 'การเปิดเผยข้อมูล', count: 2, pct: '29%' }
+    ],
+    topContractors: [
+      { id: 'c1', name: 'หจก. ป่าไผ่การโยธา', value: '฿21.8 ล.', n: 34, pct: '100%' },
+      { id: 'c2', name: 'บริษัท ลานนาศิวิล จำกัด', value: '฿14.2 ล.', n: 18, pct: '65%' },
+      { id: 'c3', name: 'หจก. ดอยสะเก็ดคอนกรีต', value: '฿9.6 ล.', n: 15, pct: '44%' },
+      { id: 'c4', name: 'บริษัท เชียงใหม่ธาราวิศว์ จำกัด', value: '฿8.1 ล.', n: 11, pct: '37%' },
+      { id: 'c5', name: 'หจก. นครพิงค์เทรดดิ้ง', value: '฿5.3 ล.', n: 9, pct: '24%' }
+    ],
+    priorityOrder: ['p14', 'p13', 'p15', 'p21', 'p08', 'p33'],
+    projects: {
+      p14: {
+        code: 'P-2568-014', name: 'ก่อสร้างถนน คสล. สายบ้านป่าไผ่เหนือ ช่วงที่ 2 หมู่ 3', cat: 'งานก่อสร้างถนน',
+        fy: 'ปีงบ 2568', method: 'เฉพาะเจาะจง', methodShort: 'เฉพาะเจาะจง', budget: '฿498,000', ref: '฿498,000',
+        award: '฿497,500', pct: '99.90%', winner: 'c1', announced: '26 มิ.ย. 2568', sevKey: 'High', ind: 4,
+        alerts: [
+          { tag: 'R6 · กระบวนการ', title: 'อาจมีการแบ่งซื้อแบ่งจ้าง', sevKey: 'High', conf: 'ความเชื่อมั่น 0.82',
+            facts: [['สัญญาที่เกี่ยวข้อง', '3 ช่วง ถนนสายเดียวกัน'], ['ช่วงเวลา', '45 วัน'], ['มูลค่าแต่ละสัญญา', '฿496,000–499,000'], ['เกณฑ์วงเงิน', '฿500,000']],
+            explain: 'ถนนสายเดียวกัน 3 ช่วงต่อเนื่อง (ช่วงที่ 1–3) ถูกจัดจ้างแยกเป็น 3 โครงการภายใน 45 วัน แต่ละโครงการตั้งงบ ฿496,000–499,000 — ต่ำกว่าเกณฑ์ ฿500,000 ที่ต้องใช้วิธีแข่งขันเพียงเล็กน้อย มูลค่ารวม ฿1,492,500',
+            innocent: 'งบประมาณอาจถูกจัดสรรเป็นงวด หรือแต่ละช่วงอาจใช้แหล่งเงินต่างกัน — ควรตรวจข้อบัญญัติงบประมาณและแผนจัดซื้อจัดจ้างประจำปี',
+            evidence: ['D-268 · ประกาศผู้ชนะ', 'D-240 · หนังสือเชิญเสนอราคา', 'D-102 · แผนจัดซื้อจัดจ้าง'] },
+          { tag: 'R4 · ราคา', title: 'ราคาที่ตกลงใกล้ราคากลางมาก', sevKey: 'High', conf: 'ความเชื่อมั่น 0.90',
+            facts: [['ราคากลาง', '฿498,000'], ['ราคาที่ตกลง', '฿497,500'], ['ส่วนต่าง', '−0.10%'], ['ค่ากลางกลุ่มเปรียบเทียบ', '−4.6%']],
+            explain: 'ราคาที่ตกลงเท่ากับ 99.90% ของราคากลางที่ประกาศ ขณะที่สัญญางานถนนลักษณะเดียวกันใน 8 เทศบาลเปรียบเทียบ ตกลงกันต่ำกว่าราคากลางเฉลี่ย 4.6%',
+            innocent: 'ราคากลางงานถนนคอนกรีตขนาดเล็กคำนวณจากราคาต่อหน่วยมาตรฐานอย่างแน่นหนา อาจเหลือช่องให้ต่อรองน้อย',
+            evidence: ['D-231 · ราคากลาง', 'D-268 · ประกาศผู้ชนะ'] },
+          { tag: 'R1 · การแข่งขัน', title: 'ผู้ชนะรายเดิมซ้ำในหมวดงานเดียวกัน', sevKey: 'Medium', conf: 'ความเชื่อมั่น 0.95',
+            facts: [['หมวดงาน', 'งานก่อสร้างถนน'], ['อัตราชนะ', '7 จาก 9 โครงการล่าสุด'], ['ช่วงเวลา', 'ปีงบ 2566–2568']],
+            explain: 'หจก. ป่าไผ่การโยธา ชนะงานก่อสร้างถนนของเทศบาลนี้ 7 จาก 9 โครงการล่าสุด',
+            innocent: 'ในอำเภอนี้อาจมีผู้รับเหมาที่มีคุณสมบัติน้อยราย — ควรเทียบจำนวนผู้เสนอราคากับเทศบาลข้างเคียง',
+            evidence: ['D-268 · ประกาศผู้ชนะ', 'D-198 · สรุปผลจัดซื้อ ปีงบ 2567'] },
+          { tag: 'R9 · กระบวนการ', title: 'ถ้อยคำ TOR ซ้ำกัน', sevKey: 'Medium', conf: 'ความเชื่อมั่น 0.88',
+            facts: [['เทียบ P-2568-013', 'เหมือนกัน 94%'], ['เทียบ P-2568-015', 'เหมือนกัน 91%'], ['วิธีตรวจ', 'เชิงความหมาย + ตรงตัวอักษร']],
+            explain: 'ข้อความ TOR เหมือนกับ TOR ของช่วงที่ 1 (P-2568-013) ถึง 94% รวมถึงปริมาณงานและคำพิมพ์ผิดจุดเดียวกันในข้อ 4.2',
+            innocent: 'เทศบาลมักใช้แม่แบบ TOR ซ้ำสำหรับงานลักษณะเดียวกัน — คำพิมพ์ผิดที่ซ้ำกันทำให้คำอธิบายนี้แคบลงแต่ยังไม่ตัดทิ้ง',
+            evidence: ['D-232 · TOR (โครงการนี้)', 'D-214 · TOR (P-2568-013)'] }
+        ],
+        timeline: [
+          ['30 เม.ย. 2568', 'โครงการปรากฏในแผนจัดซื้อจัดจ้างประจำปี', 'D-102'],
+          ['12 พ.ค. 2568', 'กำหนดราคากลาง — ฿498,000', 'D-231'],
+          ['12 พ.ค. 2568', 'เผยแพร่ขอบเขตงาน (TOR)', 'D-232'],
+          ['19 พ.ค. 2568', 'ออกหนังสือเชิญเสนอราคา (เฉพาะเจาะจง)', 'D-240'],
+          ['26 มิ.ย. 2568', 'ประกาศผู้ชนะ — หจก. ป่าไผ่การโยธา', 'D-268'],
+          ['10 ก.ค. 2568', 'ลงนามสัญญา — ฿497,500', 'D-281']
+        ],
+        related: [['p13', 'P-2568-013 · ช่วงที่ 1', 'ถนนสายเดียวกัน · TOR เหมือน 94% · ผู้ชนะรายเดียวกัน'], ['p15', 'P-2568-015 · ช่วงที่ 3', 'ถนนสายเดียวกัน · ภายใน 45 วัน · ผู้ชนะรายเดียวกัน']]
+      },
+      p13: {
+        code: 'P-2568-013', name: 'ก่อสร้างถนน คสล. สายบ้านป่าไผ่เหนือ ช่วงที่ 1 หมู่ 3', cat: 'งานก่อสร้างถนน',
+        fy: 'ปีงบ 2568', method: 'เฉพาะเจาะจง', methodShort: 'เฉพาะเจาะจง', budget: '฿496,000', ref: '฿496,000',
+        award: '฿495,000', pct: '99.80%', winner: 'c1', announced: '19 พ.ค. 2568', sevKey: 'High', ind: 2,
+        alerts: [
+          { tag: 'R6 · กระบวนการ', title: 'อาจมีการแบ่งซื้อแบ่งจ้าง', sevKey: 'High', conf: 'ความเชื่อมั่น 0.82',
+            facts: [['สัญญาที่เกี่ยวข้อง', '3 ช่วง ถนนสายเดียวกัน'], ['มูลค่าแต่ละสัญญา', '฿496,000–499,000'], ['เกณฑ์วงเงิน', '฿500,000']],
+            explain: 'เป็นช่วงแรกของถนนสายเดียวกัน 3 ช่วงที่ถูกจัดจ้างแยกกันภายใน 45 วัน แต่ละสัญญาต่ำกว่าเกณฑ์เฉพาะเจาะจง ฿500,000 เพียงเล็กน้อย',
+            innocent: 'งบประมาณอาจถูกจัดสรรเป็นงวดระหว่างปีงบประมาณ',
+            evidence: ['D-226 · ประกาศผู้ชนะ', 'D-102 · แผนจัดซื้อจัดจ้าง'] },
+          { tag: 'R9 · กระบวนการ', title: 'ถ้อยคำ TOR ซ้ำกัน', sevKey: 'Medium', conf: 'ความเชื่อมั่น 0.88',
+            facts: [['เทียบ P-2568-014', 'เหมือนกัน 94%'], ['จุดสังเกตร่วม', 'คำพิมพ์ผิดข้อ 4.2']],
+            explain: 'ข้อความ TOR เกือบเหมือนกับช่วงที่ 2 และ 3 รวมถึงคำพิมพ์ผิดจุดเดียวกัน',
+            innocent: 'แม่แบบ TOR มักถูกใช้ซ้ำสำหรับงานลักษณะเดียวกัน',
+            evidence: ['D-214 · TOR (โครงการนี้)'] }
+        ],
+        timeline: [
+          ['30 เม.ย. 2568', 'โครงการปรากฏในแผนจัดซื้อจัดจ้างประจำปี', 'D-102'],
+          ['2 พ.ค. 2568', 'กำหนดราคากลาง — ฿496,000', 'D-209'],
+          ['2 พ.ค. 2568', 'เผยแพร่ขอบเขตงาน (TOR)', 'D-214'],
+          ['19 พ.ค. 2568', 'ประกาศผู้ชนะ — หจก. ป่าไผ่การโยธา', 'D-226']
+        ],
+        related: [['p14', 'P-2568-014 · ช่วงที่ 2', 'ถนนสายเดียวกัน · TOR เหมือน 94% · ผู้ชนะรายเดียวกัน'], ['p15', 'P-2568-015 · ช่วงที่ 3', 'ถนนสายเดียวกัน · ผู้ชนะรายเดียวกัน']]
+      },
+      p15: {
+        code: 'P-2568-015', name: 'ก่อสร้างถนน คสล. สายบ้านป่าไผ่เหนือ ช่วงที่ 3 หมู่ 3', cat: 'งานก่อสร้างถนน',
+        fy: 'ปีงบ 2568', method: 'เฉพาะเจาะจง', methodShort: 'เฉพาะเจาะจง', budget: '฿499,000', ref: '฿499,000',
+        award: '฿498,200', pct: '99.84%', winner: 'c1', announced: '3 ก.ค. 2568', sevKey: 'High', ind: 2,
+        alerts: [
+          { tag: 'R6 · กระบวนการ', title: 'อาจมีการแบ่งซื้อแบ่งจ้าง', sevKey: 'High', conf: 'ความเชื่อมั่น 0.82',
+            facts: [['สัญญาที่เกี่ยวข้อง', '3 ช่วง ถนนสายเดียวกัน'], ['มูลค่าแต่ละสัญญา', '฿496,000–499,000'], ['เกณฑ์วงเงิน', '฿500,000']],
+            explain: 'เป็นช่วงที่สามของถนนสายเดียวกันที่ถูกจัดจ้างแยกกันภายใน 45 วัน แต่ละสัญญาต่ำกว่าเกณฑ์ ฿500,000 เพียงเล็กน้อย',
+            innocent: 'แต่ละช่วงอาจใช้แหล่งเงินต่างกัน — ควรตรวจข้อบัญญัติงบประมาณ',
+            evidence: ['D-275 · ประกาศผู้ชนะ', 'D-102 · แผนจัดซื้อจัดจ้าง'] },
+          { tag: 'R1 · การแข่งขัน', title: 'ผู้ชนะรายเดิมซ้ำในหมวดงานเดียวกัน', sevKey: 'Medium', conf: 'ความเชื่อมั่น 0.95',
+            facts: [['อัตราชนะ', '7 จาก 9 โครงการล่าสุด'], ['ช่วงเวลา', 'ปีงบ 2566–2568']],
+            explain: 'ผู้ชนะรายเดียวกับช่วงที่ 1 และ 2 และชนะงานถนน 7 จาก 9 โครงการล่าสุดโดยรวม',
+            innocent: 'ในอำเภอนี้อาจมีผู้รับเหมาที่มีคุณสมบัติน้อยราย',
+            evidence: ['D-275 · ประกาศผู้ชนะ'] }
+        ],
+        timeline: [
+          ['30 เม.ย. 2568', 'โครงการปรากฏในแผนจัดซื้อจัดจ้างประจำปี', 'D-102'],
+          ['9 มิ.ย. 2568', 'กำหนดราคากลาง — ฿499,000', 'D-257'],
+          ['9 มิ.ย. 2568', 'เผยแพร่ขอบเขตงาน (TOR)', 'D-258'],
+          ['3 ก.ค. 2568', 'ประกาศผู้ชนะ — หจก. ป่าไผ่การโยธา', 'D-275']
+        ],
+        related: [['p13', 'P-2568-013 · ช่วงที่ 1', 'ถนนสายเดียวกัน · ผู้ชนะรายเดียวกัน'], ['p14', 'P-2568-014 · ช่วงที่ 2', 'ถนนสายเดียวกัน · ผู้ชนะรายเดียวกัน']]
+      },
+      p21: {
+        code: 'P-2568-021', name: 'ปรับปรุงระบบระบายน้ำ บ้านป่าไผ่ใต้ หมู่ 6', cat: 'งานระบายน้ำ',
+        fy: 'ปีงบ 2568', method: 'e-bidding', methodShort: 'e-bidding', budget: '฿1,240,000', ref: '฿1,238,000',
+        award: '฿1,236,000', pct: '99.84%', winner: 'c4', announced: '11 มี.ค. 2568', sevKey: 'Medium', ind: 2,
+        alerts: [
+          { tag: 'R4 · ราคา', title: 'ราคาที่ตกลงใกล้ราคากลาง', sevKey: 'Medium', conf: 'ความเชื่อมั่น 0.85',
+            facts: [['ราคากลาง', '฿1,238,000'], ['ราคาที่ตกลง', '฿1,236,000'], ['ส่วนต่าง', '−0.16%']],
+            explain: 'ราคาตกลงที่ 99.84% ของราคากลาง ทั้งที่เป็นการประมูลแบบ e-bidding ซึ่งกลุ่มเปรียบเทียบมีส่วนลดเฉลี่ย 5.1%',
+            innocent: 'หากมีผู้เสนอราคาจริงจังเพียงรายเดียว ส่วนลดอาจต่ำแม้ในการประมูลแบบเปิด',
+            evidence: ['D-171 · ประกาศผู้ชนะ', 'D-164 · ราคากลาง'] },
+          { tag: 'R2 · การแข่งขัน', title: 'ผู้เสนอราคารายเดียวในการประมูลแบบเปิด', sevKey: 'Medium', conf: 'ความเชื่อมั่น 0.92',
+            facts: [['ผู้เสนอราคา', '1 ราย'], ['วิธี', 'e-bidding'], ['ค่ากลางกลุ่มเปรียบเทียบ', '3 ราย']],
+            explain: 'มีผู้เสนอราคาเพียงรายเดียวในการประมูล e-bidding แบบเปิด ขณะที่เทศบาลเปรียบเทียบมีผู้เสนอราคาเฉลี่ย 3 รายสำหรับงานระบายน้ำลักษณะเดียวกัน',
+            innocent: 'งานระบายน้ำเฉพาะทางในอำเภอชนบทอาจดึงดูดผู้เสนอราคาน้อยราย',
+            evidence: ['D-171 · ประกาศผู้ชนะ'] }
+        ],
+        timeline: [
+          ['12 ม.ค. 2568', 'โครงการปรากฏในแผนจัดซื้อจัดจ้างประจำปี', 'D-098'],
+          ['3 ก.พ. 2568', 'กำหนดราคากลาง — ฿1,238,000', 'D-164'],
+          ['10 ก.พ. 2568', 'เผยแพร่ประกาศ e-bidding', 'D-166'],
+          ['11 มี.ค. 2568', 'ประกาศผู้ชนะ — บริษัท เชียงใหม่ธาราวิศว์ จำกัด', 'D-171']
+        ],
+        related: [['p14', 'P-2568-014 · ถนนช่วงที่ 2', 'ตำบลเดียวกัน · ปีงบเดียวกัน']]
+      },
+      p08: {
+        code: 'P-2568-008', name: 'จัดซื้อรถบรรทุกขยะแบบอัดท้าย ขนาด 6 ตัน', cat: 'จัดซื้อครุภัณฑ์ยานพาหนะ',
+        fy: 'ปีงบ 2568', method: 'e-bidding', methodShort: 'e-bidding', budget: '฿2,400,000', ref: 'ไม่พบเอกสาร',
+        award: '฿2,388,000', pct: '—', winner: 'c5', announced: '28 ม.ค. 2568', sevKey: 'Medium', ind: 2,
+        alerts: [
+          { tag: 'R10 · ราคา', title: 'ราคาสูงกว่ากลุ่มเปรียบเทียบ', sevKey: 'Medium', conf: 'ความเชื่อมั่น 0.78',
+            facts: [['ราคาที่ตกลง', '฿2,388,000'], ['ค่ากลางกลุ่มเปรียบเทียบ', '฿2,203,000'], ['ส่วนต่าง', '+8.4%']],
+            explain: 'ราคาที่ตกลงสูงกว่าค่ากลางที่ 6 เทศบาลเปรียบเทียบจ่ายสำหรับรถบรรทุกขยะรุ่นเดียวกันในปีงบเดียวกัน 8.4%',
+            innocent: 'สเปกที่ต่างกัน (ตัวถัง ระบบไฮดรอลิก เงื่อนไขรับประกัน) อาจทำให้ราคาสูงขึ้นโดยชอบ — ควรเทียบสเปกใน TOR',
+            evidence: ['D-141 · ประกาศผู้ชนะ', 'ชุดเปรียบเทียบ · 6 เทศบาล'] },
+          { tag: 'R11 · การเปิดเผยข้อมูล', title: 'ไม่พบเอกสารราคากลาง', sevKey: 'Medium', conf: 'ความเชื่อมั่น 0.97',
+            facts: [['เอกสารที่ควรมี', 'ประกาศราคากลาง'], ['สถานะ', 'ไม่พบในทุกแหล่งข้อมูล']],
+            explain: 'ไม่พบการเปิดเผยราคากลางทั้งบนเว็บไซต์เทศบาลและระบบ e-GP ทั้งที่จำเป็นสำหรับการจัดซื้อวงเงินระดับนี้',
+            innocent: 'เอกสารอาจมีอยู่แต่ไม่ถูกเผยแพร่ หรือลิงก์เสีย — หน้างบประมาณของเว็บไซต์ขณะนี้เข้าไม่ได้',
+            evidence: ['D-141 · ประกาศผู้ชนะ', 'บันทึกการเก็บข้อมูล · papai.go.th/budget'] }
+        ],
+        timeline: [
+          ['12 ม.ค. 2568', 'โครงการปรากฏในแผนจัดซื้อจัดจ้างประจำปี', 'D-098'],
+          ['5 ม.ค. 2568', 'เผยแพร่ประกาศ e-bidding', 'D-133'],
+          ['28 ม.ค. 2568', 'ประกาศผู้ชนะ — หจก. นครพิงค์เทรดดิ้ง', 'D-141']
+        ],
+        related: []
+      },
+      p33: {
+        code: 'P-2567-033', name: 'ซ่อมแซมอาคารศูนย์พัฒนาเด็กเล็ก เทศบาลตำบลป่าไผ่', cat: 'งานซ่อมแซมอาคาร',
+        fy: 'ปีงบ 2567', method: 'เฉพาะเจาะจง', methodShort: 'เฉพาะเจาะจง', budget: '฿356,000', ref: '฿356,000',
+        award: '฿355,000', pct: '99.72%', winner: 'c3', announced: '14 ส.ค. 2567', sevKey: 'Low', ind: 1,
+        alerts: [
+          { tag: 'R12 · คุณภาพข้อมูล', title: 'วันที่ขัดแย้งกันระหว่างเอกสาร', sevKey: 'Low', conf: 'ความเชื่อมั่น 0.90',
+            facts: [['ประกาศผู้ชนะ', '14 ส.ค. 2567'], ['สรุปรายเดือน (สขร.1)', '4 ส.ค. 2567'], ['ห่างกัน', '10 วัน']],
+            explain: 'ประกาศผู้ชนะลงวันที่หลังจากรายการเดียวกันปรากฏในสรุปผลจัดซื้อรายเดือนแล้ว 10 วัน',
+            innocent: 'น่าจะเป็นความคลาดเคลื่อนทางธุรการหรือการอัปโหลดซ้ำ — จัดเป็นปัญหาคุณภาพข้อมูล ไม่ใช่กระบวนการ',
+            evidence: ['D-388 · ประกาศผู้ชนะ', 'D-379 · สรุปรายเดือน'] }
+        ],
+        timeline: [
+          ['2 ก.ค. 2567', 'กำหนดราคากลาง — ฿356,000', 'D-371'],
+          ['14 ส.ค. 2567', 'ประกาศผู้ชนะ — หจก. ดอยสะเก็ดคอนกรีต', 'D-388']
+        ],
+        related: []
+      }
+    },
+    contractors: {
+      c1: { name: 'หจก. ป่าไผ่การโยธา', reg: '0503556001234', contracts: 34, total: '฿21.8 ล้าน', shareNum: '25.2%', share: '25.2% ของมูลค่าหน่วยงาน',
+        cats: 'ถนน · ระบายน้ำ · อาคาร', address: '142/7 หมู่ 4 ต.ป่าไผ่ อ.ดอยสะเก็ด จ.เชียงใหม่', addrNote: 'ที่อยู่เดียวกับ หจก. ดอยสะเก็ดคอนกรีต', addrFlag: true,
+        directors: [{ name: 'นายสมชาย ใจดี', note: 'กรรมการ · ผู้ถือหุ้น 55% · เป็นกรรมการของ หจก. ดอยสะเก็ดคอนกรีต ด้วย', flag: true }, { name: 'นางพิมพ์ใจ ใจดี', note: 'กรรมการ · ผู้ถือหุ้น 45% (บอจ.5)', flag: false }],
+        risks: [
+          { tag: 'R1 · การแข่งขัน', text: 'ชนะงานก่อสร้างถนนของเทศบาลนี้ 7 จาก 9 โครงการล่าสุด', sevKey: 'Medium' },
+          { tag: 'R2 · การแข่งขัน', text: 'ถือครอง 25.2% ของมูลค่าจัดซื้อจัดจ้างทั้งหมด ปีงบ 2566–2568', sevKey: 'Medium' },
+          { tag: 'R5 · ความสัมพันธ์', text: 'มีกรรมการและที่อยู่จดทะเบียนร่วมกับ หจก. ดอยสะเก็ดคอนกรีต ซึ่งเข้าเสนอราคาแข่งกัน 5 ครั้ง — ผลชนะ 5–0', sevKey: 'High' },
+          { tag: 'R13 · ความสัมพันธ์', text: 'นามสกุลกรรมการ/ผู้ถือหุ้น ("ใจดี") ตรงกับรองนายกเทศมนตรี นายวิชัย ใจดี (จากทำเนียบผู้บริหาร) — นามสกุลร่วมไม่ใช่ข้อพิสูจน์ รอเจ้าหน้าที่ยืนยัน', sevKey: 'Medium' }
+        ],
+        related: [{ id: 'c3', name: 'หจก. ดอยสะเก็ดคอนกรีต', note: 'กรรมการร่วม (นายสมชาย ใจดี) · ที่อยู่จดทะเบียนเดียวกัน · เสนอราคาแข่งกัน 5 ครั้ง ผลชนะ 5–0' }],
+        rows: [
+          ['p14', 'P-2568-014', 'ก่อสร้างถนน คสล. สายบ้านป่าไผ่เหนือ ช่วงที่ 2', '฿497,500', 'เฉพาะเจาะจง', '2568'],
+          ['p13', 'P-2568-013', 'ก่อสร้างถนน คสล. สายบ้านป่าไผ่เหนือ ช่วงที่ 1', '฿495,000', 'เฉพาะเจาะจง', '2568'],
+          ['p15', 'P-2568-015', 'ก่อสร้างถนน คสล. สายบ้านป่าไผ่เหนือ ช่วงที่ 3', '฿498,200', 'เฉพาะเจาะจง', '2568'],
+          [null, 'P-2567-041', 'ก่อสร้างถนน คสล. สายหนองบัว หมู่ 5', '฿1,870,000', 'e-bidding', '2567'],
+          [null, 'P-2567-018', 'วางท่อระบายน้ำ ถนนกลางบ้าน หมู่ 2', '฿934,000', 'เฉพาะเจาะจง', '2567'],
+          [null, 'P-2566-052', 'ปรับปรุงถนนลูกรัง สายทุ่งนา หมู่ 7', '฿486,000', 'เฉพาะเจาะจง', '2566']
+        ],
+        docs: ['D-268', 'D-226', 'D-275', 'D-198', 'ข้อมูลทะเบียน DBD'] },
+      c2: { name: 'บริษัท ลานนาศิวิล จำกัด', reg: '0505561004567', contracts: 18, total: '฿14.2 ล้าน', shareNum: '16.4%', share: '16.4% ของมูลค่าหน่วยงาน',
+        cats: 'อาคาร · ถนน', address: '88/1 ถ.เชียงใหม่-ดอยสะเก็ด ต.สันปูเลย อ.ดอยสะเก็ด', addrNote: 'ไม่พบการจดทะเบียนร่วมกับรายอื่น', addrFlag: false,
+        directors: [{ name: 'นายวีระชัย มณีวรรณ', note: 'ไม่พบตำแหน่งกรรมการอื่น', flag: false }],
+        risks: [{ tag: 'R2 · การแข่งขัน', text: 'ถือครอง 16.4% ของมูลค่าจัดซื้อจัดจ้าง — อยู่ในช่วงปกติของกลุ่มเปรียบเทียบ', sevKey: 'Low' }],
+        related: [],
+        rows: [
+          [null, 'P-2568-030', 'ก่อสร้างอาคารอเนกประสงค์ หมู่ 1', '฿3,420,000', 'e-bidding', '2568'],
+          [null, 'P-2567-055', 'ปรับปรุงอาคารสำนักงานเทศบาล', '฿1,980,000', 'e-bidding', '2567'],
+          [null, 'P-2566-021', 'ก่อสร้างรั้วศูนย์พัฒนาเด็กเล็ก', '฿418,000', 'เฉพาะเจาะจง', '2566']
+        ],
+        docs: ['D-301', 'D-355', 'ข้อมูลทะเบียน DBD'] },
+      c3: { name: 'หจก. ดอยสะเก็ดคอนกรีต', reg: '0503559002888', contracts: 15, total: '฿9.6 ล้าน', shareNum: '11.1%', share: '11.1% ของมูลค่าหน่วยงาน',
+        cats: 'ถนน · อาคาร · วัสดุ', address: '142/7 หมู่ 4 ต.ป่าไผ่ อ.ดอยสะเก็ด จ.เชียงใหม่', addrNote: 'ที่อยู่เดียวกับ หจก. ป่าไผ่การโยธา', addrFlag: true,
+        directors: [{ name: 'นายสมชาย ใจดี', note: 'เป็นกรรมการของ หจก. ป่าไผ่การโยธา ด้วย', flag: true }, { name: 'นายอนุชา แก้วมา', note: 'ไม่พบตำแหน่งกรรมการอื่น', flag: false }],
+        risks: [
+          { tag: 'R5 · ความสัมพันธ์', text: 'มีกรรมการและที่อยู่จดทะเบียนร่วมกับ หจก. ป่าไผ่การโยธา และเข้าเสนอราคาแข่งกับบริษัทดังกล่าว 5 ครั้ง — แพ้ทั้ง 5 ครั้ง', sevKey: 'High' },
+          { tag: 'R12 · คุณภาพข้อมูล', text: 'วันที่ในประกาศผู้ชนะ P-2567-033 ขัดแย้งกับสรุปรายเดือน', sevKey: 'Low' }
+        ],
+        related: [{ id: 'c1', name: 'หจก. ป่าไผ่การโยธา', note: 'กรรมการร่วม (นายสมชาย ใจดี) · ที่อยู่จดทะเบียนเดียวกัน · เสนอราคาแข่งกัน 5 ครั้ง' }],
+        rows: [
+          ['p33', 'P-2567-033', 'ซ่อมแซมอาคารศูนย์พัฒนาเด็กเล็ก', '฿355,000', 'เฉพาะเจาะจง', '2567'],
+          [null, 'P-2568-019', 'จัดซื้อวัสดุก่อสร้าง (หินคลุก)', '฿287,000', 'เฉพาะเจาะจง', '2568'],
+          [null, 'P-2566-044', 'ก่อสร้างลานคอนกรีตหน้าตลาดสด', '฿640,000', 'e-bidding', '2566']
+        ],
+        docs: ['D-388', 'D-379', 'ข้อมูลทะเบียน DBD'] },
+      c4: { name: 'บริษัท เชียงใหม่ธาราวิศว์ จำกัด', reg: '0505560003321', contracts: 11, total: '฿8.1 ล้าน', shareNum: '9.4%', share: '9.4% ของมูลค่าหน่วยงาน',
+        cats: 'ระบายน้ำ · ประปา', address: '215 ถ.ซุปเปอร์ไฮเวย์ ต.หนองป่าครั่ง อ.เมือง จ.เชียงใหม่', addrNote: 'ไม่พบการจดทะเบียนร่วมกับรายอื่น', addrFlag: false,
+        directors: [{ name: 'นางสาวปาริชาต วงศ์ธารา', note: 'ไม่พบตำแหน่งกรรมการอื่น', flag: false }],
+        risks: [{ tag: 'R2 · การแข่งขัน', text: 'ชนะการประมูล e-bidding งานระบายน้ำ P-2568-021 โดยเป็นผู้เสนอราคารายเดียว', sevKey: 'Medium' }],
+        related: [],
+        rows: [
+          ['p21', 'P-2568-021', 'ปรับปรุงระบบระบายน้ำ บ้านป่าไผ่ใต้ หมู่ 6', '฿1,236,000', 'e-bidding', '2568'],
+          [null, 'P-2567-029', 'ขยายเขตประปาหมู่บ้าน หมู่ 8', '฿2,140,000', 'e-bidding', '2567']
+        ],
+        docs: ['D-171', 'D-164', 'ข้อมูลทะเบียน DBD'] },
+      c5: { name: 'หจก. นครพิงค์เทรดดิ้ง', reg: '0503562005110', contracts: 9, total: '฿5.3 ล้าน', shareNum: '6.1%', share: '6.1% ของมูลค่าหน่วยงาน',
+        cats: 'ครุภัณฑ์ · ยานพาหนะ', address: '19/3 ถ.ช้างเผือก ต.ศรีภูมิ อ.เมือง จ.เชียงใหม่', addrNote: 'ไม่พบการจดทะเบียนร่วมกับรายอื่น', addrFlag: false,
+        directors: [{ name: 'นายกิตติศักดิ์ พิงคะสัน', note: 'ไม่พบตำแหน่งกรรมการอื่น', flag: false }],
+        risks: [{ tag: 'R10 · ราคา', text: 'ราคารถบรรทุกขยะ P-2568-008 สูงกว่าค่ากลางกลุ่มเปรียบเทียบ 8.4%', sevKey: 'Medium' }],
+        related: [],
+        rows: [
+          ['p08', 'P-2568-008', 'จัดซื้อรถบรรทุกขยะแบบอัดท้าย ขนาด 6 ตัน', '฿2,388,000', 'e-bidding', '2568'],
+          [null, 'P-2567-012', 'จัดซื้อครุภัณฑ์คอมพิวเตอร์สำนักงาน', '฿486,000', 'เฉพาะเจาะจง', '2567']
+        ],
+        docs: ['D-141', 'ข้อมูลทะเบียน DBD'] }
+    },
+    reviewOptions: ['ใหม่', 'กำลังตรวจสอบ', 'ยืนยันปัญหาข้อมูล', 'ต้องการข้อมูลเพิ่มเติม', 'ปัดตก — ไม่พบปัญหา', 'ส่งต่อเพื่อสอบสวน'],
+    graph: {
+      nodes: [
+        { id: 'muni', type: 'muni', x: 150, y: 280, label: 'ทต.ป่าไผ่' },
+        { id: 'b68', type: 'budget', x: 150, y: 95, label: 'ข้อบัญญัติงบ 2568' },
+        { id: 'p13', type: 'project', x: 350, y: 120, label: 'P-2568-013' },
+        { id: 'p14', type: 'project', x: 330, y: 280, label: 'P-2568-014' },
+        { id: 'p15', type: 'project', x: 350, y: 440, label: 'P-2568-015' },
+        { id: 'c1', type: 'company', x: 560, y: 280, label: 'หจก. ป่าไผ่การโยธา' },
+        { id: 'c3', type: 'company', x: 730, y: 140, label: 'หจก. ดอยสะเก็ดคอนกรีต' },
+        { id: 'person', type: 'person', x: 760, y: 300, label: 'นายสมชาย ใจดี' },
+        { id: 'addr', type: 'addr', x: 730, y: 450, label: '142/7 หมู่ 4 ต.ป่าไผ่' },
+        { id: 'd268', type: 'doc', x: 450, y: 175, label: 'D-268' },
+        { id: 'd232', type: 'doc', x: 450, y: 385, label: 'D-232' },
+        { id: 'exec', type: 'person', x: 840, y: 60, label: 'นายวิชัย ใจดี · รองนายกฯ' }
+      ],
+      edges: [
+        ['muni', 'b68', 'งบประมาณ', false],
+        ['muni', 'p13', 'จัดจ้าง', false], ['muni', 'p14', 'จัดจ้าง', false], ['muni', 'p15', 'จัดจ้าง', false],
+        ['p13', 'c1', 'ผู้ชนะ', false], ['p14', 'c1', 'ผู้ชนะ', false], ['p15', 'c1', 'ผู้ชนะ', false],
+        ['p13', 'c3', 'ผู้เสนอราคา', true], ['p14', 'c3', 'ผู้เสนอราคา', true],
+        ['c1', 'person', 'กรรมการ', false], ['c3', 'person', 'กรรมการ', false],
+        ['c1', 'addr', 'ที่อยู่จดทะเบียน', false], ['c3', 'addr', 'ที่อยู่จดทะเบียน', false],
+        ['p14', 'd268', 'ประกาศผู้ชนะ', true], ['p14', 'd232', 'TOR', true],
+        ['person', 'exec', 'นามสกุลร่วม · รอยืนยัน', true]
+      ],
+      details: {
+        muni: { typeLabel: 'เทศบาล', label: 'เทศบาลตำบลป่าไผ่', sub: 'อ.ดอยสะเก็ด จ.เชียงใหม่', facts: ['โครงการ 251 รายการ · ฿86.4 ล้าน (ปีงบ 2566–2568)', 'ผู้รับจ้าง 43 ราย · เอกสาร 534 ฉบับ', 'สัญญาณความเสี่ยง 23 รายการใน 5 หมวด'], docs: ['แผนจัดซื้อ D-102', 'ข้อบัญญัติงบ D-090'], link: null },
+        b68: { typeLabel: 'งบประมาณ', label: 'ข้อบัญญัติงบประมาณ ปีงบ 2568', sub: 'งบลงทุนหมวดค่าที่ดินและสิ่งก่อสร้าง', facts: ['วงเงินงบลงทุน ฿18.6 ล้าน', 'ครอบคลุมโครงการถนนสายบ้านป่าไผ่เหนือทั้ง 3 ช่วง', 'ตั้งงบรวมรายการเดียว — ถูกแยกจัดจ้าง 3 สัญญา'], docs: ['D-090 · ข้อบัญญัติงบ 2568'], link: null },
+        p13: { typeLabel: 'โครงการ', label: 'P-2568-013 · ถนน คสล. ช่วงที่ 1', sub: 'ตกลง ฿495,000 · เฉพาะเจาะจง', facts: ['ราคาที่ตกลง = 99.80% ของราคากลาง', 'สัญญาณ 2 รายการ: แบ่งจ้าง · TOR ซ้ำ'], docs: ['D-226 · ประกาศผู้ชนะ', 'D-214 · TOR'], link: 'project', target: 'p13' },
+        p14: { typeLabel: 'โครงการ', label: 'P-2568-014 · ถนน คสล. ช่วงที่ 2', sub: 'ตกลง ฿497,500 · เฉพาะเจาะจง', facts: ['ราคาที่ตกลง = 99.90% ของราคากลาง', 'สัญญาณ 4 รายการ — ความสำคัญสูง', 'หนึ่งใน 3 ช่วงที่อาจถูกแบ่งจ้าง'], docs: ['D-268 · ประกาศผู้ชนะ', 'D-232 · TOR'], link: 'project', target: 'p14' },
+        p15: { typeLabel: 'โครงการ', label: 'P-2568-015 · ถนน คสล. ช่วงที่ 3', sub: 'ตกลง ฿498,200 · เฉพาะเจาะจง', facts: ['ราคาที่ตกลง = 99.84% ของราคากลาง', 'สัญญาณ 2 รายการ: แบ่งจ้าง · ผู้ชนะซ้ำ'], docs: ['D-275 · ประกาศผู้ชนะ'], link: 'project', target: 'p15' },
+        c1: { typeLabel: 'บริษัท', label: 'หจก. ป่าไผ่การโยธา', sub: 'เลขทะเบียน 0503556001234', facts: ['ชนะ 34 สัญญา · ฿21.8 ล้าน · 25.2% ของมูลค่าหน่วยงาน', 'ชนะถนนสายบ้านป่าไผ่เหนือทั้ง 3 ช่วง', 'กรรมการและที่อยู่ร่วมกับ หจก. ดอยสะเก็ดคอนกรีต'], docs: ['D-268', 'ข้อมูลทะเบียน DBD'], link: 'contractor', target: 'c1' },
+        c3: { typeLabel: 'บริษัท', label: 'หจก. ดอยสะเก็ดคอนกรีต', sub: 'เลขทะเบียน 0503559002888', facts: ['เสนอราคาแข่งกับ หจก. ป่าไผ่การโยธา 5 ครั้ง — แพ้ทั้งหมด', 'กรรมการร่วม: นายสมชาย ใจดี', 'ที่อยู่จดทะเบียนเดียวกัน: 142/7 หมู่ 4'], docs: ['D-388', 'ข้อมูลทะเบียน DBD'], link: 'contractor', target: 'c3' },
+        person: { typeLabel: 'บุคคล', label: 'นายสมชาย ใจดี', sub: 'กรรมการ 2 นิติบุคคล', facts: ['กรรมการ หจก. ป่าไผ่การโยธา (ผู้ชนะ)', 'กรรมการ หจก. ดอยสะเก็ดคอนกรีต (ผู้เสนอราคาแข่ง)', 'ทั้งสองรายเข้าเสนอราคาในโครงการเดียวกัน 5 ครั้ง'], docs: ['ข้อมูลทะเบียน DBD'], link: null },
+        addr: { typeLabel: 'ที่อยู่', label: '142/7 หมู่ 4 ต.ป่าไผ่ อ.ดอยสะเก็ด', sub: 'ที่อยู่จดทะเบียนร่วม 2 นิติบุคคล', facts: ['หจก. ป่าไผ่การโยธา จดทะเบียนที่นี่', 'หจก. ดอยสะเก็ดคอนกรีต จดทะเบียนที่นี่', 'ที่อยู่ร่วมของผู้เสนอราคาแข่งกันเป็นสัญญาณหมวดความสัมพันธ์'], docs: ['ข้อมูลทะเบียน DBD × 2'], link: null },
+        d268: { typeLabel: 'เอกสาร', label: 'D-268 · ประกาศผู้ชนะ P-2568-014', sub: 'ดึงข้อมูล 8 ก.ค. 2568 · PDF ข้อความ', facts: ['ประกาศผล: หจก. ป่าไผ่การโยธา — ฿497,500', 'ลงวันที่ 26 มิ.ย. 2568', 'แฮชไฟล์และ URL ต้นทางถูกบันทึก'], docs: ['papai.go.th/procurement/2568/268.pdf'], link: null },
+        d232: { typeLabel: 'เอกสาร', label: 'D-232 · TOR P-2568-014', sub: 'ดึงข้อมูล 8 ก.ค. 2568 · PDF สแกน + OCR', facts: ['ข้อความเหมือน TOR ช่วงที่ 1 ถึง 94%', 'พบคำพิมพ์ผิดซ้ำในข้อ 4.2', 'ผ่านการตรวจ OCR โดยเจ้าหน้าที่แล้ว'], docs: ['papai.go.th/procurement/2568/232.pdf'], link: null },
+        exec: { typeLabel: 'บุคคล — ผู้บริหารหน่วยงาน', label: 'นายวิชัย ใจดี', sub: 'รองนายกเทศมนตรี ทต.ป่าไผ่', facts: ['ที่มา: ทำเนียบผู้บริหารบนเว็บไซต์เทศบาล + คำสั่งแต่งตั้ง', 'นามสกุลตรงกับกรรมการ/ผู้ถือหุ้นของ หจก. ป่าไผ่การโยธา (ผู้ชนะ)', 'สถานะ: รอเจ้าหน้าที่ยืนยัน — นามสกุลร่วมไม่ใช่ข้อพิสูจน์ความเกี่ยวข้อง'], docs: ['ทำเนียบผู้บริหาร · papai.go.th', 'ข้อมูลทะเบียน DBD'], link: null }
+      }
+    },
+    sources: [
+      { url: 'papai.go.th/procurement', type: 'ประกาศจัดซื้อจัดจ้าง', status: 'ปกติ', ok: true, last: '2 ชม.ก่อน', docs: '312' },
+      { url: 'papai.go.th/budget', type: 'งบประมาณ', status: 'ลิงก์เสีย', ok: false, last: '3 วันก่อน', docs: '48' },
+      { url: 'papai.go.th/news', type: 'ข่าวประชาสัมพันธ์', status: 'ปกติ', ok: true, last: '2 ชม.ก่อน', docs: '96' },
+      { url: 'papai.go.th/executives · คำสั่งแต่งตั้ง', type: 'ทำเนียบผู้บริหาร', status: 'ปกติ', ok: true, last: '1 วันก่อน', docs: '23' },
+      { url: 'ระบบ e-GP (กรมบัญชีกลาง)', type: 'ประกาศกลาง', status: 'ปกติ', ok: true, last: '6 ชม.ก่อน', docs: '78' }
+    ],
+    queueStats: [
+      { n: '534', label: 'เอกสารทั้งหมด' }, { n: '489', label: 'แยกวิเคราะห์แล้ว' }, { n: '38', label: 'รอ OCR' }, { n: '7', label: 'ต้องตรวจโดยเจ้าหน้าที่' }
+    ],
+    queueRows: [
+      { id: 'D-541', title: 'ประกาศผู้ชนะ จ้างเหมาปรับปรุงไฟส่องสว่าง หมู่ 2', type: 'ประกาศผู้ชนะ', fmt: 'PDF ข้อความ', status: 'แยกวิเคราะห์แล้ว', ok: true },
+      { id: 'D-540', title: 'ราคากลาง โครงการวางท่อระบายน้ำ หมู่ 5', type: 'ราคากลาง', fmt: 'PDF สแกน', status: 'กำลัง OCR', ok: null },
+      { id: 'D-539', title: 'สขร.1 ประจำเดือนมิถุนายน 2568', type: 'สรุปรายเดือน', fmt: 'XLSX', status: 'แยกวิเคราะห์แล้ว', ok: true },
+      { id: 'D-538', title: 'TOR จ้างเหมาก่อสร้างศาลาอเนกประสงค์', type: 'TOR', fmt: 'PDF สแกน', status: 'OCR ความเชื่อมั่นต่ำ — รอตรวจ', ok: false },
+      { id: 'D-537', title: 'แผนจัดซื้อจัดจ้าง เพิ่มเติมครั้งที่ 2/2568', type: 'แผนจัดซื้อ', fmt: 'PDF ข้อความ', status: 'แยกวิเคราะห์แล้ว', ok: true }
+    ],
+    erRows: [
+      { id: 'er1', a: 'หจก. ป่าไผ่การโยธา', b: 'ห้างหุ้นส่วนจำกัด ป่าไผ่ การโยธา', sim: '0.97', ev: ['เลขทะเบียนเดียวกัน', 'ที่อยู่เดียวกัน', 'การสะกดต่างกันเล็กน้อย'] },
+      { id: 'er2', a: 'บริษัท ลานนาศิวิล จำกัด', b: 'บจก. ลานนา ซีวิล', sim: '0.84', ev: ['ชื่อทับศัพท์คล้ายกัน', 'ไม่พบเลขทะเบียนในเอกสารที่สอง', 'จังหวัดเดียวกัน'] },
+      { id: 'er3', a: 'หจก. นครพิงค์เทรดดิ้ง', b: 'หจก. นครพิงค์ เทรดดิ้ง แอนด์ ซัพพลาย', sim: '0.71', ev: ['ชื่อคล้ายบางส่วน', 'ที่อยู่ต่างกัน', 'กรรมการต่างกัน'] }
+    ],
+    adminReviewRows: [
+      { key: 'rv1', code: 'P-2568-014', title: 'อาจมีการแบ่งซื้อแบ่งจ้าง (R6)', sevKey: 'High', def: 'กำลังตรวจสอบ' },
+      { key: 'rv2', code: 'P-2568-014', title: 'ราคาที่ตกลงใกล้ราคากลางมาก (R4)', sevKey: 'High', def: 'ใหม่' },
+      { key: 'rv3', code: 'P-2568-021', title: 'ผู้เสนอราคารายเดียวในการประมูลแบบเปิด (R2)', sevKey: 'Medium', def: 'ใหม่' },
+      { key: 'rv4', code: 'P-2568-008', title: 'ไม่พบเอกสารราคากลาง (R11)', sevKey: 'Medium', def: 'ต้องการข้อมูลเพิ่มเติม' },
+      { key: 'rv5', code: 'P-2567-033', title: 'วันที่ขัดแย้งกันระหว่างเอกสาร (R12)', sevKey: 'Low', def: 'ยืนยันปัญหาข้อมูล' }
+    ]
+  };
+
+  H = {
+    def: { project: 'hp1', contractor: 'h1', node: 'h1' },
+    clusters: [
+      { name: 'เครือข่ายศรีทอง — เมดิเทคซัพพลาย · เชียงใหม่ครุภัณฑ์การแพทย์', sub: 'กรรมการ/ผู้ถือหุ้นร่วม · ที่อยู่เดียวกัน · เสนอราคาแข่งกัน 4 ครั้ง · ผู้ถือหุ้นชื่อตรงกับ จนท.พัสดุ (รอยืนยัน)', comp: '2 นิติบุคคล · 4 บุคคล · 1 ที่อยู่ · 2 โครงการ', signals: 12, sevKey: 'High', node: 'h1' },
+      { name: 'กลุ่มน้ำยาห้องปฏิบัติการ — สยามแล็บเคมิคอล', sub: 'แบ่งจัดซื้อ 4 งวดภายใน 60 วัน แต่ละงวดใต้เกณฑ์ ฿500,000', comp: '1 นิติบุคคล · 4 โครงการ', signals: 5, sevKey: 'High', node: 'hp2' },
+      { name: 'กลุ่มงานปรับปรุงอาคาร — ล้านนาเมดิคอลกรุ๊ป', sub: 'ผู้ชนะรายเดิม 6 จาก 7 โครงการล่าสุด', comp: '1 นิติบุคคล · 3 โครงการ', signals: 4, sevKey: 'Medium', node: 'hosp' }
+    ],
+    meta: {
+      scanSummary: 'สัญญาณความเสี่ยง 31 รายการ · เชื่อมโยงหลักฐาน 100%',
+      dataPct: '82%', dataGapNote: 'เอกสาร 7 ประเภท · มีช่องว่าง 1 ประเภท',
+      priorityNote: 'เรียงตามระดับสัญญาณ · 5 จาก 418 โครงการ',
+      concNote: 'ผู้ขาย 3 อันดับแรกถือครอง 52.6% ของมูลค่ารวม — ความกระจุกตัวสูงเมื่อเทียบกับกลุ่มโรงพยาบาลเปรียบเทียบ',
+      vendorsTitle: 'ผู้ขายและผู้รับจ้างรายใหญ่ตามมูลค่าที่ได้รับ',
+      graphTitle: 'กลุ่มจัดซื้อครุภัณฑ์การแพทย์',
+      graphNote: 'แสดง 15 จาก 3,406 ความสัมพันธ์ · ทุกเส้นเชื่อมมีเอกสารต้นทางรองรับ'
+    },
+    caseFile: {
+      id: 'CASE-2568-011', status: 'รวบรวมหลักฐาน', opened: 'เปิดคดี 6 ก.ค. 2568', owner: 'ผู้ตรวจ: ทีมสาธารณสุข',
+      title: 'เครือข่ายศรีทอง — การจัดซื้อครุภัณฑ์การแพทย์ รพ.ดอยสะเก็ด',
+      summary: 'บริษัท เมดิเทคซัพพลาย เชียงใหม่ จำกัด และ หจก. เชียงใหม่ครุภัณฑ์การแพทย์ มีกรรมการ ผู้ถือหุ้น และที่อยู่จดทะเบียนร่วมกัน แต่เข้าเสนอราคาแข่งกัน 4 ครั้ง ผู้ถือหุ้น 25% ของผู้ชนะรายใหญ่มีชื่อ-นามสกุลตรงกับหัวหน้าเจ้าหน้าที่พัสดุ (รอยืนยัน) — เกี่ยวข้องกับการจัดซื้อรวม ฿6,891,000',
+      signals: 'สัญญาณที่รวมในคดี: 8 รายการจาก 5 กฎ (R2 R4 R5 R10 R13) — ครอบคลุม 2 โครงการ 2 นิติบุคคล 4 บุคคล',
+      timeline: [
+        ['1 พ.ค. 2567', 'ราคากลางเตียงผู้ป่วยไฟฟ้า — ฿2,085,000', 'HD-471'],
+        ['19 มิ.ย. 2567', 'ประกาศผู้ชนะเตียงผู้ป่วย — เชียงใหม่ครุภัณฑ์ฯ ชนะ · เมดิเทคฯ แพ้ห่างเพียง 0.9%', 'HD-482'],
+        ['12 พ.ย. 2567', 'เครื่องเอกซเรย์ดิจิทัลปรากฏในแผนจัดซื้อประจำปี', 'HD-301'],
+        ['15 ม.ค. 2568', 'เผยแพร่ประกาศ e-bidding เครื่องเอกซเรย์', 'HD-398'],
+        ['18 ก.พ. 2568', 'ประกาศผู้ชนะ — เมดิเทคฯ เป็นผู้เสนอราคารายเดียว', 'HD-412'],
+        ['5 มี.ค. 2568', 'ลงนามสัญญาเครื่องเอกซเรย์ — ฿4,812,000', 'HD-420']
+      ],
+      parties: [
+        ['บริษัท เมดิเทคซัพพลาย เชียงใหม่ จำกัด', 'ผู้ชนะเครื่องเอกซเรย์ · 22.7% ของมูลค่าหน่วยงาน', true],
+        ['หจก. เชียงใหม่ครุภัณฑ์การแพทย์', 'ผู้ชนะเตียงผู้ป่วย · กรรมการและที่อยู่ร่วมกับเมดิเทคฯ', true],
+        ['นางวราภรณ์ ศรีทอง', 'กรรมการ 2 นิติบุคคล · ผู้ถือหุ้น 60%', true],
+        ['นางสาวเพ็ญศรี ศรีทอง', 'ผู้ถือหุ้น 25% · ชื่อตรงกับหัวหน้า จนท.พัสดุ — รอยืนยัน', true],
+        ['โรงพยาบาลดอยสะเก็ด', 'หน่วยงานจัดซื้อ', false]
+      ],
+      money: [
+        ['งบเงินบำรุง 2568 — หมวดครุภัณฑ์การแพทย์', '฿22.4 ล้าน', false],
+        ['สัญญาเครื่องเอกซเรย์ (H-2568-042)', '฿4,812,000', false],
+        ['สัญญาเตียงผู้ป่วย (H-2567-066)', '฿2,079,000', false],
+        ['รวมราคาที่ตกลง — กลุ่มบริษัทเดียวกัน', '฿6,891,000', true]
+      ],
+      questions: [
+        ['น.ส.เพ็ญศรี ศรีทอง ผู้ถือหุ้น กับหัวหน้าเจ้าหน้าที่พัสดุ เป็นบุคคลเดียวกันหรือไม่', 'รอสำเนาคำสั่งแต่งตั้ง'],
+        ['สเปกเครื่องเอกซเรย์ล็อกยี่ห้อจนเหลือผู้มีคุณสมบัติรายเดียวหรือไม่', 'กำลังเทียบกับรุ่นในตลาด'],
+        ['การเสนอราคาแข่งกัน 4 ครั้งของสองนิติบุคคล มีรูปแบบราคาเกื้อกูลกันหรือไม่', 'กำลังวิเคราะห์']
+      ],
+      evidence: ['HD-398 · ประกาศประกวดราคา', 'HD-401 · ราคากลาง', 'HD-412 · ผู้ชนะเอกซเรย์', 'HD-420 · สัญญา', 'HD-471 · ราคากลางเตียง', 'HD-482 · ผู้ชนะเตียง', 'บอจ.5 × 2', 'ทำเนียบผู้บริหาร'],
+      notes: [
+        ['10 ก.ค.', 'ขอสำเนาคำสั่งแต่งตั้งหัวหน้าเจ้าหน้าที่พัสดุจากโรงพยาบาลแล้ว เพื่อยืนยันชื่อ-นามสกุล'],
+        ['8 ก.ค.', 'ราคาที่เมดิเทคฯ เสนอแพ้ในงานเตียงสูงกว่าผู้ชนะเพียง 0.9% — สอดคล้องรูปแบบการเสนอราคาเกื้อกูล บันทึกเข้าสำนวนแล้ว']
+      ]
+    },
+    stages: [
+      ['ระบุหน่วยงานสำเร็จ', 'ยืนยัน doisakethospital.go.th'],
+      ['ค้นพบแหล่งข้อมูล', 'แหล่งสาธารณะ 5 แหล่ง'],
+      ['สแกนหน้าเว็บ', '2,046 หน้า'],
+      ['ดาวน์โหลดเอกสาร', '812 ไฟล์'],
+      ['แยกวิเคราะห์เอกสาร', 'PDF ข้อความ 771 ไฟล์'],
+      ['ประมวล OCR หน้าสแกน', '41 หน้า'],
+      ['สกัดข้อมูลโครงการ', '418 รายการ'],
+      ['ระบุผู้ขาย / ผู้รับจ้าง', '67 ราย'],
+      ['สร้างความสัมพันธ์ในกราฟ', '3,406 เส้นเชื่อม'],
+      ['ประมวลกฎความเสี่ยง', '13 กฎ · 31 สัญญาณ'],
+      ['รายงานพร้อมแล้ว', 'ปีงบ 2566–2568']
+    ],
+    stats: [
+      { label: 'มูลค่าจัดซื้อจัดจ้าง', value: '฿142.7 ล.', sub: '3 ปีงบประมาณ' },
+      { label: 'โครงการ', value: '418', sub: 'ยา/เวชภัณฑ์ 236 · ครุภัณฑ์ 94' },
+      { label: 'ผู้ขาย / ผู้รับจ้าง', value: '67', sub: '5 รายถือครอง 58% ของมูลค่า' },
+      { label: 'เอกสาร', value: '812', sub: 'แยกวิเคราะห์ 771 · OCR 41' },
+      { label: 'สัญญาณความเสี่ยง', value: '31', sub: 'ใน 5 หมวด' }
+    ],
+    years: [
+      { label: 'ปีงบ 2566', value: '฿43.2 ล.', pct: '76%' },
+      { label: 'ปีงบ 2567', value: '฿42.8 ล.', pct: '75%' },
+      { label: 'ปีงบ 2568', value: '฿56.7 ล.', pct: '100%' }
+    ],
+    methods: [
+      { label: 'เฉพาะเจาะจง', n: '289', pct: '69%' },
+      { label: 'e-bidding', n: '86', pct: '21%' },
+      { label: 'คัดเลือก', n: '31', pct: '7%' },
+      { label: 'อื่น ๆ', n: '12', pct: '3%' }
+    ],
+    riskCats: [
+      { label: 'ราคา', count: 9, pct: '100%' },
+      { label: 'การแข่งขัน', count: 8, pct: '89%' },
+      { label: 'กระบวนการ', count: 7, pct: '78%' },
+      { label: 'ความสัมพันธ์', count: 4, pct: '44%' },
+      { label: 'การเปิดเผยข้อมูล', count: 3, pct: '33%' }
+    ],
+    topContractors: [
+      { id: 'h1', name: 'บริษัท เมดิเทคซัพพลาย เชียงใหม่ จำกัด', value: '฿32.4 ล.', n: 52, pct: '100%' },
+      { id: 'h2', name: 'บริษัท นอร์ทเทิร์นฟาร์มา จำกัด', value: '฿24.9 ล.', n: 78, pct: '77%' },
+      { id: 'h3', name: 'หจก. ล้านนาเมดิคอลกรุ๊ป', value: '฿17.8 ล.', n: 41, pct: '55%' },
+      { id: 'h4', name: 'บริษัท สยามแล็บเคมิคอล จำกัด', value: '฿9.2 ล.', n: 26, pct: '28%' },
+      { id: 'h5', name: 'หจก. เชียงใหม่ครุภัณฑ์การแพทย์', value: '฿6.8 ล.', n: 19, pct: '21%' }
+    ],
+    priorityOrder: ['hp1', 'hp2', 'hp5', 'hp3', 'hp4'],
+    projects: {
+      hp1: {
+        code: 'H-2568-042', name: 'จัดซื้อเครื่องเอกซเรย์ดิจิทัล (Digital Radiography) พร้อมติดตั้ง', cat: 'ครุภัณฑ์การแพทย์',
+        fy: 'ปีงบ 2568', method: 'e-bidding', methodShort: 'e-bidding', budget: '฿4,850,000', ref: '฿4,820,000',
+        award: '฿4,812,000', pct: '99.83%', winner: 'h1', announced: '18 ก.พ. 2568', sevKey: 'High', ind: 3,
+        alerts: [
+          { tag: 'R2 · การแข่งขัน', title: 'ผู้เสนอราคารายเดียวในการประมูลแบบเปิด', sevKey: 'High', conf: 'ความเชื่อมั่น 0.93',
+            facts: [['ผู้เสนอราคา', '1 ราย'], ['วิธี', 'e-bidding'], ['ค่ากลางกลุ่มเปรียบเทียบ', '3 ราย']],
+            explain: 'มีผู้ยื่นเสนอราคาเพียงรายเดียว ทั้งที่เครื่องเอกซเรย์ดิจิทัลเป็นครุภัณฑ์มาตรฐานที่มีผู้แทนจำหน่ายหลายรายในภาคเหนือ — โรงพยาบาลเปรียบเทียบ 6 แห่งมีผู้เสนอราคาเฉลี่ย 3 รายสำหรับครุภัณฑ์ประเภทเดียวกัน',
+            innocent: 'เงื่อนไขการติดตั้ง เชื่อมต่อระบบ PACS และบำรุงรักษาอาจจำกัดผู้มีคุณสมบัติ — ควรตรวจว่าสเปกใน TOR ล็อกยี่ห้อหรือรุ่นหรือไม่',
+            evidence: ['HD-412 · ประกาศผู้ชนะ', 'HD-398 · เอกสารประกวดราคา'] },
+          { tag: 'R10 · ราคา', title: 'ราคาสูงกว่ากลุ่มเปรียบเทียบ', sevKey: 'High', conf: 'ความเชื่อมั่น 0.81',
+            facts: [['ราคาที่ตกลง', '฿4,812,000'], ['ค่ากลางกลุ่มเปรียบเทียบ', '฿4,405,000'], ['ส่วนต่าง', '+9.2%']],
+            explain: 'ราคาที่ตกลงสูงกว่าค่ากลางที่โรงพยาบาลชุมชน 6 แห่งจ่ายสำหรับเครื่องเอกซเรย์ดิจิทัลสเปกใกล้เคียงกันในปีงบเดียวกัน 9.2%',
+            innocent: 'สเปกที่ต่างกัน (จำนวน detector เงื่อนไขรับประกัน อะไหล่) อาจทำให้ราคาสูงขึ้นโดยชอบ — ควรเทียบสเปกใน TOR',
+            evidence: ['HD-412 · ประกาศผู้ชนะ', 'ชุดเปรียบเทียบ · 6 โรงพยาบาล'] },
+          { tag: 'R4 · ราคา', title: 'ราคาที่ตกลงใกล้ราคากลางมาก', sevKey: 'Medium', conf: 'ความเชื่อมั่น 0.87',
+            facts: [['ราคากลาง', '฿4,820,000'], ['ราคาที่ตกลง', '฿4,812,000'], ['ส่วนต่าง', '−0.17%'], ['ค่ากลางกลุ่มเปรียบเทียบ', '−5.3%']],
+            explain: 'ราคาที่ตกลงเท่ากับ 99.83% ของราคากลาง ขณะที่การประมูลครุภัณฑ์การแพทย์ในกลุ่มเปรียบเทียบตกลงกันต่ำกว่าราคากลางเฉลี่ย 5.3%',
+            innocent: 'เมื่อมีผู้เสนอราคารายเดียว ส่วนลดจากราคากลางมักต่ำ — สัญญาณนี้ควรอ่านคู่กับสัญญาณผู้เสนอราคารายเดียว',
+            evidence: ['HD-401 · ราคากลาง', 'HD-412 · ประกาศผู้ชนะ'] }
+        ],
+        timeline: [
+          ['12 พ.ย. 2567', 'โครงการปรากฏในแผนจัดซื้อจัดจ้างประจำปี', 'HD-301'],
+          ['8 ม.ค. 2568', 'กำหนดราคากลาง — ฿4,820,000', 'HD-401'],
+          ['15 ม.ค. 2568', 'เผยแพร่ประกาศ e-bidding', 'HD-398'],
+          ['18 ก.พ. 2568', 'ประกาศผู้ชนะ — บริษัท เมดิเทคซัพพลาย เชียงใหม่ จำกัด', 'HD-412'],
+          ['5 มี.ค. 2568', 'ลงนามสัญญา — ฿4,812,000', 'HD-420']
+        ],
+        related: [['hp5', 'H-2567-066 · เตียงผู้ป่วยไฟฟ้า 30 เตียง', 'ผู้ชนะครั้งนั้นมีกรรมการและที่อยู่ร่วมกับผู้ชนะโครงการนี้']]
+      },
+      hp2: {
+        code: 'H-2568-017', name: 'จัดซื้อชุดน้ำยาตรวจวิเคราะห์ทางห้องปฏิบัติการ งวดที่ 1', cat: 'วัสดุวิทยาศาสตร์การแพทย์',
+        fy: 'ปีงบ 2568', method: 'เฉพาะเจาะจง', methodShort: 'เฉพาะเจาะจง', budget: '฿499,000', ref: '฿499,000',
+        award: '฿498,400', pct: '99.88%', winner: 'h4', announced: '9 ธ.ค. 2567', sevKey: 'High', ind: 2,
+        alerts: [
+          { tag: 'R6 · กระบวนการ', title: 'อาจมีการแบ่งซื้อแบ่งจ้าง', sevKey: 'High', conf: 'ความเชื่อมั่น 0.84',
+            facts: [['สัญญาที่เกี่ยวข้อง', '4 งวด น้ำยากลุ่มเดียวกัน'], ['ช่วงเวลา', '60 วัน'], ['มูลค่าแต่ละงวด', '฿496,800–499,000'], ['เกณฑ์วงเงิน', '฿500,000']],
+            explain: 'น้ำยาตรวจวิเคราะห์กลุ่มเดียวกันถูกจัดซื้อแยกเป็น 4 งวดภายใน 60 วัน กับผู้ขายรายเดียวกัน แต่ละงวดตั้งวงเงิน ฿496,800–499,000 — ต่ำกว่าเกณฑ์ ฿500,000 ที่ต้องใช้วิธีแข่งขันเพียงเล็กน้อย มูลค่ารวม ฿1,989,600',
+            innocent: 'ห้องปฏิบัติการมักสั่งซื้อน้ำยาตามรอบการใช้งานจริงและอายุน้ำยา — ควรตรวจแผนความต้องการประจำปีว่ารวมเป็นรายการเดียวได้หรือไม่',
+            evidence: ['HD-355 · ประกาศผู้ชนะ งวด 1', 'HD-322 · แผนจัดซื้อจัดจ้าง'] },
+          { tag: 'R9 · กระบวนการ', title: 'ถ้อยคำ TOR ซ้ำกัน', sevKey: 'Medium', conf: 'ความเชื่อมั่น 0.91',
+            facts: [['เทียบงวดที่ 2–4', 'เหมือนกัน 98%'], ['วิธีตรวจ', 'เชิงความหมาย + ตรงตัวอักษร']],
+            explain: 'ข้อกำหนดของทั้ง 4 งวดเหมือนกันถึง 98% ต่างเพียงเลขงวดและวันส่งมอบ — สอดคล้องกับการแบ่งรายการเดียวออกเป็นหลายสัญญา',
+            innocent: 'สเปกน้ำยาชนิดเดียวกันย่อมเขียนเหมือนกัน — น้ำหนักของสัญญาณนี้ขึ้นกับสัญญาณแบ่งซื้อแบ่งจ้างเป็นหลัก',
+            evidence: ['HD-356 · TOR งวด 1', 'HD-361 · TOR งวด 2'] }
+        ],
+        timeline: [
+          ['3 พ.ย. 2567', 'โครงการปรากฏในแผนจัดซื้อจัดจ้างประจำปี', 'HD-322'],
+          ['25 พ.ย. 2567', 'กำหนดราคากลาง — ฿499,000', 'HD-341'],
+          ['9 ธ.ค. 2567', 'ประกาศผู้ชนะ งวดที่ 1 — บริษัท สยามแล็บเคมิคอล จำกัด', 'HD-355'],
+          ['6 ม.ค. 2568', 'ประกาศผู้ชนะ งวดที่ 2 — ผู้ขายรายเดียวกัน', 'HD-360'],
+          ['27 ม.ค. 2568', 'ประกาศผู้ชนะ งวดที่ 3 — ผู้ขายรายเดียวกัน', 'HD-364'],
+          ['3 ก.พ. 2568', 'ประกาศผู้ชนะ งวดที่ 4 — ผู้ขายรายเดียวกัน', 'HD-371']
+        ],
+        related: []
+      },
+      hp3: {
+        code: 'H-2568-058', name: 'จ้างเหมาปรับปรุงห้องผ่าตัด (OR) อาคารผู้ป่วยนอก', cat: 'งานปรับปรุงอาคาร',
+        fy: 'ปีงบ 2568', method: 'e-bidding', methodShort: 'e-bidding', budget: '฿6,900,000', ref: '฿6,880,000',
+        award: '฿6,868,000', pct: '99.83%', winner: 'h3', announced: '22 เม.ย. 2568', sevKey: 'Medium', ind: 2,
+        alerts: [
+          { tag: 'R1 · การแข่งขัน', title: 'ผู้ชนะรายเดิมซ้ำในหมวดงานเดียวกัน', sevKey: 'Medium', conf: 'ความเชื่อมั่น 0.94',
+            facts: [['หมวดงาน', 'งานปรับปรุงอาคาร'], ['อัตราชนะ', '6 จาก 7 โครงการล่าสุด'], ['ช่วงเวลา', 'ปีงบ 2566–2568']],
+            explain: 'หจก. ล้านนาเมดิคอลกรุ๊ป ชนะงานปรับปรุงอาคารของโรงพยาบาลนี้ 6 จาก 7 โครงการล่าสุด',
+            innocent: 'งานปรับปรุงในโรงพยาบาลต้องทำโดยไม่หยุดบริการและมีข้อกำหนดปลอดเชื้อ — ผู้รับเหมาที่คุ้นเคยพื้นที่อาจได้เปรียบโดยชอบ',
+            evidence: ['HD-459 · ประกาศผู้ชนะ', 'HD-289 · สรุปผลจัดซื้อ ปีงบ 2567'] },
+          { tag: 'R4 · ราคา', title: 'ราคาที่ตกลงใกล้ราคากลางมาก', sevKey: 'Medium', conf: 'ความเชื่อมั่น 0.86',
+            facts: [['ราคากลาง', '฿6,880,000'], ['ราคาที่ตกลง', '฿6,868,000'], ['ส่วนต่าง', '−0.17%'], ['ค่ากลางกลุ่มเปรียบเทียบ', '−4.9%']],
+            explain: 'ราคาที่ตกลงเท่ากับ 99.83% ของราคากลาง ขณะที่งานปรับปรุงอาคารโรงพยาบาลในกลุ่มเปรียบเทียบตกลงกันต่ำกว่าราคากลางเฉลี่ย 4.9%',
+            innocent: 'ราคากลางงานปรับปรุงเฉพาะทาง (ห้องผ่าตัด) อาจคำนวณแน่นหนาจนเหลือช่องต่อรองน้อย',
+            evidence: ['HD-441 · ราคากลาง', 'HD-459 · ประกาศผู้ชนะ'] }
+        ],
+        timeline: [
+          ['20 ม.ค. 2568', 'โครงการปรากฏในแผนจัดซื้อจัดจ้างประจำปี', 'HD-322'],
+          ['10 มี.ค. 2568', 'กำหนดราคากลาง — ฿6,880,000', 'HD-441'],
+          ['17 มี.ค. 2568', 'เผยแพร่ประกาศ e-bidding', 'HD-444'],
+          ['22 เม.ย. 2568', 'ประกาศผู้ชนะ — หจก. ล้านนาเมดิคอลกรุ๊ป', 'HD-459']
+        ],
+        related: []
+      },
+      hp4: {
+        code: 'H-2567-103', name: 'จัดซื้อยา Atorvastatin 40 mg จำนวน 120,000 เม็ด', cat: 'ยาและเวชภัณฑ์',
+        fy: 'ปีงบ 2567', method: 'เฉพาะเจาะจง', methodShort: 'เฉพาะเจาะจง', budget: '฿1,450,000', ref: 'ไม่พบเอกสาร',
+        award: '฿1,428,000', pct: '—', winner: 'h2', announced: '14 ส.ค. 2567', sevKey: 'Medium', ind: 2,
+        alerts: [
+          { tag: 'R10 · ราคา', title: 'ราคาต่อหน่วยสูงกว่าราคาอ้างอิง', sevKey: 'Medium', conf: 'ความเชื่อมั่น 0.79',
+            facts: [['ราคาต่อเม็ด', '฿11.90'], ['ราคาอ้างอิง / กลุ่มเปรียบเทียบ', '฿10.40'], ['ส่วนต่าง', '+14.4%']],
+            explain: 'ราคาต่อเม็ดสูงกว่าราคาอ้างอิงกลางและราคาที่โรงพยาบาลเปรียบเทียบ 5 แห่งจ่ายสำหรับยาตัวเดียวกัน ความแรงเดียวกัน ในปีงบเดียวกัน 14.4%',
+            innocent: 'เงื่อนไขการส่งมอบแบ่งงวด lot ขนาดเล็ก หรือผู้ผลิตต่างรายอาจทำให้ราคาต่อหน่วยสูงขึ้น — ควรเทียบเงื่อนไขในสัญญา',
+            evidence: ['HD-508 · ประกาศผู้ชนะ', 'ชุดเปรียบเทียบ · 5 โรงพยาบาล'] },
+          { tag: 'R11 · การเปิดเผยข้อมูล', title: 'ไม่พบเอกสารราคากลาง', sevKey: 'Medium', conf: 'ความเชื่อมั่น 0.96',
+            facts: [['เอกสารที่ควรมี', 'ประกาศราคากลาง'], ['สถานะ', 'ไม่พบในทุกแหล่งข้อมูล']],
+            explain: 'ไม่พบการเปิดเผยราคากลางทั้งบนเว็บไซต์โรงพยาบาลและระบบ e-GP ทั้งที่จำเป็นสำหรับการจัดซื้อวงเงินระดับนี้',
+            innocent: 'เอกสารอาจมีอยู่แต่ไม่ถูกเผยแพร่ หรือลิงก์เสีย — หน้าแผนจัดซื้อยาของเว็บไซต์ขณะนี้เข้าไม่ได้',
+            evidence: ['HD-508 · ประกาศผู้ชนะ', 'บันทึกการเก็บข้อมูล · doisakethospital.go.th/pharmacy'] }
+        ],
+        timeline: [
+          ['8 ก.ค. 2567', 'โครงการปรากฏในแผนจัดซื้อเพิ่มเติม', 'HD-489'],
+          ['14 ส.ค. 2567', 'ประกาศผู้ชนะ — บริษัท นอร์ทเทิร์นฟาร์มา จำกัด', 'HD-508']
+        ],
+        related: []
+      },
+      hp5: {
+        code: 'H-2567-066', name: 'จัดซื้อเตียงผู้ป่วยไฟฟ้า จำนวน 30 เตียง', cat: 'ครุภัณฑ์การแพทย์',
+        fy: 'ปีงบ 2567', method: 'คัดเลือก', methodShort: 'คัดเลือก', budget: '฿2,100,000', ref: '฿2,085,000',
+        award: '฿2,079,000', pct: '99.71%', winner: 'h5', announced: '19 มิ.ย. 2567', sevKey: 'High', ind: 2,
+        alerts: [
+          { tag: 'R5 · ความสัมพันธ์', title: 'ผู้ชนะและผู้เสนอราคาแข่งมีกรรมการร่วมกัน', sevKey: 'High', conf: 'ความเชื่อมั่น 0.89',
+            facts: [['กรรมการร่วม', 'นางวราภรณ์ ศรีทอง'], ['ที่อยู่จดทะเบียน', 'เดียวกัน'], ['เสนอราคาแข่งกัน', '4 ครั้ง (2566–2568)']],
+            explain: 'ผู้ชนะ (หจก. เชียงใหม่ครุภัณฑ์การแพทย์) และผู้เสนอราคาอีกราย (บริษัท เมดิเทคซัพพลาย เชียงใหม่ จำกัด) มีกรรมการร่วมกันและจดทะเบียนที่อยู่เดียวกัน — ทั้งสองรายเข้าเสนอราคาแข่งกันในโครงการของโรงพยาบาลนี้ 4 ครั้ง',
+            innocent: 'ธุรกิจครอบครัวอาจแยกนิติบุคคลตามสายผลิตภัณฑ์โดยชอบ — แต่การเข้าเสนอราคาแข่งกันเองควรได้รับการตรวจสอบ',
+            evidence: ['HD-482 · ประกาศผู้ชนะ', 'ข้อมูลทะเบียน DBD × 2'] },
+          { tag: 'R4 · ราคา', title: 'ราคาที่ตกลงใกล้ราคากลาง', sevKey: 'Medium', conf: 'ความเชื่อมั่น 0.83',
+            facts: [['ราคากลาง', '฿2,085,000'], ['ราคาที่ตกลง', '฿2,079,000'], ['ส่วนต่าง', '−0.29%']],
+            explain: 'ราคาที่ตกลงเท่ากับ 99.71% ของราคากลาง ในการคัดเลือกที่มีผู้เสนอราคา 2 รายซึ่งเกี่ยวข้องกัน',
+            innocent: 'ครุภัณฑ์มาตรฐานที่ราคาตลาดชัดเจนอาจเหลือช่องต่อรองน้อย',
+            evidence: ['HD-471 · ราคากลาง', 'HD-482 · ประกาศผู้ชนะ'] }
+        ],
+        timeline: [
+          ['1 พ.ค. 2567', 'กำหนดราคากลาง — ฿2,085,000', 'HD-471'],
+          ['19 มิ.ย. 2567', 'ประกาศผู้ชนะ — หจก. เชียงใหม่ครุภัณฑ์การแพทย์', 'HD-482']
+        ],
+        related: [['hp1', 'H-2568-042 · เครื่องเอกซเรย์ดิจิทัล', 'กลุ่มบริษัทเดียวกัน · เมดิเทคซัพพลาย ↔ เชียงใหม่ครุภัณฑ์การแพทย์']]
+      }
+    },
+    contractors: {
+      h1: { name: 'บริษัท เมดิเทคซัพพลาย เชียงใหม่ จำกัด', reg: '0505558007712', contracts: 52, total: '฿32.4 ล้าน', shareNum: '22.7%', share: '22.7% ของมูลค่าหน่วยงาน',
+        cats: 'ครุภัณฑ์การแพทย์ · เครื่องมือแพทย์', address: '99/8 ถ.เชียงใหม่-ลำปาง ต.ท่าศาลา อ.เมือง จ.เชียงใหม่', addrNote: 'ที่อยู่เดียวกับ หจก. เชียงใหม่ครุภัณฑ์การแพทย์', addrFlag: true,
+        directors: [{ name: 'นางวราภรณ์ ศรีทอง', note: 'กรรมการ · ผู้ถือหุ้น 60% · เป็นกรรมการของ หจก. เชียงใหม่ครุภัณฑ์การแพทย์ ด้วย', flag: true }, { name: 'นายประเสริฐ ศรีทอง', note: 'กรรมการ · ผู้ถือหุ้น 15% (บอจ.5)', flag: false }, { name: 'นางสาวเพ็ญศรี ศรีทอง', note: 'ผู้ถือหุ้น 25% — ชื่อ-นามสกุลตรงกับหัวหน้าเจ้าหน้าที่พัสดุของโรงพยาบาล · รอยืนยัน', flag: true }],
+        risks: [
+          { tag: 'R1 · การแข่งขัน', text: 'ชนะการจัดซื้อครุภัณฑ์การแพทย์ของโรงพยาบาลนี้ 9 จาก 12 โครงการล่าสุด', sevKey: 'Medium' },
+          { tag: 'R2 · การแข่งขัน', text: 'ถือครอง 22.7% ของมูลค่าจัดซื้อจัดจ้างทั้งหมด ปีงบ 2566–2568', sevKey: 'Medium' },
+          { tag: 'R5 · ความสัมพันธ์', text: 'มีกรรมการและที่อยู่จดทะเบียนร่วมกับ หจก. เชียงใหม่ครุภัณฑ์การแพทย์ ซึ่งเข้าเสนอราคาแข่งกัน 4 ครั้ง — ผลชนะ 4–0', sevKey: 'High' },
+          { tag: 'R13 · ความสัมพันธ์', text: 'ผู้ถือหุ้น 25% (นางสาวเพ็ญศรี ศรีทอง) มีชื่อ-นามสกุลตรงกับหัวหน้าเจ้าหน้าที่พัสดุของโรงพยาบาล — ยังไม่ยืนยันว่าเป็นบุคคลเดียวกัน รอเจ้าหน้าที่ตรวจ', sevKey: 'High' }
+        ],
+        related: [{ id: 'h5', name: 'หจก. เชียงใหม่ครุภัณฑ์การแพทย์', note: 'กรรมการร่วม (นางวราภรณ์ ศรีทอง) · ที่อยู่จดทะเบียนเดียวกัน · เสนอราคาแข่งกัน 4 ครั้ง ผลชนะ 4–0' }],
+        rows: [
+          ['hp1', 'H-2568-042', 'จัดซื้อเครื่องเอกซเรย์ดิจิทัลพร้อมติดตั้ง', '฿4,812,000', 'e-bidding', '2568'],
+          [null, 'H-2567-089', 'จัดซื้อเครื่องช่วยหายใจ จำนวน 4 เครื่อง', '฿3,160,000', 'e-bidding', '2567'],
+          [null, 'H-2567-021', 'จัดซื้อเครื่องอัลตราซาวด์ความละเอียดสูง', '฿2,450,000', 'คัดเลือก', '2567'],
+          [null, 'H-2566-054', 'จัดซื้อตู้อบเด็กทารกแรกเกิด', '฿1,890,000', 'e-bidding', '2566']
+        ],
+        docs: ['HD-412', 'HD-482', 'ข้อมูลทะเบียน DBD'] },
+      h2: { name: 'บริษัท นอร์ทเทิร์นฟาร์มา จำกัด', reg: '0505554003318', contracts: 78, total: '฿24.9 ล้าน', shareNum: '17.4%', share: '17.4% ของมูลค่าหน่วยงาน',
+        cats: 'ยา · เวชภัณฑ์', address: '212 ถ.มหิดล ต.หายยา อ.เมือง จ.เชียงใหม่', addrNote: 'ไม่พบการจดทะเบียนร่วมกับรายอื่น', addrFlag: false,
+        directors: [{ name: 'นายณัฐพล วัฒนไพศาล', note: 'ไม่พบตำแหน่งกรรมการอื่น', flag: false }],
+        risks: [{ tag: 'R10 · ราคา', text: 'ราคายา Atorvastatin (H-2567-103) สูงกว่าราคาอ้างอิงและกลุ่มเปรียบเทียบ +14.4%', sevKey: 'Medium' }],
+        related: [],
+        rows: [
+          ['hp4', 'H-2567-103', 'จัดซื้อยา Atorvastatin 40 mg 120,000 เม็ด', '฿1,428,000', 'เฉพาะเจาะจง', '2567'],
+          [null, 'H-2568-009', 'จัดซื้อยากลุ่มปฏิชีวนะ ประจำไตรมาส 1', '฿2,340,000', 'เฉพาะเจาะจง', '2568'],
+          [null, 'H-2566-118', 'จัดซื้อเวชภัณฑ์มิใช่ยา ประจำปี', '฿860,000', 'เฉพาะเจาะจง', '2566']
+        ],
+        docs: ['HD-508', 'ข้อมูลทะเบียน DBD'] },
+      h3: { name: 'หจก. ล้านนาเมดิคอลกรุ๊ป', reg: '0503557004401', contracts: 41, total: '฿17.8 ล้าน', shareNum: '12.5%', share: '12.5% ของมูลค่าหน่วยงาน',
+        cats: 'งานปรับปรุงอาคาร · ระบบแก๊สทางการแพทย์', address: '45/2 หมู่ 6 ต.สันทรายน้อย อ.สันทราย จ.เชียงใหม่', addrNote: 'ไม่พบการจดทะเบียนร่วมกับรายอื่น', addrFlag: false,
+        directors: [{ name: 'นายอดิศักดิ์ คำมูล', note: 'ไม่พบตำแหน่งกรรมการอื่น', flag: false }],
+        risks: [{ tag: 'R1 · การแข่งขัน', text: 'ชนะงานปรับปรุงอาคารของโรงพยาบาลนี้ 6 จาก 7 โครงการล่าสุด', sevKey: 'Medium' }],
+        related: [],
+        rows: [
+          ['hp3', 'H-2568-058', 'จ้างเหมาปรับปรุงห้องผ่าตัด อาคารผู้ป่วยนอก', '฿6,868,000', 'e-bidding', '2568'],
+          [null, 'H-2567-071', 'ปรับปรุงระบบแก๊สทางการแพทย์ อาคารผู้ป่วยใน', '฿4,220,000', 'e-bidding', '2567'],
+          [null, 'H-2566-039', 'ปรับปรุงห้องฉุกเฉิน (ER)', '฿3,780,000', 'คัดเลือก', '2566']
+        ],
+        docs: ['HD-459', 'ข้อมูลทะเบียน DBD'] },
+      h4: { name: 'บริษัท สยามแล็บเคมิคอล จำกัด', reg: '0105560011234', contracts: 26, total: '฿9.2 ล้าน', shareNum: '6.4%', share: '6.4% ของมูลค่าหน่วยงาน',
+        cats: 'น้ำยาและวัสดุห้องปฏิบัติการ', address: '1188 ถ.พระราม 4 แขวงคลองเตย เขตคลองเตย กรุงเทพฯ', addrNote: 'ไม่พบการจดทะเบียนร่วมกับรายอื่น', addrFlag: false,
+        directors: [{ name: 'นางสาวชุติมา แซ่ลิ้ม', note: 'ไม่พบตำแหน่งกรรมการอื่น', flag: false }],
+        risks: [{ tag: 'R6 · กระบวนการ', text: 'น้ำยาแล็บกลุ่มเดียวกันถูกจัดซื้อแยก 4 งวดภายใน 60 วัน แต่ละงวดใต้เกณฑ์ ฿500,000', sevKey: 'High' }],
+        related: [],
+        rows: [
+          ['hp2', 'H-2568-017', 'จัดซื้อชุดน้ำยาตรวจวิเคราะห์ งวดที่ 1', '฿498,400', 'เฉพาะเจาะจง', '2568'],
+          [null, 'H-2568-018', 'จัดซื้อชุดน้ำยาตรวจวิเคราะห์ งวดที่ 2', '฿497,200', 'เฉพาะเจาะจง', '2568'],
+          [null, 'H-2568-019', 'จัดซื้อชุดน้ำยาตรวจวิเคราะห์ งวดที่ 3', '฿496,800', 'เฉพาะเจาะจง', '2568'],
+          [null, 'H-2568-020', 'จัดซื้อชุดน้ำยาตรวจวิเคราะห์ งวดที่ 4', '฿497,200', 'เฉพาะเจาะจง', '2568']
+        ],
+        docs: ['HD-355', 'HD-322', 'ข้อมูลทะเบียน DBD'] },
+      h5: { name: 'หจก. เชียงใหม่ครุภัณฑ์การแพทย์', reg: '0503561006220', contracts: 19, total: '฿6.8 ล้าน', shareNum: '4.8%', share: '4.8% ของมูลค่าหน่วยงาน',
+        cats: 'ครุภัณฑ์การแพทย์ · เฟอร์นิเจอร์การแพทย์', address: '99/8 ถ.เชียงใหม่-ลำปาง ต.ท่าศาลา อ.เมือง จ.เชียงใหม่', addrNote: 'ที่อยู่เดียวกับ บริษัท เมดิเทคซัพพลาย เชียงใหม่ จำกัด', addrFlag: true,
+        directors: [{ name: 'นางวราภรณ์ ศรีทอง', note: 'เป็นกรรมการของ บริษัท เมดิเทคซัพพลาย เชียงใหม่ จำกัด ด้วย', flag: true }],
+        risks: [{ tag: 'R5 · ความสัมพันธ์', text: 'มีกรรมการและที่อยู่จดทะเบียนร่วมกับ บริษัท เมดิเทคซัพพลาย เชียงใหม่ จำกัด ซึ่งเข้าเสนอราคาแข่งกัน 4 ครั้ง', sevKey: 'High' }],
+        related: [{ id: 'h1', name: 'บริษัท เมดิเทคซัพพลาย เชียงใหม่ จำกัด', note: 'กรรมการร่วม (นางวราภรณ์ ศรีทอง) · ที่อยู่จดทะเบียนเดียวกัน · เสนอราคาแข่งกัน 4 ครั้ง' }],
+        rows: [
+          ['hp5', 'H-2567-066', 'จัดซื้อเตียงผู้ป่วยไฟฟ้า จำนวน 30 เตียง', '฿2,079,000', 'คัดเลือก', '2567'],
+          [null, 'H-2568-033', 'จัดซื้อรถเข็นผู้ป่วยและอุปกรณ์เคลื่อนย้าย', '฿640,000', 'เฉพาะเจาะจง', '2568']
+        ],
+        docs: ['HD-482', 'ข้อมูลทะเบียน DBD'] }
+    },
+    graph: {
+      nodes: [
+        { id: 'hosp', type: 'muni', x: 150, y: 280, label: 'รพ.ดอยสะเก็ด' },
+        { id: 'b68', type: 'budget', x: 150, y: 95, label: 'งบเงินบำรุง 2568' },
+        { id: 'hp1', type: 'project', x: 350, y: 120, label: 'H-2568-042' },
+        { id: 'hp5', type: 'project', x: 330, y: 280, label: 'H-2567-066' },
+        { id: 'hp2', type: 'project', x: 350, y: 450, label: 'H-2568-017' },
+        { id: 'h1', type: 'company', x: 560, y: 200, label: 'เมดิเทคซัพพลาย เชียงใหม่' },
+        { id: 'h5', type: 'company', x: 590, y: 370, label: 'เชียงใหม่ครุภัณฑ์การแพทย์' },
+        { id: 'person', type: 'person', x: 790, y: 280, label: 'นางวราภรณ์ ศรีทอง' },
+        { id: 'addr', type: 'addr', x: 760, y: 460, label: '99/8 ต.ท่าศาลา อ.เมือง' },
+        { id: 'd412', type: 'doc', x: 455, y: 90, label: 'HD-412' },
+        { id: 'd482', type: 'doc', x: 450, y: 320, label: 'HD-482' },
+        { id: 'exec', type: 'person', x: 845, y: 90, label: 'น.ส.เพ็ญศรี ศรีทอง · จนท.พัสดุ' }
+      ],
+      edges: [
+        ['hosp', 'b68', 'งบประมาณ', false],
+        ['hosp', 'hp1', 'จัดซื้อ', false], ['hosp', 'hp5', 'จัดซื้อ', false], ['hosp', 'hp2', 'จัดซื้อ', false],
+        ['hp1', 'h1', 'ผู้ชนะ', false], ['hp5', 'h5', 'ผู้ชนะ', false],
+        ['hp1', 'h5', 'ผู้เสนอราคา', true], ['hp5', 'h1', 'ผู้เสนอราคา', true],
+        ['h1', 'person', 'กรรมการ', false], ['h5', 'person', 'กรรมการ', false],
+        ['h1', 'addr', 'ที่อยู่จดทะเบียน', false], ['h5', 'addr', 'ที่อยู่จดทะเบียน', false],
+        ['hp1', 'd412', 'ประกาศผู้ชนะ', true], ['hp5', 'd482', 'ประกาศผู้ชนะ', true],
+        ['h1', 'exec', 'ผู้ถือหุ้น 25% · รอยืนยัน', true]
+      ],
+      details: {
+        hosp: { typeLabel: 'หน่วยงาน', label: 'โรงพยาบาลดอยสะเก็ด', sub: 'อ.ดอยสะเก็ด จ.เชียงใหม่ · กระทรวงสาธารณสุข', facts: ['โครงการ 418 รายการ · ฿142.7 ล้าน (ปีงบ 2566–2568)', 'ผู้ขาย/ผู้รับจ้าง 67 ราย · เอกสาร 812 ฉบับ', 'สัญญาณความเสี่ยง 31 รายการใน 5 หมวด'], docs: ['แผนจัดซื้อ HD-322', 'งบเงินบำรุง HD-290'], link: null },
+        b68: { typeLabel: 'งบประมาณ', label: 'งบเงินบำรุง ปีงบ 2568', sub: 'หมวดครุภัณฑ์และสิ่งก่อสร้าง', facts: ['วงเงินครุภัณฑ์การแพทย์ ฿22.4 ล้าน', 'ครอบคลุมเครื่องเอกซเรย์ดิจิทัลและงานปรับปรุงห้องผ่าตัด', 'น้ำยาแล็บตั้งงบรวมรายการเดียว — ถูกแยกจัดซื้อ 4 งวด'], docs: ['HD-290 · งบเงินบำรุง 2568'], link: null },
+        hp1: { typeLabel: 'โครงการ', label: 'H-2568-042 · เครื่องเอกซเรย์ดิจิทัล', sub: 'ตกลง ฿4,812,000 · e-bidding', facts: ['ผู้เสนอราคารายเดียวในการประมูลแบบเปิด', 'ราคาสูงกว่ากลุ่มเปรียบเทียบ +9.2%', 'สัญญาณ 3 รายการ — ความสำคัญสูง'], docs: ['HD-412 · ประกาศผู้ชนะ', 'HD-398 · เอกสารประกวดราคา'], link: 'project', target: 'hp1' },
+        hp5: { typeLabel: 'โครงการ', label: 'H-2567-066 · เตียงผู้ป่วยไฟฟ้า 30 เตียง', sub: 'ตกลง ฿2,079,000 · คัดเลือก', facts: ['ผู้ชนะและผู้แพ้มีกรรมการร่วมกัน', 'ที่อยู่จดทะเบียนเดียวกันทั้งสองราย', 'สัญญาณ 2 รายการ — ความสำคัญสูง'], docs: ['HD-482 · ประกาศผู้ชนะ'], link: 'project', target: 'hp5' },
+        hp2: { typeLabel: 'โครงการ', label: 'H-2568-017 · น้ำยาแล็บ งวดที่ 1', sub: 'ตกลง ฿498,400 · เฉพาะเจาะจง', facts: ['หนึ่งใน 4 งวดที่อาจถูกแบ่งซื้อ', 'แต่ละงวดใต้เกณฑ์ ฿500,000 เพียงเล็กน้อย', 'มูลค่ารวม 4 งวด ฿1,989,600'], docs: ['HD-355 · ประกาศผู้ชนะ'], link: 'project', target: 'hp2' },
+        h1: { typeLabel: 'บริษัท', label: 'บริษัท เมดิเทคซัพพลาย เชียงใหม่ จำกัด', sub: 'เลขทะเบียน 0505558007712', facts: ['ชนะ 52 สัญญา · ฿32.4 ล้าน · 22.7% ของมูลค่าหน่วยงาน', 'ชนะครุภัณฑ์การแพทย์ 9 จาก 12 โครงการล่าสุด', 'กรรมการและที่อยู่ร่วมกับ หจก. เชียงใหม่ครุภัณฑ์การแพทย์'], docs: ['HD-412', 'ข้อมูลทะเบียน DBD'], link: 'contractor', target: 'h1' },
+        h5: { typeLabel: 'บริษัท', label: 'หจก. เชียงใหม่ครุภัณฑ์การแพทย์', sub: 'เลขทะเบียน 0503561006220', facts: ['เสนอราคาแข่งกับ เมดิเทคซัพพลาย 4 ครั้ง — แพ้ทั้งหมด', 'กรรมการร่วม: นางวราภรณ์ ศรีทอง', 'ที่อยู่จดทะเบียนเดียวกัน: 99/8 ต.ท่าศาลา'], docs: ['HD-482', 'ข้อมูลทะเบียน DBD'], link: 'contractor', target: 'h5' },
+        person: { typeLabel: 'บุคคล', label: 'นางวราภรณ์ ศรีทอง', sub: 'กรรมการ 2 นิติบุคคล', facts: ['กรรมการ บริษัท เมดิเทคซัพพลาย เชียงใหม่ จำกัด', 'กรรมการ หจก. เชียงใหม่ครุภัณฑ์การแพทย์', 'ทั้งสองรายเข้าเสนอราคาแข่งกัน 4 ครั้ง'], docs: ['ข้อมูลทะเบียน DBD'], link: null },
+        addr: { typeLabel: 'ที่อยู่', label: '99/8 ถ.เชียงใหม่-ลำปาง ต.ท่าศาลา', sub: 'ที่อยู่จดทะเบียนร่วม 2 นิติบุคคล', facts: ['บริษัท เมดิเทคซัพพลาย เชียงใหม่ จำกัด จดทะเบียนที่นี่', 'หจก. เชียงใหม่ครุภัณฑ์การแพทย์ จดทะเบียนที่นี่', 'ที่อยู่ร่วมของผู้เสนอราคาแข่งกันเป็นสัญญาณหมวดความสัมพันธ์'], docs: ['ข้อมูลทะเบียน DBD × 2'], link: null },
+        d412: { typeLabel: 'เอกสาร', label: 'HD-412 · ประกาศผู้ชนะ H-2568-042', sub: 'ดึงข้อมูล 10 ก.ค. 2568 · PDF ข้อความ', facts: ['ประกาศผล: บริษัท เมดิเทคซัพพลาย เชียงใหม่ จำกัด — ฿4,812,000', 'ลงวันที่ 18 ก.พ. 2568', 'แฮชไฟล์และ URL ต้นทางถูกบันทึก'], docs: ['doisakethospital.go.th/procurement/2568/412.pdf'], link: null },
+        d482: { typeLabel: 'เอกสาร', label: 'HD-482 · ประกาศผู้ชนะ H-2567-066', sub: 'ดึงข้อมูล 10 ก.ค. 2568 · PDF สแกน + OCR', facts: ['ประกาศผล: หจก. เชียงใหม่ครุภัณฑ์การแพทย์ — ฿2,079,000', 'ผู้เสนอราคา 2 ราย — เกี่ยวข้องกันทางกรรมการ', 'ผ่านการตรวจ OCR โดยเจ้าหน้าที่แล้ว'], docs: ['doisakethospital.go.th/procurement/2567/482.pdf'], link: null },
+        exec: { typeLabel: 'บุคคล — ผู้บริหาร/เจ้าหน้าที่หน่วยงาน', label: 'นางสาวเพ็ญศรี ศรีทอง', sub: 'หัวหน้าเจ้าหน้าที่พัสดุ รพ.ดอยสะเก็ด', facts: ['ที่มา: ทำเนียบผู้บริหารและคำสั่งแต่งตั้งของโรงพยาบาล', 'ชื่อ-นามสกุลตรงกับผู้ถือหุ้น 25% ของ บริษัท เมดิเทคซัพพลาย เชียงใหม่ จำกัด (ผู้ชนะ)', 'สถานะ: รอเจ้าหน้าที่ยืนยันว่าเป็นบุคคลเดียวกัน — ชื่อตรงกันไม่ใช่ข้อพิสูจน์'], docs: ['ทำเนียบผู้บริหาร · doisakethospital.go.th', 'บัญชีผู้ถือหุ้น บอจ.5 · DBD'], link: null }
+      }
+    },
+    sources: [
+      { url: 'doisakethospital.go.th/procurement', type: 'ประกาศจัดซื้อจัดจ้าง', status: 'ปกติ', ok: true, last: '1 ชม.ก่อน', docs: '486' },
+      { url: 'doisakethospital.go.th/ita', type: 'การเปิดเผยข้อมูล (ITA)', status: 'ปกติ', ok: true, last: '1 ชม.ก่อน', docs: '158' },
+      { url: 'doisakethospital.go.th/executives · คำสั่งแต่งตั้ง', type: 'ทำเนียบผู้บริหาร', status: 'ปกติ', ok: true, last: '1 วันก่อน', docs: '31' },
+      { url: 'doisakethospital.go.th/pharmacy', type: 'แผนจัดซื้อยา', status: 'ลิงก์เสีย', ok: false, last: '5 วันก่อน', docs: '64' },
+      { url: 'ระบบ e-GP (กรมบัญชีกลาง)', type: 'ประกาศกลาง', status: 'ปกติ', ok: true, last: '6 ชม.ก่อน', docs: '104' }
+    ],
+    queueStats: [
+      { n: '812', label: 'เอกสารทั้งหมด' }, { n: '771', label: 'แยกวิเคราะห์แล้ว' }, { n: '34', label: 'รอ OCR' }, { n: '7', label: 'ต้องตรวจโดยเจ้าหน้าที่' }
+    ],
+    queueRows: [
+      { id: 'HD-812', title: 'ประกาศผู้ชนะ จัดซื้อออกซิเจนเหลวทางการแพทย์', type: 'ประกาศผู้ชนะ', fmt: 'PDF ข้อความ', status: 'แยกวิเคราะห์แล้ว', ok: true },
+      { id: 'HD-811', title: 'ราคากลาง จัดซื้อเครื่องติดตามการทำงานของหัวใจ', type: 'ราคากลาง', fmt: 'PDF สแกน', status: 'กำลัง OCR', ok: null },
+      { id: 'HD-810', title: 'สขร.1 ประจำเดือนมิถุนายน 2568', type: 'สรุปรายเดือน', fmt: 'XLSX', status: 'แยกวิเคราะห์แล้ว', ok: true },
+      { id: 'HD-809', title: 'TOR จ้างเหมาซักฟอกผ้าผู้ป่วย ประจำปี 2569', type: 'TOR', fmt: 'PDF สแกน', status: 'OCR ความเชื่อมั่นต่ำ — รอตรวจ', ok: false },
+      { id: 'HD-808', title: 'แผนจัดซื้อยา ไตรมาส 4/2568', type: 'แผนจัดซื้อ', fmt: 'PDF ข้อความ', status: 'แยกวิเคราะห์แล้ว', ok: true }
+    ],
+    erRows: [
+      { id: 'er1', a: 'บริษัท เมดิเทคซัพพลาย เชียงใหม่ จำกัด', b: 'บ. เมดิเทค ซัพพลาย (เชียงใหม่)', sim: '0.95', ev: ['เลขทะเบียนเดียวกัน', 'ที่อยู่เดียวกัน', 'ชื่อย่อ/ชื่อเต็ม'] },
+      { id: 'er2', a: 'หจก. ล้านนาเมดิคอลกรุ๊ป', b: 'หจก. ลานนา เมดิคอล กรุ๊ป', sim: '0.86', ev: ['การสะกด ล้านนา/ลานนา', 'กรรมการเดียวกัน', 'ไม่พบเลขทะเบียนในเอกสารที่สอง'] },
+      { id: 'er3', a: 'บริษัท สยามแล็บเคมิคอล จำกัด', b: 'บริษัท สยามแล็บ เคมีคอล ซัพพลาย จำกัด', sim: '0.72', ev: ['ชื่อคล้ายบางส่วน', 'ที่อยู่ต่างกัน', 'กรรมการต่างกัน'] }
+    ],
+    adminReviewRows: [
+      { key: 'hv1', code: 'H-2568-042', title: 'ผู้เสนอราคารายเดียวในการประมูลแบบเปิด (R2)', sevKey: 'High', def: 'กำลังตรวจสอบ' },
+      { key: 'hv2', code: 'H-2568-017', title: 'อาจมีการแบ่งซื้อแบ่งจ้าง (R6)', sevKey: 'High', def: 'ใหม่' },
+      { key: 'hv3', code: 'H-2567-066', title: 'กรรมการร่วมระหว่างผู้เสนอราคา (R5)', sevKey: 'High', def: 'ใหม่' },
+      { key: 'hv4', code: 'H-2567-103', title: 'ไม่พบเอกสารราคากลาง (R11)', sevKey: 'Medium', def: 'ต้องการข้อมูลเพิ่มเติม' },
+      { key: 'hv5', code: 'H-2568-058', title: 'ราคาที่ตกลงใกล้ราคากลางมาก (R4)', sevKey: 'Medium', def: 'ใหม่' }
+    ]
+  };
+
+  C = {
+    provinces: [
+      { label: 'ส่วนกลาง — กระทรวง/กรม', ag: '264', cl: '198', sig: '1,530', pct: '100%' },
+      { label: 'เชียงใหม่', ag: '412', cl: '96', sig: '1,284', pct: '84%' },
+      { label: 'นครราชสีมา', ag: '486', cl: '88', sig: '1,152', pct: '75%' },
+      { label: 'ขอนแก่น', ag: '398', cl: '71', sig: '967', pct: '63%' },
+      { label: 'อุบลราชธานี', ag: '342', cl: '64', sig: '815', pct: '53%' },
+      { label: 'สงขลา', ag: '310', cl: '57', sig: '742', pct: '48%' },
+      { label: 'อีก 71 จังหวัด', ag: '6,132', cl: '518', sig: '11,916', pct: '38%' }
+    ],
+    stats: [
+      { n: '8,344', label: 'หน่วยงานที่ติดตาม' },
+      { n: '1,092', label: 'คลัสเตอร์ความสัมพันธ์' },
+      { n: '18,406', label: 'สัญญาณความเสี่ยง' },
+      { n: '214', label: 'คลัสเตอร์ข้ามหน่วยงาน / จังหวัด' }
+    ]
+  };
+
+  renderVals() {
+    const S = this.state, D = this.D;
+    const DS = S.scannedId === 'm9' ? this.H : D;
+    const muni = D.munis.find(m => m.id === S.scannedId) || D.munis[0];
+    const page = S.page;
+    const mkNav = () => ['dashboard', 'graph', 'admin'].map((p, i) => {
+      const labels = ['แดชบอร์ด', 'กราฟความสัมพันธ์', 'ระบบภายใน'];
+      const active = page === p || (p === 'dashboard' && (page === 'project' || page === 'contractor'));
+      return { label: labels[i], border: active ? '#111110' : 'transparent', color: active ? '#111110' : '#8B8B85', go: () => this.go(p) };
+    });
+
+    // home search
+    const q = S.query.trim();
+    const sel = S.selMuniId ? D.munis.find(m => m.id === S.selMuniId) : null;
+    const results = (!sel && q.length >= 2) ? D.munis.filter(m => (m.th + m.en + m.prov + m.dist + m.type + m.tshort).toLowerCase().includes(q.toLowerCase())) : [];
+
+    // scan
+    const stages = DS.stages.map((st, i) => {
+      const done = S.scanStep > i, active = S.scanStep === i;
+      return {
+        label: st[0], detail: i === 0 ? 'ยืนยัน ' + muni.web : st[1],
+        mark: done ? '✓' : (active ? '●' : '○'),
+        markColor: done ? '#111110' : (active ? '#111110' : '#C9C9C4'),
+        anim: active ? 'pulse 1s infinite' : 'none',
+        weight: active ? '600' : '400',
+        rowOp: done || active ? '1' : '.4',
+        detailOp: done ? '1' : '0'
+      };
+    });
+
+    // project page
+    const pr0 = DS.projects[S.selProjectId] || DS.projects[DS.def.project];
+    const prSev = this.sev(pr0.sevKey);
+    const winnerC = DS.contractors[pr0.winner];
+
+    // contractor page
+    const co = DS.contractors[S.selContractorId] || DS.contractors[DS.def.contractor];
+
+    // graph
+    const G = DS.graph;
+    const nodeById = {}; G.nodes.forEach(n => nodeById[n.id] = n);
+    const filterMatch = (n) => {
+      if (S.graphFilter === 'all') return true;
+      if (S.graphFilter === 'company') return n.type === 'company';
+      if (S.graphFilter === 'projectNode') return n.type === 'project' || n.type === 'muni' || n.type === 'budget';
+      if (S.graphFilter === 'people') return n.type === 'person' || n.type === 'addr';
+      if (S.graphFilter === 'doc') return n.type === 'doc';
+      return true;
+    };
+    const gNodes = G.nodes.map(n => {
+      const selN = S.selNodeId === n.id;
+      const dim = !filterMatch(n);
+      const styleByType = {
+        muni: { fill: '#111110', stroke: '#111110', sw: '0', r: 15, dash: '0' },
+        budget: { fill: '#ECECE8', stroke: '#B4B4AE', sw: '1', r: 11, dash: '0' },
+        project: { fill: '#F6F6F3', stroke: '#8B8B85', sw: '1', r: 11, dash: '0' },
+        company: { fill: '#fff', stroke: '#111110', sw: '2', r: 13, dash: '0' },
+        person: { fill: '#fff', stroke: '#55554F', sw: '1', r: 9, dash: '0' },
+        addr: { fill: '#fff', stroke: '#55554F', sw: '1', r: 9, dash: '4 3' },
+        doc: {}
+      };
+      const st = styleByType[n.type] || {};
+      const isRect = n.type === 'doc';
+      return {
+        x: n.x, y: n.y, label: n.label,
+        isRect, isCircle: !isRect,
+        rx: n.x - 8, ry: n.y - 8,
+        r: st.r, fill: st.fill, stroke: isRect ? '#8B8B85' : st.stroke, sw: isRect ? '1' : st.sw, dash: st.dash,
+        ring: (st.r || 8) + 6, ringOp: selN ? '1' : '0',
+        labelY: n.y + (st.r || 8) + 17,
+        labelWeight: selN ? '600' : '400',
+        op: dim ? '.15' : '1',
+        select: () => this.setState({ selNodeId: n.id })
+      };
+    });
+    const gEdges = G.edges.map(e => {
+      const a = nodeById[e[0]], b = nodeById[e[1]];
+      const involved = S.selNodeId === e[0] || S.selNodeId === e[1];
+      const dim = !filterMatch(a) && !filterMatch(b);
+      return {
+        x1: a.x, y1: a.y, x2: b.x, y2: b.y,
+        lx: (a.x + b.x) / 2, ly: (a.y + b.y) / 2 - 6,
+        label: e[2], dash: e[3] ? '4 3' : '0',
+        stroke: involved ? '#111110' : '#D5D5D0', sw: involved ? '1.5' : '1',
+        op: dim ? '.1' : '1'
+      };
+    });
+    const graphSvg = React.createElement('svg', { viewBox: '0 0 900 560', style: { width: '100%', height: 'auto', display: 'block', fontFamily: "'Chakra Petch',sans-serif" } },
+      gEdges.map((e, i) => React.createElement('g', { key: 'e' + i, style: { opacity: e.op } },
+        React.createElement('line', { x1: e.x1, y1: e.y1, x2: e.x2, y2: e.y2, stroke: e.stroke, strokeWidth: e.sw, strokeDasharray: e.dash }),
+        React.createElement('text', { x: e.lx, y: e.ly, textAnchor: 'middle', style: { fontSize: '9.5px', fill: '#8B8B85' } }, e.label)
+      )),
+      gNodes.map((n, i) => React.createElement('g', { key: 'n' + i, onClick: n.select, style: { cursor: 'pointer', opacity: n.op } },
+        React.createElement('circle', { cx: n.x, cy: n.y, r: n.ring, fill: 'none', stroke: '#111110', strokeWidth: 1, opacity: n.ringOp }),
+        n.isRect
+          ? React.createElement('rect', { x: n.rx, y: n.ry, width: 16, height: 16, fill: '#fff', stroke: n.stroke, strokeWidth: n.sw })
+          : React.createElement('circle', { cx: n.x, cy: n.y, r: n.r, fill: n.fill, stroke: n.stroke, strokeWidth: n.sw, strokeDasharray: n.dash }),
+        React.createElement('text', { x: n.x, y: n.labelY, textAnchor: 'middle', style: { fontSize: '11px', fill: '#3B3B36', fontWeight: n.labelWeight } }, n.label)
+      ))
+    );
+    const gSel = G.details[S.selNodeId] || G.details[DS.def.node];
+    const gConns = G.edges.filter(e => e[0] === S.selNodeId || e[1] === S.selNodeId).map(e => {
+      const otherId = e[0] === S.selNodeId ? e[1] : e[0];
+      return { label: nodeById[otherId].label, rel: e[2], go: () => this.setState({ selNodeId: otherId }) };
+    });
+    const layer = S.graphLayer || 'entity';
+    const gFilterDefs = [['all', 'ทั้งหมด'], ['projectNode', 'โครงการ'], ['company', 'บริษัท'], ['people', 'บุคคล · ที่อยู่'], ['doc', 'เอกสาร']];
+
+    // admin
+    const adminTabDefs = [['crawl', 'การเก็บข้อมูล'], ['queue', 'คิวประมวลผลเอกสาร'], ['entities', 'ตรวจการจับคู่นิติบุคคล'], ['review', 'สถานะการตรวจสอบ'], ['case', 'พื้นที่ทำงานคดี']];
+    const CF = DS.caseFile;
+    const caseAdded = S.caseNotesAdded[CF.id] || [];
+
+    return {
+      // nav
+      showNav: ['dashboard', 'project', 'contractor', 'graph', 'admin'].includes(page),
+      navTabs: mkNav(),
+      goHome: () => this.go('home', { selMuniId: null, query: '' }),
+      muniTh: muni.th, muniEn: muni.en, muniProv: muni.prov, muniDist: muni.dist, muniWeb: muni.web, muniLoc: muni.loc,
+      scanSummary: DS.meta.scanSummary, dataPct: DS.meta.dataPct, dataGapNote: DS.meta.dataGapNote, priorityNote: DS.meta.priorityNote, concNote: DS.meta.concNote, vendorsTitle: DS.meta.vendorsTitle,
+
+      // home
+      isHome: page === 'home',
+      query: S.query,
+      onQuery: (e) => this.setState({ query: e.target.value, selMuniId: null }),
+      hasResults: results.length > 0,
+      noResults: !sel && q.length >= 2 && results.length === 0,
+      results: results.map(r => ({ th: r.th, en: r.en, tshort: r.tshort, loc: r.loc, select: () => this.setState({ selMuniId: r.id, query: '' }) })),
+      selPicked: !!sel,
+      sel: sel || {},
+      clearSel: () => this.setState({ selMuniId: null }),
+      startScan: () => this.startScan(),
+
+      // info pages
+      isInfo: ['method', 'sources', 'corrections', 'about'].includes(page),
+      isMethod: page === 'method',
+      isSources: page === 'sources',
+      isCorrections: page === 'corrections',
+      isAbout: page === 'about',
+      openMethod: () => this.go('method'),
+      openSources: () => this.go('sources'),
+      openCorrections: () => this.go('corrections'),
+      openAbout: () => this.go('about'),
+      infoTabs: [['method', 'ระเบียบวิธี'], ['sources', 'แหล่งข้อมูล'], ['corrections', 'ขอแก้ไขข้อมูล'], ['about', 'เกี่ยวกับเรา']].map(t => {
+        const active = page === t[0];
+        return { label: t[1], border: active ? '#111110' : 'transparent', color: active ? '#111110' : '#8B8B85', go: () => this.go(t[0]) };
+      }),
+      corrType: S.corrType,
+      corrRefVal: S.corrRef,
+      corrDetail: S.corrDetail,
+      corrEmail: S.corrEmail,
+      corrNotSent: !S.corrSent,
+      corrSent: S.corrSent,
+      setCorrType: (e) => this.setState({ corrType: e.target.value }),
+      setCorrRef: (e) => this.setState({ corrRef: e.target.value }),
+      setCorrDetail: (e) => this.setState({ corrDetail: e.target.value }),
+      setCorrEmail: (e) => this.setState({ corrEmail: e.target.value }),
+      submitCorr: () => this.setState({ corrSent: true }),
+      resetCorr: () => this.setState({ corrSent: false, corrRef: '', corrDetail: '', corrEmail: '' }),
+
+      // scan
+      isScan: page === 'scan',
+      stages,
+      scanDone: S.scanStep >= 11,
+      openDash: () => this.go('dashboard'),
+
+      // dashboard
+      isDash: page === 'dashboard',
+      stats: DS.stats, years: DS.years, methods: DS.methods, riskCats: DS.riskCats,
+      priority: DS.priorityOrder.map(id => {
+        const p = DS.projects[id];
+        return Object.assign({ code: p.code, name: p.name, award: p.award, methodShort: p.methodShort, ind: p.ind, open: () => this.go('project', { selProjectId: id }) }, this.sev(p.sevKey));
+      }),
+      topContractors: DS.topContractors.map(c => Object.assign({}, c, { open: () => this.go('contractor', { selContractorId: c.id }) })),
+
+      // project
+      isProject: page === 'project',
+      pr: Object.assign({}, pr0, prSev, { pctColor: pr0.sevKey === 'High' ? 'var(--accent)' : '#111110' }),
+      alerts: pr0.alerts.map(a => Object.assign({}, a, this.sev(a.sevKey), { facts: a.facts.map(f => ({ k: f[0], v: f[1] })) })),
+      timeline: pr0.timeline.map(t => ({ date: t[0], text: t[1], doc: t[2] })),
+      winner: { name: winnerC.name, contracts: winnerC.contracts, total: winnerC.total, share: winnerC.share },
+      openWinner: () => this.go('contractor', { selContractorId: pr0.winner }),
+      related: pr0.related.map(r => ({ code: r[1], note: r[2], open: () => this.go('project', { selProjectId: r[0] }) })),
+      openDashboard: () => this.go('dashboard'),
+      openGraph: () => this.go('graph'),
+      reviewOptions: D.reviewOptions,
+      reviewValue: S.projectReview[S.selProjectId] || 'ใหม่',
+      setReview: (e) => this.setState(s => ({ projectReview: Object.assign({}, s.projectReview, { [s.selProjectId]: e.target.value }) })),
+
+      // contractor
+      isContractor: page === 'contractor',
+      co: Object.assign({}, co, { addrColor: co.addrFlag ? 'var(--accent)' : '#8B8B85' }),
+      coContracts: co.rows.map(r => ({
+        code: r[1], name: r[2], award: r[3], method: r[4], fy: r[5],
+        cursor: r[0] ? 'pointer' : 'default',
+        open: r[0] ? (() => this.go('project', { selProjectId: r[0] })) : (() => {})
+      })),
+      coRisks: co.risks.map(r => Object.assign({}, r, this.sev(r.sevKey))),
+      coDirectors: co.directors.map(d => ({ name: d.name, note: d.note, noteColor: d.flag ? 'var(--accent)' : '#8B8B85' })),
+      hasRelated: co.related.length > 0,
+      coRelated: co.related.map(r => ({ name: r.name, note: r.note, open: () => this.go('contractor', { selContractorId: r.id }) })),
+      coDocs: co.docs,
+
+      // graph
+      isGraph: page === 'graph',
+      isLayerEntity: layer === 'entity', isLayerCluster: layer === 'cluster', isLayerCountry: layer === 'country',
+      layerTabs: [['country', 'ประเทศ'], ['cluster', 'กลุ่มความสัมพันธ์'], ['entity', 'รายหน่วย · บุคคล']].map((t, i) => ({ label: t[1], bg: layer === t[0] ? '#111110' : 'transparent', color: layer === t[0] ? '#FBFBF9' : '#55554F', br: i < 2 ? '#111110' : 'transparent', set: () => this.setState({ graphLayer: t[0] }) })),
+      graphHeader: layer === 'country' ? 'ประเทศไทย — ภาพรวมเครือข่ายจัดซื้อจัดจ้างภาครัฐ' : (layer === 'cluster' ? muni.th + ' — กลุ่มความสัมพันธ์ที่ตรวจพบ' : muni.th + ' — ' + DS.meta.graphTitle),
+      graphNote: layer === 'country' ? 'ชั้นที่ 1 · ภาพรวมประเทศ — ความหนาแน่นของสัญญาณตามจังหวัดและสังกัด' : (layer === 'cluster' ? 'ชั้นที่ 2 · กลุ่มความสัมพันธ์ — จัดกลุ่มจากกรรมการร่วม ผู้ถือหุ้น ที่อยู่จดทะเบียน และรูปแบบการเสนอราคา' : 'ชั้นที่ 3 · รายหน่วย — ' + DS.meta.graphNote),
+      clusters: DS.clusters.map(cl => Object.assign({}, cl, this.sev(cl.sevKey), { open: () => this.setState({ graphLayer: 'entity', selNodeId: cl.node }) })),
+      provinces: this.C.provinces.map(pv => Object.assign({}, pv, { open: () => this.setState({ graphLayer: 'cluster' }) })),
+      countryStats: this.C.stats,
+      gFilters: gFilterDefs.map(f => {
+        const active = S.graphFilter === f[0];
+        return { label: f[1], border: active ? '#111110' : '#DDDDD8', bg: active ? '#111110' : 'transparent', color: active ? '#FBFBF9' : '#55554F', set: () => this.setState({ graphFilter: f[0] }) };
+      }),
+      graphSvg,
+      gSel: { typeLabel: gSel.typeLabel, label: gSel.label, sub: gSel.sub },
+      gSelFacts: gSel.facts,
+      gSelConns: gConns,
+      gSelConnCount: gConns.length,
+      gSelDocs: gSel.docs,
+      gSelHasLink: !!gSel.link,
+      gSelLinkLabel: gSel.link === 'project' ? 'เปิดหน้าตรวจสอบโครงการ →' : 'เปิดโปรไฟล์ผู้รับจ้าง →',
+      gSelOpen: () => {
+        if (gSel.link === 'project') this.go('project', { selProjectId: gSel.target });
+        else if (gSel.link === 'contractor') this.go('contractor', { selContractorId: gSel.target });
+      },
+
+      // admin
+      isAdmin: page === 'admin',
+      adminTabs: adminTabDefs.map(t => {
+        const active = S.adminTab === t[0];
+        return { label: t[1], border: active ? '#111110' : 'transparent', color: active ? '#111110' : '#8B8B85', go: () => this.setState({ adminTab: t[0] }) };
+      }),
+      adminCrawl: S.adminTab === 'crawl',
+      adminQueue: S.adminTab === 'queue',
+      adminEntities: S.adminTab === 'entities',
+      adminReview: S.adminTab === 'review',
+      adminCase: S.adminTab === 'case',
+      cs: { id: CF.id, status: CF.status, title: CF.title, opened: CF.opened, owner: CF.owner, summary: CF.summary, signals: CF.signals },
+      caseTimeline: CF.timeline.map(t => ({ date: t[0], text: t[1], doc: t[2] })),
+      caseQuestions: CF.questions.map(q => ({ text: q[0], status: q[1] })),
+      caseParties: CF.parties.map(p => ({ name: p[0], role: p[1], roleColor: p[2] ? 'var(--accent)' : '#8B8B85' })),
+      caseMoney: CF.money.map(m => ({ label: m[0], value: m[1], weight: m[2] ? '600' : '400' })),
+      caseEvidence: CF.evidence,
+      caseNotes: caseAdded.concat(CF.notes).map(n => ({ date: n[0], text: n[1] })),
+      caseNoteVal: S.caseNote,
+      setCaseNote: (e) => this.setState({ caseNote: e.target.value }),
+      addCaseNote: () => { const v = (S.caseNote || '').trim(); if (!v) return; this.setState(s => ({ caseNote: '', caseNotesAdded: Object.assign({}, s.caseNotesAdded, { [CF.id]: [['วันนี้', v + ' — บันทึกโดยผู้ตรวจ (คุณ)']].concat(s.caseNotesAdded[CF.id] || []) }) })); },
+      sources: DS.sources.map(s => Object.assign({}, s, { statusColor: s.ok ? '#55554F' : 'var(--accent)' })),
+      queueStats: DS.queueStats,
+      queueRows: DS.queueRows.map(q => Object.assign({}, q, { statusColor: q.ok === true ? '#55554F' : (q.ok === false ? 'var(--accent)' : '#111110') })),
+      erRows: DS.erRows.map(er => {
+        const dec = S.erDecisions[er.id];
+        return Object.assign({}, er, {
+          pending: !dec, decided: !!dec, decision: dec || '',
+          merge: () => this.setState(s => ({ erDecisions: Object.assign({}, s.erDecisions, { [er.id]: 'รวมเป็นรายเดียวกัน' }) })),
+          separate: () => this.setState(s => ({ erDecisions: Object.assign({}, s.erDecisions, { [er.id]: 'แยกไว้ต่างราย' }) }))
+        });
+      }),
+      reviewRows: DS.adminReviewRows.map(r => Object.assign({ code: r.code, title: r.title, status: S.reviewStates[r.key] || r.def, setStatus: (e) => { const v = e.target.value; this.setState(s => ({ reviewStates: Object.assign({}, s.reviewStates, { [r.key]: v }) })); } }, this.sev(r.sevKey)))
+    };
+  }
+}
+</script>
+</body>
+</html>
