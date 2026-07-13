@@ -1,6 +1,3 @@
-import { getCatalogAgency, isCatalogAgency, listFeaturedCatalogAgencies } from './agency-catalog';
-import { listCachedAgencyIds } from './pipeline/load-report';
-
 export type AgencyRecord = {
   id: string;
   th: string;
@@ -61,25 +58,12 @@ export const REAL_AGENCIES: AgencyRecord[] = [
 
 export const REAL_AGENCY_IDS = new Set(REAL_AGENCIES.map((a) => a.id));
 
-/** True for curated + any national e-GP catalog agency (live public procurement unit). */
+/**
+ * Live public procurement unit — curated ids or national catalog ids (`egp-…`).
+ * Kept client-safe (no fs / catalog imports).
+ */
 export function isRealAgency(id: string | null | undefined): id is string {
-  return !!id && (REAL_AGENCY_IDS.has(id) || isCatalogAgency(id));
-}
-
-export function hasCachedAgencyReport(id: string | null | undefined): boolean {
-  if (!id) return false;
-  if (REAL_AGENCY_IDS.has(id)) {
-    try {
-      return listCachedAgencyIds().includes(id);
-    } catch {
-      return true;
-    }
-  }
-  try {
-    return listCachedAgencyIds().includes(id);
-  } catch {
-    return false;
-  }
+  return !!id && (REAL_AGENCY_IDS.has(id) || id.startsWith('egp-'));
 }
 
 export function findAgency(
@@ -89,18 +73,9 @@ export function findAgency(
 ): AgencyRecord | undefined {
   if (!id) return undefined;
   if (selected?.id === id) return selected;
-  const featured = REAL_AGENCIES.find((a) => a.id === id);
-  if (featured) {
-    const cat = getCatalogAgency(id);
-    return cat
-      ? { ...cat, ...featured, code: cat.code && cat.code !== '—' ? cat.code : featured.code, real: true }
-      : featured;
-  }
-  return getCatalogAgency(id) ?? mockMunis.find((m) => m.id === id);
+  return REAL_AGENCIES.find((a) => a.id === id) ?? mockMunis.find((m) => m.id === id);
 }
 
 export function featuredAgencies(): AgencyRecord[] {
-  const fromCatalog = listFeaturedCatalogAgencies();
-  if (fromCatalog.length) return fromCatalog;
   return REAL_AGENCIES;
 }
