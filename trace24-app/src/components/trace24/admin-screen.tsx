@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { isRealAgency } from '@/lib/agencies';
 import { useTrace24 } from '@/context/trace24-context';
 import { REVIEW_OPTIONS, sev } from '@/lib/utils';
-import { SeverityBadge, inputStyle, selectStyle } from './ui';
+import { SeverityBadge, inputStyle, selectStyle, RiskDisclaimer } from './ui';
 import type { InvestigationPack, PipelineStatusResponse, HybridRagResult } from '@/lib/pipeline/types';
 
 type LlmReview = {
@@ -839,16 +839,20 @@ export function AdminScreen() {
       {adminTab === 'investigate' && (
         <div style={{ marginTop: 28 }}>
           <h2 style={{ fontSize: 18, fontWeight: 600, margin: '0 0 8px' }}>Investigation Assistant</h2>
-          <p style={{ margin: '0 0 20px', fontSize: 13.5, color: '#55554F', maxWidth: 720, lineHeight: 1.6 }}>
-            Evidence Map · Case Brief · Leads · Entity Resolution · Hybrid Graph RAG
+          <p style={{ margin: '0 0 12px', fontSize: 13.5, color: '#55554F', maxWidth: 760, lineHeight: 1.6 }}>
+            Evidence (immutable) · Temporal graph · Facts / Signals / Conclusions · Missing-info · Hybrid Graph RAG
           </p>
+          <RiskDisclaimer style={{ marginBottom: 20, maxWidth: 760 }} />
           {packLoading && <div style={{ fontSize: 13, color: '#8B8B85' }}>กำลังสร้างสำนวน…</div>}
           {packError && <div style={{ fontSize: 13.5, color: 'var(--accent)' }}>{packError}</div>}
           {pack && (
             <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.2fr) minmax(0, 1fr)', gap: 36 }}>
               <div>
                 <div style={{ fontSize: 12.5, color: '#8B8B85', marginBottom: 14, lineHeight: 1.55 }}>
-                  Vector index {pack.vector.passages} passages · Extraction {pack.extraction.methods.join(', ')} · Entity clusters {pack.entityClusters.length}
+                  {pack.architecture?.principle || 'Scores prioritize review — they never prove misconduct.'}
+                </div>
+                <div style={{ fontSize: 12.5, color: '#8B8B85', marginBottom: 14, lineHeight: 1.55 }}>
+                  Vector {pack.vector.passages} · Claims {pack.claims?.length ?? 0} · Facts {pack.facts?.length ?? 0} · Missing {pack.missingInfo?.length ?? 0} · Graph edges {pack.graph.edges.length}
                 </div>
                 <h3 style={{ fontSize: 15, fontWeight: 600, margin: '0 0 10px' }}>Hybrid Graph RAG</h3>
                 <div style={{ display: 'flex', gap: 10, marginBottom: 14 }}>
@@ -856,7 +860,7 @@ export function AdminScreen() {
                     value={ragQuery}
                     onChange={(e) => setRagQuery(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && runRag()}
-                    placeholder="ถาม เช่น ผู้ชนะ อาหารกลางวัน"
+                    placeholder="เช่น ทำไมโครงการก่อสร้างถนนนี้จึงเสี่ยงสูง?"
                     style={{ ...inputStyle, flex: 1 }}
                   />
                   <div
@@ -868,13 +872,44 @@ export function AdminScreen() {
                   </div>
                 </div>
                 {ragResult && (
-                  <div style={{ padding: '14px 16px', background: '#F6F6F3', marginBottom: 22, whiteSpace: 'pre-wrap', fontSize: 12.5, lineHeight: 1.6 }}>
-                    {ragResult.answer}
+                  <div style={{ padding: '14px 16px', background: '#F6F6F3', marginBottom: 22, fontSize: 12.5, lineHeight: 1.6 }}>
+                    <div style={{ fontWeight: 600, marginBottom: 8 }}>
+                      ระดับจัดลำดับ: {ragResult.assessment?.riskLevel || '—'}
+                      {ragResult.assessment?.score100 != null ? ` — ${ragResult.assessment.score100}/100` : ''}
+                    </div>
+                    <div style={{ whiteSpace: 'pre-wrap' }}>{ragResult.answer}</div>
+                    {(ragResult.facts?.length ?? 0) > 0 && (
+                      <div style={{ marginTop: 12 }}>
+                        <div style={{ fontWeight: 600, marginBottom: 4 }}>ข้อเท็จจริง</div>
+                        {ragResult.facts.slice(0, 6).map((f) => (
+                          <div key={f} style={{ color: '#55554F' }}>· {f}</div>
+                        ))}
+                      </div>
+                    )}
+                    {(ragResult.inferences?.length ?? 0) > 0 && (
+                      <div style={{ marginTop: 12 }}>
+                        <div style={{ fontWeight: 600, marginBottom: 4 }}>สัญญาณ (ไม่ใช่ข้อพิสูจน์)</div>
+                        {ragResult.inferences.slice(0, 5).map((f) => (
+                          <div key={f} style={{ color: '#55554F' }}>· {f}</div>
+                        ))}
+                      </div>
+                    )}
+                    {(ragResult.nextSteps?.length ?? 0) > 0 && (
+                      <div style={{ marginTop: 12 }}>
+                        <div style={{ fontWeight: 600, marginBottom: 4 }}>ขั้นตอนถัดไป</div>
+                        {ragResult.nextSteps.map((s) => (
+                          <div key={s} style={{ color: '#55554F' }}>- {s}</div>
+                        ))}
+                      </div>
+                    )}
                     <div style={{ marginTop: 10, color: '#8B8B85' }}>
-                      citations {ragResult.citations.length} · graph nodes {ragResult.graphNodes.length}
+                      citations {ragResult.citations.length} · graph nodes {ragResult.graphNodes.length} · rules {ragResult.ruleHits?.length || 0}
                       {ragResult.llm?.model ? ` · LLM ${ragResult.llm.model}` : ''}
                       {ragResult.llmError ? ` · LLM fallback: ${ragResult.llmError}` : ''}
                     </div>
+                    {ragResult.assessment?.caveat && (
+                      <div style={{ marginTop: 8, color: '#8A5A1C', fontSize: 12 }}>{ragResult.assessment.caveat}</div>
+                    )}
                   </div>
                 )}
 
@@ -973,9 +1008,15 @@ export function AdminScreen() {
                   <div style={{ fontSize: 12.5, color: '#55554F', marginTop: 12, lineHeight: 1.55 }}>
                     {pack.caseBrief.riskExplanation}
                   </div>
+                  {pack.caseBrief.scoreDisclaimer && (
+                    <div style={{ fontSize: 12, color: '#8A5A1C', marginTop: 10, lineHeight: 1.5 }}>
+                      {pack.caseBrief.scoreDisclaimer}
+                    </div>
+                  )}
                 </div>
                 <div style={{ fontSize: 12.5, color: '#8B8B85', marginBottom: 8 }}>
-                  Risk scores · overall {pack.risk.overall} · project {pack.risk.project} · supplier {pack.risk.supplier} · network {pack.risk.network}
+                  คะแนนจัดลำดับการตรวจ · overall {pack.risk.overall} · project {pack.risk.project} · supplier {pack.risk.supplier} · network {pack.risk.network}
+                  {' '}— ไม่ใช่คะแนนข้อกล่าวหา
                 </div>
                 <h3 style={{ fontSize: 15, fontWeight: 600, margin: '18px 0 10px' }}>Key findings</h3>
                 <div style={{ borderTop: '1px solid #111110' }}>
@@ -985,6 +1026,48 @@ export function AdminScreen() {
                     </div>
                   ))}
                 </div>
+
+                <h3 style={{ fontSize: 15, fontWeight: 600, margin: '28px 0 10px' }}>ข้อเท็จจริง (Fact)</h3>
+                <div style={{ borderTop: '1px solid #111110' }}>
+                  {(pack.facts || []).slice(0, 12).map((f) => (
+                    <div key={f.id} style={{ padding: '10px 0', borderBottom: '1px solid #EEEEEA', fontSize: 13, lineHeight: 1.55 }}>
+                      {f.statement}
+                      <div style={{ fontSize: 11.5, color: '#8B8B85', marginTop: 4 }}>
+                        conf {f.confidence} · {f.observedAt || '—'}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <h3 style={{ fontSize: 15, fontWeight: 600, margin: '28px 0 10px' }}>ช่องว่างข้อมูล (Missing information)</h3>
+                <div style={{ borderTop: '1px solid #111110' }}>
+                  {(pack.missingInfo || []).length === 0 && (
+                    <div style={{ padding: '12px 0', fontSize: 13, color: '#8B8B85' }}>ยังไม่พบช่องว่างที่เกินเกณฑ์</div>
+                  )}
+                  {(pack.missingInfo || []).map((g) => (
+                    <div key={g.id} style={{ padding: '12px 0', borderBottom: '1px solid #EEEEEA' }}>
+                      <div style={{ fontSize: 13.5 }}>{g.expected}</div>
+                      <div style={{ fontSize: 12.5, color: '#55554F', marginTop: 4 }}>{g.observed}</div>
+                      <div style={{ fontSize: 11.5, color: '#8B8B85', marginTop: 4 }}>
+                        coverage {(g.coverage * 100).toFixed(0)}% · gapScore {g.gapScore}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <h3 style={{ fontSize: 15, fontWeight: 600, margin: '28px 0 10px' }}>ข้อสรุปเชิงวิเคราะห์ (Conclusion)</h3>
+                <div style={{ borderTop: '1px solid #111110' }}>
+                  {(pack.conclusions || []).map((c) => (
+                    <div key={c.id} style={{ padding: '12px 0', borderBottom: '1px solid #EEEEEA' }}>
+                      <div style={{ fontSize: 13.5, lineHeight: 1.55 }}>{c.statement}</div>
+                      <div style={{ fontSize: 12, color: '#8A5A1C', marginTop: 6, lineHeight: 1.5 }}>{c.caveat}</div>
+                      <div style={{ fontSize: 12, color: '#8B8B85', marginTop: 8 }}>
+                        ขั้นถัดไป: {c.recommendedNextSteps.join(' · ')}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
                 <h3 style={{ fontSize: 15, fontWeight: 600, margin: '28px 0 10px' }}>Investigation Leads</h3>
                 <div style={{ borderTop: '1px solid #111110' }}>
                   {pack.leads.map((lead) => (
@@ -1020,12 +1103,21 @@ export function AdminScreen() {
                     </div>
                   ))}
                 </div>
-                <h3 style={{ fontSize: 15, fontWeight: 600, margin: '0 0 10px' }}>Evidence Map / Timeline</h3>
+                <h3 style={{ fontSize: 15, fontWeight: 600, margin: '0 0 10px' }}>Evidence Map / Provenance</h3>
                 <div style={{ borderTop: '1px solid #111110', maxHeight: 520, overflow: 'auto' }}>
                   {pack.evidenceMap.slice(0, 24).map((ev) => (
                     <div key={ev.id} style={{ padding: '11px 0', borderBottom: '1px solid #EEEEEA' }}>
-                      <div style={{ fontSize: 11.5, color: '#8B8B85' }}>{ev.when} · {ev.kind}</div>
+                      <div style={{ fontSize: 11.5, color: '#8B8B85' }}>
+                        {ev.when} · {ev.kind}
+                        {ev.checksumSha256 ? ` · sha256 ${ev.checksumSha256.slice(0, 12)}…` : ''}
+                      </div>
                       <div style={{ fontSize: 13, lineHeight: 1.5, marginTop: 3 }}>{ev.label}</div>
+                      {ev.extractionMethod && (
+                        <div style={{ fontSize: 11.5, color: '#8B8B85', marginTop: 3 }}>
+                          extract: {ev.extractionMethod}
+                          {ev.confidence != null ? ` · conf ${ev.confidence}` : ''}
+                        </div>
+                      )}
                       {ev.url && (
                         <a
                           href={ev.url}
@@ -1039,7 +1131,7 @@ export function AdminScreen() {
                     </div>
                   ))}
                 </div>
-                <h3 style={{ fontSize: 15, fontWeight: 600, margin: '28px 0 10px' }}>Alerts</h3>
+                <h3 style={{ fontSize: 15, fontWeight: 600, margin: '28px 0 10px' }}>Alerts / Signals</h3>
                 <div style={{ borderTop: '1px solid #111110' }}>
                   {pack.alerts.length === 0 && (
                     <div style={{ padding: '12px 0', fontSize: 13, color: '#8B8B85' }}>ยังไม่มี alert ระดับสูง</div>

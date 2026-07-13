@@ -34,16 +34,25 @@ export async function synthesizeRagWithLlm(rag: HybridRagResult): Promise<LlmRag
       { role: 'system', content: GUARDRAILS },
       {
         role: 'user',
-        content: `สังเคราะห์คำตอบสั้น ๆ จากหลักฐานด้านล่างเท่านั้น (อ้างหมายเลข citation)
+        content: `สังเคราะห์คำตอบจากหลักฐานเท่านั้น — แยกข้อเท็จจริง / สัญญาณ / ข้อสรุปเชิงวิเคราะห์
 คำถาม: ${rag.query}
+ระดับจัดลำดับ: ${rag.assessment.riskLevel} (${rag.assessment.score100 ?? '—'}/100)
 โหนดกราฟ: ${nodes || '—'}
+ข้อเท็จจริงที่มี: ${rag.facts.slice(0, 6).join(' | ') || '—'}
+สัญญาณที่มี: ${rag.inferences.slice(0, 6).join(' | ') || '—'}
+กฎที่ถูกกระตุ้น: ${rag.ruleHits.map((r) => r.title).join(' · ') || '—'}
 หลักฐาน:
 ${evidence || '(ไม่มี)'}
 
-รูปแบบ: 1) คำตอบ 2-5 ประโยค 2) สิ่งที่ยังขาด 3) ขั้นตอนถัดไป 1-3 ข้อ`,
+รูปแบบตอบ (ไทย):
+1) ข้อเท็จจริงที่ยืนยันได้ (bullet)
+2) สัญญาณวิเคราะห์ — ระบุชัดว่าไม่ใช่ข้อพิสูจน์
+3) การประเมินสั้น ๆ + ข้อแม้
+4) ขั้นตอนถัดไป 3-5 ข้อ
+ห้ามกล่าวหาว่าทุจริต`,
       },
     ],
-    { temperature: 0.15, maxTokens: 900 }
+    { temperature: 0.15, maxTokens: 1100 }
   );
 
   if (!result.ok) return { error: result.error };

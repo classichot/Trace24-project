@@ -1,6 +1,6 @@
 import { isRealAgency } from '@/lib/agencies';
+import { attachClaim, storeEvidence } from '@/lib/pipeline/evidence';
 import { extractFromUrl } from '@/lib/pipeline/extract';
-import { storeEvidence } from '@/lib/pipeline/evidence';
 
 export async function POST(
   req: Request,
@@ -15,24 +15,75 @@ export async function POST(
   if (!url) return Response.json({ error: 'url required' }, { status: 400 });
 
   try {
+    const fetched = await fetch(url, {
+      headers: { 'User-Agent': 'TRACE24/1.0 (public evidence capture)' },
+      redirect: 'follow',
+    });
+    const rawBuf = Buffer.from(await fetched.arrayBuffer());
+    const contentType = fetched.headers.get('content-type') || 'application/octet-stream';
+
     const extracted = await extractFromUrl(url);
-    let evidence = null;
+    let evidence: ReturnType<typeof storeEvidence> | null = null;
+    let claims: ReturnType<typeof attachClaim>[] = [];
+
     if (body.store !== false) {
+      // Prefer original bytes for immutability; fall back to extracted text only if empty
+      const originalBody = rawBuf.length > 0 ? rawBuf : extracted.text || JSON.stringify(extracted.metadata);
       evidence = storeEvidence({
         agencyId: id,
         sourceUrl: url,
-        contentType: extracted.contentType,
-        body: extracted.text || JSON.stringify(extracted.metadata),
-        labels: ['extract', extracted.method],
+        contentType: contentType || extracted.contentType,
+        body: originalBody,
+        labels: ['extract', extracted.method, 'immutable'],
         filenameHint: extracted.method,
+        extractionMethod: extracted.method,
+        extractedText: extracted.text,
+        confidence: extracted.confidence,
       });
+
+      const claimTexts = [
+        extracted.title ? `เอกสารมีชื่อเรื่อง: ${extracted.title}` : null,
+        extracted.text ? `สกัดข้อความได้ ${extracted.text.length} ตัวอักษ ด้วยวิธี ${extracted.method}` : null,
+        extracted.tables.length ? `พบตาราง ${extracted.tables.length} แถวในเอกสาร` : null,
+      ].filter(Boolean) as string[];
+
+      claims = claimTexts.map((claim, i) =>
+        attachClaim({
+          evidence: evidence!,
+          claim,
+          locator: {
+            page: null,
+            table: extracted.tables.length ? i : null,
+            section: extracted.title || extracted.method,
+            charStart: 0,
+            charEnd: Math.min(extracted.text.length, 500),
+          },
+          extractedText: extracted.text.slice(0, 1500),
+          extractionMethod: extracted.method,
+          confidence: extracted.confidence,
+          entityIds: [`agency:${id}`],
+        })
+      );
     }
+
     return Response.json({
       extracted: {
         ...extracted,
         text: extracted.text.slice(0, 4000),
       },
       evidence,
+      claims,
+      provenance: evidence
+        ? {
+            claim: 'เอกสารสาธารณะถูกเก็บแบบ immutable พร้อม checksum',
+            sourceUrl: evidence.sourceUrl,
+            documentPath: evidence.storedPath,
+            downloadedAt: evidence.fetchedAt,
+            checksumSha256: evidence.checksumSha256,
+            extractionMethod: evidence.extractionMethod,
+            confidence: evidence.confidence,
+          }
+        : null,
     });
   } catch (e) {
     return Response.json(

@@ -150,7 +150,7 @@ export function runApprovedDynamicRules(report: PipelineReportLike): RiskSignal[
   for (const p of approved) {
     try {
       const sig = evaluateExecutableRule(report, p);
-      if (sig) out.push(sig);
+      if (sig) out.push({ ...sig, layer: 'signal', kind: sig.kind || 'other' });
     } catch {
       // never break core detection
     }

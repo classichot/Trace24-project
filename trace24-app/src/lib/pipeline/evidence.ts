@@ -1,9 +1,11 @@
+import 'server-only';
+
 import crypto from 'crypto';
 import fs from 'fs';
 import path from 'path';
-import type { EvidenceObject } from './types';
+import type { EvidenceClaim, EvidenceLocator, EvidenceObject } from './types';
 
-const EVIDENCE_ROOT = path.join(process.cwd(), 'data', 'evidence');
+const EVIDENCE_ROOT = path.join(/*turbopackIgnore: true*/ process.cwd(), 'data', 'evidence');
 
 /** Immutable raw evidence: original bytes + timestamp + checksum + source URL */
 export function evidenceDir(agencyId: string) {
@@ -27,6 +29,9 @@ export function storeEvidence(input: {
   body: Buffer | string;
   labels?: string[];
   filenameHint?: string;
+  extractionMethod?: string;
+  extractedText?: string;
+  confidence?: number;
 }): EvidenceObject {
   const dir = ensureEvidenceRoot(input.agencyId);
   const buf = Buffer.isBuffer(input.body) ? input.body : Buffer.from(input.body, 'utf8');
@@ -38,6 +43,15 @@ export function storeEvidence(input: {
   if (!fs.existsSync(storedPath)) {
     fs.writeFileSync(storedPath, buf);
   }
+
+  let extractedTextPath: string | null = null;
+  if (input.extractedText && input.extractedText.trim()) {
+    extractedTextPath = `${storedPath}.extracted.txt`;
+    if (!fs.existsSync(extractedTextPath)) {
+      fs.writeFileSync(extractedTextPath, input.extractedText, 'utf8');
+    }
+  }
+
   const meta: EvidenceObject = {
     id: `ev_${checksum.slice(0, 16)}`,
     agencyId: input.agencyId,
@@ -48,9 +62,46 @@ export function storeEvidence(input: {
     checksumSha256: checksum,
     bytes: buf.length,
     labels: input.labels || [],
+    extractionMethod: input.extractionMethod,
+    extractedTextPath: extractedTextPath
+      ? path.relative(process.cwd(), extractedTextPath).replace(/\\/g, '/')
+      : null,
+    confidence: input.confidence,
   };
   fs.writeFileSync(`${storedPath}.meta.json`, JSON.stringify(meta, null, 2), 'utf8');
   return meta;
+}
+
+export function attachClaim(input: {
+  evidence: EvidenceObject;
+  claim: string;
+  locator?: EvidenceLocator;
+  extractedText: string;
+  extractionMethod: string;
+  confidence: number;
+  entityIds?: string[];
+}): EvidenceClaim {
+  const claim: EvidenceClaim = {
+    id: `claim_${sha256(`${input.evidence.id}|${input.claim}`).slice(0, 16)}`,
+    claim: input.claim,
+    evidenceId: input.evidence.id,
+    sourceUrl: input.evidence.sourceUrl,
+    documentPath: input.evidence.storedPath,
+    locator: input.locator || {},
+    downloadedAt: input.evidence.fetchedAt,
+    checksumSha256: input.evidence.checksumSha256,
+    extractedText: input.extractedText.slice(0, 4000),
+    extractionMethod: input.extractionMethod,
+    confidence: input.confidence,
+    entityIds: input.entityIds || [],
+    layer: 'fact',
+  };
+  const claimPath = path.join(
+    /*turbopackIgnore: true*/ process.cwd(),
+    input.evidence.storedPath + `.claim_${claim.id}.json`
+  );
+  fs.writeFileSync(claimPath, JSON.stringify(claim, null, 2), 'utf8');
+  return claim;
 }
 
 export function listEvidence(agencyId: string): EvidenceObject[] {
@@ -61,6 +112,16 @@ export function listEvidence(agencyId: string): EvidenceObject[] {
     .filter((f) => f.endsWith('.meta.json'))
     .map((f) => JSON.parse(fs.readFileSync(path.join(dir, f), 'utf8')) as EvidenceObject)
     .sort((a, b) => b.fetchedAt.localeCompare(a.fetchedAt));
+}
+
+export function listClaims(agencyId: string): EvidenceClaim[] {
+  const dir = evidenceDir(agencyId);
+  if (!fs.existsSync(dir)) return [];
+  return fs
+    .readdirSync(dir)
+    .filter((f) => /\.claim_.*\.json$/.test(f))
+    .map((f) => JSON.parse(fs.readFileSync(path.join(dir, f), 'utf8')) as EvidenceClaim)
+    .sort((a, b) => b.downloadedAt.localeCompare(a.downloadedAt));
 }
 
 export function evidenceStats(agencyId: string): { agencyId: string; count: number; bytes: number };

@@ -1,4 +1,4 @@
-import { runDistributionTests, runRuleEngine, runSimilarityHints } from './detect';
+import { runDistributionTests, runMissingInformationRules, runRuleEngine, runSimilarityHints } from './detect';
 import { runApprovedDynamicRules } from './rules/evaluate';
 import type { AlertItem, PipelineReportLike, RiskScores, RiskSignal } from './types';
 
@@ -11,6 +11,7 @@ export function scoreRisks(report: PipelineReportLike): RiskScores {
     ...runRuleEngine(report),
     ...runDistributionTests(report),
     ...runSimilarityHints(report),
+    ...runMissingInformationRules(report),
     ...runApprovedDynamicRules(report),
   ].sort((a, b) => severityRank(b.severity) - severityRank(a.severity) || b.score - a.score);
 
@@ -20,12 +21,12 @@ export function scoreRisks(report: PipelineReportLike): RiskScores {
   const supplierSignals = signals.filter((s) => s.subjectIds.some((id) => id.startsWith('company:')));
   const agencySignals = signals.filter((s) => s.subjectIds.some((id) => id.startsWith('agency:')));
   const networkSignals = signals.filter(
-    (s) => s.ruleId === 'R8' || s.ruleId === 'R1' || s.ruleId === 'R5'
+    (s) => s.ruleId === 'R8' || s.ruleId === 'R1' || s.ruleId === 'R5' || s.kind === 'network'
   );
 
   const project = avg(projectSignals.map((s) => s.score));
   const supplier = avg(supplierSignals.map((s) => s.score));
-  const official = avg(agencySignals.map((s) => s.score)) * 0.6; // no official-person graph yet
+  const official = avg(agencySignals.map((s) => s.score)) * 0.6;
   const network = avg(networkSignals.map((s) => s.score));
   const overall = Number(
     (project * 0.35 + supplier * 0.3 + network * 0.25 + official * 0.1).toFixed(3)
@@ -37,7 +38,7 @@ export function scoreRisks(report: PipelineReportLike): RiskScores {
     official: Number(official.toFixed(3)),
     network: Number(network.toFixed(3)),
     overall,
-    signals: signals.slice(0, 40),
+    signals: signals.slice(0, 50),
   };
 }
 
@@ -50,7 +51,7 @@ export function buildAlerts(risk: RiskScores): AlertItem[] {
       createdAt: new Date().toISOString(),
       severity: s.severity,
       title: s.title,
-      body: s.explanation,
+      body: `${s.explanation}\n\nข้อควรระวัง: ${s.innocentExplanation}`,
       signalIds: [s.id],
     }));
 }

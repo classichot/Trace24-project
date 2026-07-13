@@ -32,6 +32,72 @@ export type EvidenceObject = {
   checksumSha256: string;
   bytes: number;
   labels: string[];
+  /** Original bytes retained (immutable). Sidecar may hold extraction. */
+  extractionMethod?: string;
+  extractedTextPath?: string | null;
+  confidence?: number;
+};
+
+/** Page / table / cell locator inside an original document */
+export type EvidenceLocator = {
+  page?: number | null;
+  table?: number | null;
+  cell?: string | null;
+  section?: string | null;
+  charStart?: number | null;
+  charEnd?: number | null;
+};
+
+/**
+ * Atomic claim with full provenance — survives source edits/removals.
+ * Fact layer only: what was observed in a public document at fetch time.
+ */
+export type EvidenceClaim = {
+  id: string;
+  claim: string;
+  evidenceId: string;
+  sourceUrl: string;
+  documentPath: string;
+  locator: EvidenceLocator;
+  downloadedAt: string;
+  checksumSha256: string;
+  extractedText: string;
+  extractionMethod: string;
+  confidence: number;
+  entityIds: string[];
+  layer: 'fact';
+};
+
+export type FactRecord = {
+  id: string;
+  statement: string;
+  claimIds: string[];
+  evidenceRefs: string[];
+  entityIds: string[];
+  observedAt: string | null;
+  confidence: number;
+};
+
+export type AnalyticalConclusion = {
+  id: string;
+  statement: string;
+  basedOnSignalIds: string[];
+  basedOnFactIds: string[];
+  /** Always non-accusatory framing */
+  caveat: string;
+  recommendedNextSteps: string[];
+};
+
+export type MissingInfoGap = {
+  id: string;
+  expected: string;
+  observed: string;
+  subjectIds: string[];
+  coverage: number;
+  expectedCount: number;
+  observedCount: number;
+  gapScore: number;
+  evidenceRefs: string[];
 };
 
 export type NormalizedEntity = {
@@ -69,6 +135,11 @@ export type RiskSignal = {
   explanation: string;
   innocentExplanation: string;
   evidenceRefs: string[];
+  /** Confirmed observable facts supporting this signal (not a conclusion). */
+  facts?: string[];
+  /** missing_information | process | competition | network | statistical | disclosure */
+  kind?: 'missing_information' | 'process' | 'competition' | 'network' | 'statistical' | 'disclosure' | 'other';
+  layer?: 'signal';
 };
 
 export type RiskScores = {
@@ -96,6 +167,11 @@ export type EvidenceMapItem = {
   when: string;
   url: string | null;
   relatedEntityIds: string[];
+  evidenceId?: string | null;
+  checksumSha256?: string | null;
+  extractionMethod?: string | null;
+  confidence?: number | null;
+  locator?: EvidenceLocator | null;
 };
 
 export type CaseBrief = {
@@ -104,6 +180,8 @@ export type CaseBrief = {
   riskExplanation: string;
   sourceCitations: string[];
   keyFindings: string[];
+  /** Explicit: scores prioritize review; they do not prove misconduct. */
+  scoreDisclaimer: string;
 };
 
 export type InvestigationLead = {
@@ -119,7 +197,18 @@ export type InvestigationPack = {
   agencyId: string;
   generatedAt: string;
   pipeline: { layer: string; status: PipelineLayerStatus; note: string }[];
+  architecture: {
+    evidenceLayer: string;
+    intelligenceLayer: string;
+    detectionLayer: string;
+    explanationLayer: string;
+    principle: string;
+  };
   evidenceMap: EvidenceMapItem[];
+  claims: EvidenceClaim[];
+  facts: FactRecord[];
+  missingInfo: MissingInfoGap[];
+  conclusions: AnalyticalConclusion[];
   caseBrief: CaseBrief;
   leads: InvestigationLead[];
   risk: RiskScores;
@@ -216,12 +305,25 @@ export type HybridRagResult = {
   answeredAt: string;
   answer: string;
   graphNodes: NormalizedEntity[];
-  graphEdges: { from: string; to: string; rel: string }[];
+  graphEdges: { from: string; to: string; rel: string; since?: string | null; until?: string | null }[];
   citations: RagCitation[];
   mode: 'hybrid-graph-vector' | 'hybrid-graph-vector+llm';
   llm?: { model: string };
   llmError?: string;
   extractiveAnswer?: string;
+  /** Confirmed facts from documents / graph (not inferences). */
+  facts: string[];
+  /** Analytical inferences / risk signals (not proof). */
+  inferences: string[];
+  /** Rule / anomaly hits used in the explanation. */
+  ruleHits: { id: string; title: string; severity: string; score: number }[];
+  /** Structured next investigation steps. */
+  nextSteps: string[];
+  assessment: {
+    riskLevel: 'High' | 'Medium' | 'Low' | 'Unknown';
+    score100: number | null;
+    caveat: string;
+  };
 };
 
 /** Client-safe pipeline status payload (fetched from /api/pipeline). */
