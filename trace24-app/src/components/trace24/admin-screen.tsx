@@ -86,7 +86,21 @@ export function AdminScreen() {
     scannedId,
   } = useTrace24();
 
-  const CF = dataset.caseFile;
+  const CF = {
+    id: dataset.caseFile?.id || `case-${scannedId || 'unknown'}`,
+    title: dataset.caseFile?.title || 'สำนวนหน่วยงาน',
+    summary: dataset.caseFile?.summary || 'ยังไม่มีสรุปสำนวน — สแกนหน่วยงานแล้วเปิดแท็บนี้ใหม่',
+    status: dataset.caseFile?.status || 'ร่าง',
+    opened: dataset.caseFile?.opened || '—',
+    owner: dataset.caseFile?.owner || 'รอมอบหมายผู้ตรวจ',
+    signals: dataset.caseFile?.signals || '—',
+    evidence: dataset.caseFile?.evidence || [],
+    questions: dataset.caseFile?.questions || [],
+    timeline: dataset.caseFile?.timeline || [],
+    parties: dataset.caseFile?.parties || [],
+    money: dataset.caseFile?.money || [],
+    notes: dataset.caseFile?.notes || [],
+  };
   const caseAdded = caseNotesAdded[CF.id] ?? [];
   const caseNotes = [
     ...caseAdded.map((n) => ({ date: n[0], text: n[1] })),
@@ -141,14 +155,14 @@ export function AdminScreen() {
 
   useEffect(() => {
     if (adminTab !== 'investigate') return;
-    if (!isRealAgency(scannedId)) {
+    if (!scannedId || !isRealAgency(scannedId)) {
       setPack(null);
-      setPackError('สแกนหน่วยงานข้อมูลจริงก่อน (เช่น โพทะเล) เพื่อสร้างสำนวนผู้ช่วยสอบสวน');
+      setPackError('สแกนหน่วยงานจากหน้าแรกก่อน แล้วกลับมาที่ผู้ช่วยสอบสวน');
       return;
     }
     setPackLoading(true);
     setPackError(null);
-    fetch(`/api/agencies/${scannedId}/investigate`)
+    fetch(`/api/agencies/${encodeURIComponent(scannedId)}/investigate`)
       .then(async (r) => {
         if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || `HTTP ${r.status}`);
         return r.json();
@@ -317,7 +331,7 @@ export function AdminScreen() {
 
   return (
     <div
-      data-screen-label="ระบบภายใน"
+      data-screen-label="ตัวช่วยทำคดี"
       style={{
         maxWidth: 1160,
         margin: '0 auto',
@@ -326,7 +340,7 @@ export function AdminScreen() {
       }}
     >
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 14 }}>
-        <h1 style={{ fontSize: 26, fontWeight: 500, margin: 0 }}>ระบบผู้ดูแล</h1>
+        <h1 style={{ fontSize: 26, fontWeight: 500, margin: 0 }}>ตัวช่วยทำคดี</h1>
         <span
           style={{
             fontSize: 10,
@@ -410,14 +424,17 @@ export function AdminScreen() {
       {adminTab === 'queue' && (
         <div style={{ marginTop: 28 }}>
           <div style={{ display: 'flex', gap: 36, paddingBottom: 20, borderBottom: '1px solid #E4E4E0', flexWrap: 'wrap' }}>
-            {dataset.queueStats.map((qs, i) => (
+            {(dataset.queueStats || []).map((qs, i) => (
               <div key={i}>
                 <div style={{ fontSize: 22, fontWeight: 500 }}>{qs.n}</div>
                 <div style={{ fontSize: 11.5, color: '#8B8B85', marginTop: 3 }}>{qs.label}</div>
               </div>
             ))}
+            {(dataset.queueStats || []).length === 0 && (
+              <div style={{ fontSize: 13.5, color: '#8B8B85' }}>ยังไม่มีสถิติคิวเอกสารในรายงานนี้</div>
+            )}
           </div>
-          {dataset.queueRows.map((q, i) => (
+          {(dataset.queueRows || []).map((q, i) => (
             <div
               key={i}
               style={{
@@ -451,7 +468,7 @@ export function AdminScreen() {
           <div style={{ fontSize: 13, color: '#55554F', maxWidth: 680, lineHeight: 1.6 }}>
             การจับคู่ที่ไม่แน่นอนจะไม่ถูกรวมโดยอัตโนมัติ — การรวมผิดอาจสร้างความสัมพันธ์เท็จ ทุกการตัดสินใจด้านล่างถูกบันทึกพร้อมชื่อผู้ดำเนินการ
           </div>
-          {dataset.erRows.map((er) => {
+          {(dataset.erRows || []).map((er) => {
             const dec = erDecisions[er.id];
             return (
               <div key={er.id} style={{ border: '1px solid #E4E4E0', background: '#fff', padding: '20px 24px' }}>
@@ -588,7 +605,7 @@ export function AdminScreen() {
             <div>ระดับ</div>
             <div>สถานะการตรวจสอบ</div>
           </div>
-          {dataset.adminReviewRows.map((rr) => {
+          {(dataset.adminReviewRows || []).map((rr) => {
             const s = sev(rr.sevKey);
             return (
               <div
@@ -968,9 +985,9 @@ export function AdminScreen() {
 
       {adminTab === 'investigate' && (
         <div style={{ marginTop: 28 }}>
-          <h2 style={{ fontSize: 18, fontWeight: 600, margin: '0 0 8px' }}>Investigation Assistant</h2>
+          <h2 style={{ fontSize: 18, fontWeight: 600, margin: '0 0 8px' }}>ผู้ช่วยสอบสวน</h2>
           <p style={{ margin: '0 0 12px', fontSize: 13.5, color: '#55554F', maxWidth: 760, lineHeight: 1.6 }}>
-            Evidence (immutable) · Temporal graph · Facts / Signals / Conclusions · Missing-info · Hybrid Graph RAG
+            สำนวนจากหลักฐานสาธารณะ · กราฟความสัมพันธ์ · ข้อเท็จจริง / สัญญาณ / ข้อสรุป · Hybrid Graph RAG
           </p>
           <RiskDisclaimer style={{ marginBottom: 20, maxWidth: 760 }} />
           {packLoading && <div style={{ fontSize: 13, color: '#8B8B85' }}>กำลังสร้างสำนวน…</div>}

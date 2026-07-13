@@ -123,7 +123,7 @@ const INITIAL: Trace24State = {
   selNodeId: 'c1',
   graphFilter: 'all',
   graphLayer: 'entity',
-  adminTab: 'crawl',
+  adminTab: 'investigate',
   erDecisions: {},
   reviewStates: {},
   projectReview: {},

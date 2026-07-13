@@ -4,7 +4,7 @@ import { useTrace24 } from '@/context/trace24-context';
 import { Logo } from './ui';
 
 export function Nav() {
-  const { page, muni, go } = useTrace24();
+  const { page, muni, go, setAdminTab } = useTrace24();
   const showNav = ['dashboard', 'project', 'contractor', 'graph', 'admin'].includes(
     page
   );
@@ -23,9 +23,12 @@ export function Nav() {
       go: () => go('graph'),
     },
     {
-      label: 'ระบบภายใน',
+      label: 'ตัวช่วยทำคดี',
       active: page === 'admin',
-      go: () => go('admin'),
+      go: () => {
+        setAdminTab('investigate');
+        go('admin');
+      },
     },
   ];
 

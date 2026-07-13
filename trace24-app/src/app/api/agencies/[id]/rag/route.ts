@@ -1,7 +1,9 @@
 import { isRealAgency } from '@/lib/agencies';
 import { synthesizeRagWithLlm } from '@/lib/llm';
-import { loadAgencyReport } from '@/lib/pipeline/load-report';
 import { hybridGraphRag } from '@/lib/pipeline/rag';
+import { resolveAgencyReport } from '@/lib/pipeline/resolve-report';
+
+export const maxDuration = 60;
 
 export async function POST(
   req: Request,
@@ -11,9 +13,9 @@ export async function POST(
   if (!isRealAgency(id)) {
     return Response.json({ error: 'Agency not found' }, { status: 404 });
   }
-  const report = loadAgencyReport(id);
+  const report = await resolveAgencyReport(id);
   if (!report) {
-    return Response.json({ error: 'Real data not cached' }, { status: 503 });
+    return Response.json({ error: 'ยังสร้างรายงานหน่วยงานไม่ได้' }, { status: 503 });
   }
   const body = (await req.json().catch(() => ({}))) as {
     query?: string;

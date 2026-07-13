@@ -1,6 +1,8 @@
 import { isRealAgency } from '@/lib/agencies';
 import { buildInvestigationPack } from '@/lib/pipeline/investigate';
-import { loadAgencyReport } from '@/lib/pipeline/load-report';
+import { resolveAgencyReport } from '@/lib/pipeline/resolve-report';
+
+export const maxDuration = 60;
 
 export async function GET(
   _req: Request,
@@ -10,12 +12,22 @@ export async function GET(
   if (!isRealAgency(id)) {
     return Response.json({ error: 'Agency not found' }, { status: 404 });
   }
-  const report = loadAgencyReport(id);
-  if (!report) {
+  try {
+    const report = await resolveAgencyReport(id);
+    if (!report) {
+      return Response.json(
+        {
+          error: 'ยังสร้างรายงานหน่วยงานไม่ได้',
+          hint: 'ตรวจว่ารหัสอยู่ในแคตตาล็อก หรือมี contracts-cache',
+        },
+        { status: 503 }
+      );
+    }
+    return Response.json(buildInvestigationPack(id, report));
+  } catch (e) {
     return Response.json(
-      { error: 'Real data not cached', hint: `npm run fetch-real-data -- ${id}` },
-      { status: 503 }
+      { error: e instanceof Error ? e.message : 'investigate failed' },
+      { status: 500 }
     );
   }
-  return Response.json(buildInvestigationPack(id, report));
 }

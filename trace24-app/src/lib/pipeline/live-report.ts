@@ -275,10 +275,26 @@ export function enrichStubWithContracts(
       title: stub.agency.th,
       summary: `รายงานเบื้องต้นจากทะเบียน e-GP + สัญญา data.go.th (${Object.keys(projects).length} โครงการ)`,
       status: Object.keys(projects).length ? 'มีข้อมูลสัญญา' : 'ทะเบียนเท่านั้น',
+      opened: 'เปิดจากสแกนสาธารณะ',
+      owner: 'รอมอบหมายผู้ตรวจ',
       signals: 'คะแนนความเสี่ยงจะคำนวณเมื่อเปิดผู้ช่วยสอบสวน — ไม่ใช่ข้อกล่าวหา',
       evidence: [govSpendingPortalSearchUrl(stub.agency.th)],
-      questions: [],
-      timeline: [],
+      questions: [] as [string, string][],
+      timeline: [] as [string, string, string][],
+      parties: Object.entries(contractors)
+        .slice(0, 8)
+        .map(([cid, co]) => [co.name, `${co.contracts} สัญญา · ${co.total}`, true] as [string, string, boolean]),
+      money: Object.entries(projects)
+        .slice(0, 8)
+        .map(([, p]) => {
+          const proj = p as { code?: string; name?: string; award?: string };
+          return [String(proj.code || proj.name || 'โครงการ'), String(proj.award || '—'), false] as [
+            string,
+            string,
+            boolean,
+          ];
+        }),
+      notes: [] as [string, string][],
     },
     stages: [
       ['ระบุหน่วยงานสำเร็จ', `รหัส ${stub.agency.code}`],

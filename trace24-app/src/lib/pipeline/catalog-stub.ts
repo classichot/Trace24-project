@@ -84,15 +84,37 @@ export function buildCatalogStubReport(agency: AgencyRecord) {
       title: agency.th,
       summary: `หน่วยงาน「${agency.th}」อยู่ในทะเบียนหน่วยจัดซื้อ e-GP (รหัส ${agency.code}) — ยังไม่มีสัญญาในแคช`,
       status: 'ทะเบียนเท่านั้น',
+      opened: 'เปิดจากทะเบียน e-GP',
+      owner: 'รอมอบหมายผู้ตรวจ',
       signals: 'คะแนนความเสี่ยงใช้จัดลำดับการตรวจเท่านั้น ไม่ใช่ข้อกล่าวหา',
       evidence: ['https://data.go.th/dataset/egpdepartment'],
-      questions: [],
-      timeline: [],
+      questions: [] as [string, string][],
+      timeline: [] as [string, string, string][],
+      parties: [] as [string, string, boolean][],
+      money: [] as [string, string, boolean][],
+      notes: [] as [string, string][],
     },
     crawl: [],
     queue: [],
+    queueStats: [] as { n: string; label: string }[],
+    queueRows: [] as {
+      id: string;
+      title: string;
+      type: string;
+      fmt: string;
+      status: string;
+      ok: boolean | null;
+    }[],
     entities: [],
+    erRows: [] as { id: string; a: string; b: string; sim: string; ev: string[] }[],
     review: [],
+    adminReviewRows: [] as {
+      key: string;
+      code: string;
+      title: string;
+      sevKey: string;
+      def: string;
+    }[],
     graph: {
       nodes: uiGraph.nodes,
       edges: uiGraph.edges,
