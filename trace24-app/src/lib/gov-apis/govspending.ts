@@ -42,6 +42,7 @@ export type GovSpendingContract = {
   project_type_name: string;
   dept_name: string;
   province: string;
+  district?: string;
   _fy: string;
   _source: string;
   contract: { winner: string; winner_tin: string; price_agree: string; contract_date: string }[];
@@ -140,6 +141,7 @@ function mapRow(row: Record<string, unknown>): GovSpendingContract {
     project_type_name: String(row['กลุ่มวิธีจัดซื้อฯ'] || row['วิธีจัดซื้อฯ'] || ''),
     dept_name: String(row['ชื่อหน่วยงาน'] ?? ''),
     province: String(row['จังหวัด'] ?? ''),
+    district: String(row['เขต/อำเภอ'] ?? ''),
     _fy: String(row['ปีงบประมาณ'] ?? ''),
     _source: 'data.go.th/govspending-ckan',
     contract: [

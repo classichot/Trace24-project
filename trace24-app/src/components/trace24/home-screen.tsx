@@ -202,8 +202,9 @@ export function HomeScreen() {
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: 14.5 }}>{r.th}</div>
                     <div style={{ fontSize: 12, color: '#8B8B85', marginTop: 2 }}>
-                      รหัส {r.code}
-                      {r.prov ? ` · ${r.prov}` : ''}
+                      {r.prov ? `จ.${r.prov}` : 'จังหวัดไม่ทราบ'}
+                      {r.dist ? ` · อ.${r.dist}` : ''}
+                      {` · รหัส ${r.code}`}
                       {r.en ? ` · ${r.en}` : ''}
                     </div>
                   </div>
@@ -280,7 +281,9 @@ export function HomeScreen() {
                 <div>
                   <div style={{ fontSize: 19, fontWeight: 500 }}>{sel.th}</div>
                   <div style={{ fontSize: 13, color: '#55554F', marginTop: 3 }}>
-                    {sel.en || `รหัสหน่วยงาน ${sel.code}`}
+                    {sel.prov ? `จ.${sel.prov}` : 'จังหวัดไม่ทราบ'}
+                    {sel.dist ? ` · อ.${sel.dist}` : ''}
+                    {sel.en ? ` · ${sel.en}` : ` · รหัส ${sel.code}`}
                   </div>
                 </div>
                 <div

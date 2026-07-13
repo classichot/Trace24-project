@@ -14,6 +14,7 @@ type ContractLike = {
   project_type_name: string;
   dept_name: string;
   province: string;
+  district?: string;
   _fy: string;
   contract: { winner: string; winner_tin: string; price_agree: string; contract_date: string }[];
 };
@@ -152,6 +153,36 @@ export function enrichStubWithContracts(
     co.shareNum = `${Math.round((co.contracts / totalContracts) * 1000) / 10}%`;
   }
 
+  // Province from contracts — egpdepartment catalog often has empty จังหวัด,
+  // and the same agency name can exist in more than one province (e.g. เทศบาลตำบลป่าไผ่).
+  const provCount = new Map<string, number>();
+  const distCount = new Map<string, number>();
+  for (const c of contracts) {
+    const p = c.province?.trim();
+    if (p) provCount.set(p, (provCount.get(p) || 0) + 1);
+    const d = c.district?.trim();
+    if (d) distCount.set(d, (distCount.get(d) || 0) + 1);
+  }
+  const provRanked = [...provCount.entries()].sort((a, b) => b[1] - a[1]);
+  const distRanked = [...distCount.entries()].sort((a, b) => b[1] - a[1]);
+  const primaryProv = stub.agency.prov || provRanked[0]?.[0] || '';
+  const primaryDist = stub.agency.dist || distRanked[0]?.[0] || '';
+  const multiProv = provRanked.length > 1;
+  const locFromContracts = multiProv
+    ? `พบหลายจังหวัดในสัญญา: ${provRanked.map(([p, n]) => `${p} (${n})`).join(' · ')} — ชื่อหน่วยงานซ้ำได้`
+    : primaryProv && primaryDist
+      ? `อ.${primaryDist} · จ.${primaryProv}`
+      : primaryProv
+        ? `จ.${primaryProv}`
+        : stub.agency.loc;
+
+  stub.agency = {
+    ...stub.agency,
+    ...(primaryProv ? { prov: primaryProv } : {}),
+    ...(primaryDist ? { dist: primaryDist } : {}),
+    loc: locFromContracts || stub.agency.loc,
+  };
+
   const topContractors = Object.entries(contractors)
     .map(([id, co]) => ({ id, name: co.name, value: co.total, n: co.contracts }))
     .sort((a, b) => b.n - a.n)
@@ -172,7 +203,9 @@ export function enrichStubWithContracts(
       scanSummary: `ดึงจากภาษีไปไหน / data.go.th ${Object.keys(projects).length} โครงการ · รหัส ${stub.agency.code}`,
       dataPct: Object.keys(projects).length ? '65%' : '—',
       dataGapNote: Object.keys(projects).length
-        ? 'ข้อมูลสัญญาจาก CKAN egp-contact — ผู้ชนะอาจไม่ครบหากคอลัมน์เพี้ยน'
+        ? multiProv
+          ? `ชื่อ「${stub.agency.th}」พบสัญญาในหลายจังหวัด — แยกรหัสหน่วยงาน/พื้นที่ก่อนสรุปผล`
+          : 'ข้อมูลสัญญาจาก CKAN egp-contact — ผู้ชนะอาจไม่ครบหากคอลัมน์เพี้ยน'
         : stub.meta.dataGapNote,
       catalogOnly: Object.keys(projects).length === 0,
       packageId,
@@ -182,6 +215,11 @@ export function enrichStubWithContracts(
     },
     stats: [
       { label: 'รหัสหน่วยงาน', value: String(stub.agency.code || '—'), sub: 'e-GP dept code' },
+      {
+        label: 'จังหวัด',
+        value: stub.agency.prov || '—',
+        sub: multiProv ? 'ชื่อซ้ำหลายจังหวัด' : stub.agency.loc || '—',
+      },
       { label: 'โครงการ', value: String(Object.keys(projects).length), sub: packageId },
       { label: 'ผู้รับจ้าง', value: String(Object.keys(contractors).length), sub: 'จากสัญญา' },
       {
@@ -189,7 +227,6 @@ export function enrichStubWithContracts(
         value: stub.agency.tshort,
         sub: stub.agency.type,
       },
-      { label: 'สถานะ', value: Object.keys(projects).length ? 'มีสัญญา' : 'ทะเบียน', sub: 'data.go.th' },
     ],
     projects,
     contractors,
@@ -247,9 +284,14 @@ export async function buildAgencyReportFromCatalog(
         agencyId: agency.id,
       }
     );
-    // Prefer exact dept_name matches
+    // Prefer exact dept_name matches; when จังหวัด is known, keep only that province
+    // (same name can exist in multiple provinces — e.g. เทศบาลตำบลป่าไผ่).
     const exact = contracts.filter((c) => c.dept_name === agency.th);
-    const use = exact.length ? exact : contracts;
+    let use = exact.length ? exact : contracts;
+    if (agency.prov) {
+      const byProv = use.filter((c) => !c.province || c.province === agency.prov);
+      if (byProv.length) use = byProv;
+    }
     if (!use.length) {
       return {
         ...stub,
@@ -263,18 +305,6 @@ export async function buildAgencyReportFromCatalog(
       };
     }
     const enriched = enrichStubWithContracts(stub, use, packageId);
-    // Fill province from contracts when catalog lacks it
-    const prov = use.find((c) => c.province)?.province;
-    if (prov && (!enriched.agency.prov || enriched.agency.prov === '')) {
-      enriched.agency = {
-        ...enriched.agency,
-        prov,
-        loc: enriched.agency.dist ? `อ.${enriched.agency.dist} · จ.${prov}` : `จ.${prov}`,
-      };
-      enriched.stats = enriched.stats.map((s: { label: string; value: string; sub: string }) =>
-        s.label === 'จังหวัด' ? { ...s, value: prov, sub: enriched.agency.loc } : s
-      );
-    }
 
     // Auto-fetch e-GP winner announcements for projects missing usable winners
     const projectList = Object.values(enriched.projects || {}) as { winner?: string | null }[];

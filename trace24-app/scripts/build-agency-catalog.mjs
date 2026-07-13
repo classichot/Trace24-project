@@ -171,6 +171,94 @@ function locLine(prov, dist) {
   return '—';
 }
 
+/** e-GP 7-digit codes: digits 2–3 = DOPA province code */
+const TH_PROVINCE_BY_CODE = {
+  '10': 'กรุงเทพมหานคร',
+  '11': 'สมุทรปราการ',
+  '12': 'นนทบุรี',
+  '13': 'ปทุมธานี',
+  '14': 'พระนครศรีอยุธยา',
+  '15': 'อ่างทอง',
+  '16': 'ลพบุรี',
+  '17': 'สิงห์บุรี',
+  '18': 'ชัยนาท',
+  '19': 'สระบุรี',
+  '20': 'ชลบุรี',
+  '21': 'ระยอง',
+  '22': 'จันทบุรี',
+  '23': 'ตราด',
+  '24': 'ฉะเชิงเทรา',
+  '25': 'ปราจีนบุรี',
+  '26': 'นครนายก',
+  '27': 'สระแก้ว',
+  '30': 'นครราชสีมา',
+  '31': 'บุรีรัมย์',
+  '32': 'สุรินทร์',
+  '33': 'ศรีสะเกษ',
+  '34': 'อุบลราชธานี',
+  '35': 'ยโสธร',
+  '36': 'ชัยภูมิ',
+  '37': 'อำนาจเจริญ',
+  '38': 'บึงกาฬ',
+  '39': 'หนองบัวลำภู',
+  '40': 'ขอนแก่น',
+  '41': 'อุดรธานี',
+  '42': 'เลย',
+  '43': 'หนองคาย',
+  '44': 'มหาสารคาม',
+  '45': 'ร้อยเอ็ด',
+  '46': 'กาฬสินธุ์',
+  '47': 'สกลนคร',
+  '48': 'นครพนม',
+  '49': 'มุกดาหาร',
+  '50': 'เชียงใหม่',
+  '51': 'ลำพูน',
+  '52': 'ลำปาง',
+  '53': 'อุตรดิตถ์',
+  '54': 'แพร่',
+  '55': 'น่าน',
+  '56': 'พะเยา',
+  '57': 'เชียงราย',
+  '58': 'แม่ฮ่องสอน',
+  '60': 'นครสวรรค์',
+  '61': 'อุทัยธานี',
+  '62': 'กำแพงเพชร',
+  '63': 'ตาก',
+  '64': 'สุโขทัย',
+  '65': 'พิษณุโลก',
+  '66': 'พิจิตร',
+  '67': 'เพชรบูรณ์',
+  '70': 'ราชบุรี',
+  '71': 'กาญจนบุรี',
+  '72': 'สุพรรณบุรี',
+  '73': 'นครปฐม',
+  '74': 'สมุทรสาคร',
+  '75': 'สมุทรสงคราม',
+  '76': 'เพชรบุรี',
+  '77': 'ประจวบคีรีขันธ์',
+  '80': 'นครศรีธรรมราช',
+  '81': 'กระบี่',
+  '82': 'พังงา',
+  '83': 'ภูเก็ต',
+  '84': 'สุราษฎร์ธานี',
+  '85': 'ระนอง',
+  '86': 'ชุมพร',
+  '90': 'สงขลา',
+  '91': 'สตูล',
+  '92': 'ตรัง',
+  '93': 'พัทลุง',
+  '94': 'ปัตตานี',
+  '95': 'ยะลา',
+  '96': 'นราธิวาส',
+};
+
+function provinceFromEgpCode(code) {
+  const c = String(code || '').trim();
+  if (/^[0-9]{7}$/.test(c)) return TH_PROVINCE_BY_CODE[c.slice(1, 3)] || '';
+  if (/^10[0-9]{8}$/.test(c)) return TH_PROVINCE_BY_CODE[c.slice(2, 4)] || '';
+  return '';
+}
+
 async function ckanJson(action, params = {}) {
   const qs = new URLSearchParams(params);
   const r = await fetch(`https://data.go.th/api/3/action/${action}?${qs}`, {
@@ -246,7 +334,7 @@ console.log(`province keys=${provByName.size}`);
 
 const agencies = [];
 const seenId = new Set();
-const seenName = new Set();
+const seenCode = new Set();
 const byType = new Map();
 
 for (let i = 1; i < lines.length; i++) {
@@ -255,31 +343,36 @@ for (let i = 1; i < lines.length; i++) {
   const th = String(cols[iName] || '').trim();
   const aff = String(cols[iAff] || '').trim();
   if (!th || !looksThai(th)) continue;
-  if (seenName.has(th)) continue;
-  seenName.add(th);
+  // Keep duplicate names when codes differ (e.g. เทศบาลตำบลป่าไผ่ in CM + Lamphun)
+  if (code && seenCode.has(code)) continue;
+  if (code) seenCode.add(code);
 
   const featured = FEATURED[th];
-  let id = featured?.id || codeToId(code);
+  // Only attach featured id/web to the matching province row
+  const useFeatured = featured && (!featured.prov || featured.prov === (provinceFromEgpCode(code) || featured.prov));
+  let id = useFeatured ? featured.id : codeToId(code);
   if (!id) continue;
+  if (seenId.has(id)) id = codeToId(code) || `${id}-${agencies.length}`;
   if (seenId.has(id)) id = `${id}-${agencies.length}`;
   seenId.add(id);
 
   const { type, tshort } = classifyAgency(th, aff);
-  const prov = featured?.prov || provByName.get(th) || '';
-  const dist = featured?.dist || '';
+  const prov =
+    (useFeatured && featured.prov) || provinceFromEgpCode(code) || provByName.get(th) || '';
+  const dist = (useFeatured && featured.dist) || '';
   const row = {
     id,
     th,
-    en: featured?.en || '',
+    en: (useFeatured && featured.en) || '',
     prov,
     dist,
     type,
     tshort,
     loc: locLine(prov, dist),
     code: code || '—',
-    web: featured?.web || '',
+    web: (useFeatured && featured.web) || '',
     aff,
-    ...(featured?.real ? { real: true } : {}),
+    ...(useFeatured && featured.real ? { real: true } : {}),
   };
   agencies.push(row);
   byType.set(tshort, (byType.get(tshort) || 0) + 1);

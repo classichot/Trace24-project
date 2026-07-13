@@ -4,6 +4,7 @@ import fs from 'fs';
 import path from 'path';
 import zlib from 'zlib';
 import type { AgencyRecord } from './agencies';
+import { provinceFromEgpCode } from './province-from-egp-code';
 
 type CatalogFile = {
   generatedAt: string;
@@ -55,15 +56,17 @@ function locLine(prov: string, dist: string) {
 
 function rowToAgency(row: CatalogFile['rows'][number]): CatalogAgency {
   const [id, th, code, tshort, type, prov, dist, aff, realFlag] = row;
+  const useProv = prov || provinceFromEgpCode(code) || '';
+  const useDist = dist || '';
   return {
     id,
     th,
     en: '',
-    prov: prov || '',
-    dist: dist || '',
+    prov: useProv,
+    dist: useDist,
     type,
     tshort,
-    loc: locLine(prov || '', dist || ''),
+    loc: locLine(useProv, useDist),
     code: code || '—',
     web: '',
     aff,
@@ -232,8 +235,41 @@ export function searchAgencyCatalog(
     }
     scored.push({ a, s: scoreAgency(a, needle, q, false) });
   }
-  scored.sort((x, y) => y.s - x.s || x.a.th.localeCompare(y.a.th, 'th'));
-  return scored.slice(0, limit).map((x) => x.a);
+  scored.sort(
+    (x, y) =>
+      y.s - x.s ||
+      x.a.th.localeCompare(y.a.th, 'th') ||
+      (x.a.prov || '').localeCompare(y.a.prov || '', 'th') ||
+      String(x.a.code).localeCompare(String(y.a.code))
+  );
+
+  // Expand อปท. name collisions so every province/code variant appears (ป่าไผ่ CM+LP, etc.)
+  const hardCap = Math.max(limit, 40);
+  const out: CatalogAgency[] = [];
+  const seen = new Set<string>();
+  const localShort = new Set(['เทศบาลตำบล', 'เทศบาลเมือง', 'เทศบาลนคร', 'อบต.', 'อบจ.']);
+  for (const { a } of scored) {
+    if (seen.has(a.id)) continue;
+    if (localShort.has(a.tshort)) {
+      const siblings = all
+        .filter((x) => x.th === a.th && localShort.has(x.tshort))
+        .sort(
+          (x, y) =>
+            (x.prov || '').localeCompare(y.prov || '', 'th') ||
+            String(x.code).localeCompare(String(y.code))
+        );
+      for (const s of siblings) {
+        if (seen.has(s.id)) continue;
+        out.push(s);
+        seen.add(s.id);
+      }
+    } else {
+      out.push(a);
+      seen.add(a.id);
+    }
+    if (out.length >= hardCap) break;
+  }
+  return out.slice(0, hardCap);
 }
 
 export function listFeaturedCatalogAgencies(): CatalogAgency[] {

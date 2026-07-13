@@ -62,7 +62,7 @@ export function Nav() {
             whiteSpace: 'nowrap',
           }}
         >
-          {muni.th} · {muni.prov}
+          {muni.th} · จ.{muni.prov || '—'}
         </div>
         <div style={{ flex: 1 }} />
         <div
