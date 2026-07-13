@@ -27,32 +27,11 @@ export function GraphScreen() {
     go,
   } = useTrace24();
 
-  const G = dataset.graph;
+  const G = dataset.graph || { nodes: [], edges: [], details: {} };
   const layer = graphLayer;
-
-  const graphHeader =
-    layer === 'country'
-      ? 'ประเทศไทย — ภาพรวมเครือข่ายจัดซื้อจัดจ้างภาครัฐ'
-      : layer === 'cluster'
-        ? `${muni.th} — กลุ่มความสัมพันธ์ที่ตรวจพบ`
-        : `${muni.th} — ${dataset.meta.graphTitle}`;
-
-  const graphNote =
-    layer === 'country'
-      ? 'ชั้นที่ 1 · ภาพรวมประเทศ — ความหนาแน่นของสัญญาณตามจังหวัดและสังกัด'
-      : layer === 'cluster'
-        ? 'ชั้นที่ 2 · กลุ่มความสัมพันธ์ — จัดกลุ่มจากกรรมการร่วม ผู้ถือหุ้น ที่อยู่จดทะเบียน และรูปแบบการเสนอราคา'
-        : `ชั้นที่ 3 · รายหน่วย — ${dataset.meta.graphNote}`;
-
-  const nodeById = useMemo(() => {
-    const map: Record<string, (typeof G.nodes)[0]> = {};
-    G.nodes.forEach((n) => {
-      map[n.id] = n;
-    });
-    return map;
-  }, [G.nodes]);
-
-  const details = (G.details || {}) as Record<
+  const nodes = Array.isArray(G.nodes) ? G.nodes : [];
+  const edges = Array.isArray(G.edges) ? G.edges : [];
+  const graphDetails = (G.details || {}) as Record<
     string,
     {
       typeLabel: string;
@@ -65,19 +44,43 @@ export function GraphScreen() {
     }
   >;
 
+  const graphHeader =
+    layer === 'country'
+      ? 'ประเทศไทย — ภาพรวมเครือข่ายจัดซื้อจัดจ้างภาครัฐ'
+      : layer === 'cluster'
+        ? `${muni.th} — กลุ่มความสัมพันธ์ที่ตรวจพบ`
+        : `${muni.th} — ${dataset.meta?.graphTitle || 'เครือข่าย'}`;
+
+  const graphNote =
+    layer === 'country'
+      ? 'ชั้นที่ 1 · ภาพรวมประเทศ — ความหนาแน่นของสัญญาณตามจังหวัดและสังกัด'
+      : layer === 'cluster'
+        ? 'ชั้นที่ 2 · กลุ่มความสัมพันธ์ — จัดกลุ่มจากกรรมการร่วม ผู้ถือหุ้น ที่อยู่จดทะเบียน และรูปแบบการเสนอราคา'
+        : `ชั้นที่ 3 · รายหน่วย — ${dataset.meta?.graphNote || '—'}`;
+
+  const nodeById = useMemo(() => {
+    const map: Record<string, (typeof nodes)[0]> = {};
+    nodes.forEach((n) => {
+      map[n.id] = n;
+    });
+    return map;
+  }, [nodes]);
+
+  const details = graphDetails;
+
   const activeNodeId = useMemo(() => {
     if (details[selNodeId] || nodeById[selNodeId]) return selNodeId;
     if (dataset.def?.node && (details[dataset.def.node] || nodeById[dataset.def.node])) {
       return dataset.def.node;
     }
     if (details.muni || nodeById.muni) return 'muni';
-    return G.nodes[0]?.id ?? selNodeId;
-  }, [selNodeId, dataset.def?.node, details, nodeById, G.nodes]);
+    return nodes[0]?.id ?? selNodeId;
+  }, [selNodeId, dataset.def?.node, details, nodeById, nodes]);
 
   const gSel = useMemo(() => {
     const fromDetails = details[activeNodeId] ?? details[dataset.def?.node ?? ''] ?? details.muni;
     if (fromDetails) return fromDetails;
-    const node = nodeById[activeNodeId] ?? G.nodes[0];
+    const node = nodeById[activeNodeId] ?? nodes[0];
     return {
       typeLabel: node?.type === 'project' ? 'โครงการ' : node?.type === 'company' ? 'ผู้รับจ้าง' : 'หน่วยงาน',
       label: node?.label || muni.th,
@@ -87,11 +90,11 @@ export function GraphScreen() {
       link: null as string | null,
       target: undefined as string | undefined,
     };
-  }, [details, activeNodeId, dataset.def?.node, dataset.meta?.graphNote, nodeById, G.nodes, muni.th]);
+  }, [details, activeNodeId, dataset.def?.node, dataset.meta?.graphNote, nodeById, nodes, muni.th]);
 
   const gConns = useMemo(
     () =>
-      G.edges
+      edges
         .filter((e) => e[0] === activeNodeId || e[1] === activeNodeId)
         .map((e) => {
           const otherId = (e[0] === activeNodeId ? e[1] : e[0]) as string;
@@ -102,7 +105,7 @@ export function GraphScreen() {
             go: () => setSelNodeId(otherId),
           };
         }),
-    [G.edges, activeNodeId, nodeById, setSelNodeId]
+    [edges, activeNodeId, nodeById, setSelNodeId]
   );
 
   const gSelLinkLabel =
@@ -204,8 +207,8 @@ export function GraphScreen() {
         >
           <div style={{ position: 'relative', minWidth: 0 }}>
             <GraphSvg
-              nodes={G.nodes}
-              edges={G.edges as GraphEdge[]}
+              nodes={nodes}
+              edges={edges as GraphEdge[]}
               selNodeId={activeNodeId}
               graphFilter={graphFilter}
               onSelectNode={setSelNodeId}

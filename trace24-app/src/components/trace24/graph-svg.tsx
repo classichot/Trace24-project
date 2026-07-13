@@ -37,12 +37,14 @@ export function GraphSvg({
   graphFilter,
   onSelectNode,
 }: GraphSvgProps) {
+  const safeNodes = Array.isArray(nodes) ? nodes : [];
+  const safeEdges = Array.isArray(edges) ? edges : [];
   const nodeById: Record<string, GraphNode> = {};
-  nodes.forEach((n) => {
+  safeNodes.forEach((n) => {
     nodeById[n.id] = n;
   });
 
-  const gNodes = nodes.map((n) => {
+  const gNodes = safeNodes.map((n) => {
     const selN = selNodeId === n.id;
     const dim = !filterMatch(n, graphFilter);
     const styleByType: Record<
@@ -80,25 +82,40 @@ export function GraphSvg({
     };
   });
 
-  const gEdges = edges.map((e) => {
-    const a = nodeById[e[0]];
-    const b = nodeById[e[1]];
-    const involved = selNodeId === e[0] || selNodeId === e[1];
-    const dim = !filterMatch(a, graphFilter) && !filterMatch(b, graphFilter);
-    return {
-      x1: a.x,
-      y1: a.y,
-      x2: b.x,
-      y2: b.y,
-      lx: (a.x + b.x) / 2,
-      ly: (a.y + b.y) / 2 - 6,
-      label: e[2],
-      dash: e[3] ? '4 3' : '0',
-      stroke: involved ? '#111110' : '#D5D5D0',
-      sw: involved ? '1.5' : '1',
-      op: dim ? '.1' : '1',
-    };
-  });
+  const gEdges = safeEdges
+    .map((e) => {
+      const a = nodeById[e[0]];
+      const b = nodeById[e[1]];
+      if (!a || !b) return null;
+      const involved = selNodeId === e[0] || selNodeId === e[1];
+      const dim = !filterMatch(a, graphFilter) && !filterMatch(b, graphFilter);
+      return {
+        x1: a.x,
+        y1: a.y,
+        x2: b.x,
+        y2: b.y,
+        lx: (a.x + b.x) / 2,
+        ly: (a.y + b.y) / 2 - 6,
+        label: e[2],
+        dash: e[3] ? '4 3' : '0',
+        stroke: involved ? '#111110' : '#D5D5D0',
+        sw: involved ? '1.5' : '1',
+        op: dim ? '.1' : '1',
+      };
+    })
+    .filter(Boolean) as {
+    x1: number;
+    y1: number;
+    x2: number;
+    y2: number;
+    lx: number;
+    ly: number;
+    label: string;
+    dash: string;
+    stroke: string;
+    sw: string;
+    op: string;
+  }[];
 
   return (
     <svg

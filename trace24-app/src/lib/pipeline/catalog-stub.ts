@@ -1,9 +1,16 @@
 import type { AgencyRecord } from '@/lib/agencies';
 import { govSpendingPortalSearchUrl } from '@/lib/gov-apis/govspending';
+import { buildUiEntityGraph } from './ui-entity-graph';
 
 /** Minimal live dataset for catalog agencies without a cached report yet. */
 export function buildCatalogStubReport(agency: AgencyRecord) {
   const keyword = agency.th;
+  const uiGraph = buildUiEntityGraph({
+    agency,
+    projects: {},
+    contractors: {},
+    relatedMatches: [],
+  });
   return {
     agency: {
       ...agency,
@@ -19,8 +26,8 @@ export function buildCatalogStubReport(agency: AgencyRecord) {
       priorityNote: 'ยังไม่มีโครงการในแคช',
       concNote: 'ข้อมูลทะเบียนจาก data.go.th / egpdepartment',
       vendorsTitle: 'ผู้รับจ้าง',
-      graphTitle: 'เครือข่าย (รอข้อมูลสัญญา)',
-      graphNote: 'ยังไม่มีสัญญาในแคช',
+      graphTitle: uiGraph.meta.graphTitle,
+      graphNote: uiGraph.meta.graphNote,
       catalogOnly: true,
     },
     stats: [
@@ -86,13 +93,11 @@ export function buildCatalogStubReport(agency: AgencyRecord) {
     queue: [],
     entities: [],
     review: [],
-    graph: { nodes: [], links: [] },
-    details: {
-      muni: {
-        title: agency.th,
-        sub: agency.loc,
-        body: `รหัสหน่วยงาน ${agency.code}`,
-      },
+    graph: {
+      nodes: uiGraph.nodes,
+      edges: uiGraph.edges,
+      details: uiGraph.details,
     },
+    details: uiGraph.details,
   };
 }

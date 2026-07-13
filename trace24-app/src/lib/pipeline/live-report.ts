@@ -6,6 +6,7 @@ import {
   looksLikeBadWinner,
 } from './announce-enrich';
 import { buildCatalogStubReport } from './catalog-stub';
+import { buildUiEntityGraph } from './ui-entity-graph';
 
 type ContractLike = {
   project_id: string;
@@ -193,8 +194,16 @@ export function enrichStubWithContracts(
     pct: `${Math.round((t.n / maxN) * 100)}%`,
   }));
 
-  const firstPid = Object.keys(projects)[0] || '';
-  const firstCid = Object.keys(contractors)[0] || '';
+  const firstPid = Object.keys(projects).slice(0, 1)[0] || '';
+  const firstCid = Object.keys(contractors).slice(0, 1)[0] || '';
+
+  const uiGraph = buildUiEntityGraph({
+    agency: stub.agency,
+    projects: projects as Record<string, { code?: string; name?: string; winner?: string | null; winnerId?: string | null; award?: string; method?: string; year?: string }>,
+    contractors,
+    relatedMatches: (stub as { relatedParty?: { matches?: unknown[] } }).relatedParty?.matches as
+      | undefined,
+  });
 
   return {
     ...stub,
@@ -212,6 +221,8 @@ export function enrichStubWithContracts(
       priorityNote: Object.keys(projects).length
         ? `แสดง ${Math.min(8, Object.keys(projects).length)} จาก ${Object.keys(projects).length} โครงการ`
         : 'ยังไม่มีโครงการในแคช',
+      graphTitle: uiGraph.meta.graphTitle,
+      graphNote: uiGraph.meta.graphNote,
     },
     stats: [
       { label: 'รหัสหน่วยงาน', value: String(stub.agency.code || '—'), sub: 'e-GP dept code' },
@@ -238,6 +249,12 @@ export function enrichStubWithContracts(
       contractor: firstCid,
       node: 'muni',
     },
+    graph: {
+      nodes: uiGraph.nodes,
+      edges: uiGraph.edges,
+      details: uiGraph.details,
+    },
+    details: uiGraph.details,
     caseFile: {
       id: `case-${stub.agency.id}`,
       title: stub.agency.th,

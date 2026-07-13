@@ -6,6 +6,7 @@
  */
 
 import type { PipelineReportLike, RiskSignal } from './types';
+import { buildUiEntityGraph } from './ui-entity-graph';
 
 export type CompanyPersonRole = 'director' | 'shareholder' | 'authorized' | 'other';
 
@@ -499,6 +500,42 @@ export function applyRelatedPartyToReport(
       ...cloned.meta,
       relatedPartyNote: coverage,
     };
+  }
+
+  // Refresh UI graph so related-party people appear on กราฟความสัมพันธ์
+  try {
+    const agency = cloned.agency as {
+      th?: string;
+      loc?: string;
+      code?: string;
+      tshort?: string;
+    };
+    const uiGraph = buildUiEntityGraph({
+      agency: {
+        th: agency?.th || '',
+        loc: agency?.loc,
+        code: agency?.code,
+        tshort: agency?.tshort,
+      },
+      projects: (cloned.projects || {}) as Record<string, never>,
+      contractors: (cloned.contractors || {}) as Record<string, never>,
+      relatedMatches: matches,
+    });
+    (cloned as { graph?: unknown; details?: unknown }).graph = {
+      nodes: uiGraph.nodes,
+      edges: uiGraph.edges,
+      details: uiGraph.details,
+    };
+    (cloned as { details?: unknown }).details = uiGraph.details;
+    if (cloned.meta) {
+      cloned.meta = {
+        ...cloned.meta,
+        graphTitle: uiGraph.meta.graphTitle,
+        graphNote: uiGraph.meta.graphNote,
+      };
+    }
+  } catch {
+    /* keep prior graph */
   }
 
   return cloned as PipelineReportLike & {
