@@ -1,6 +1,8 @@
 import fs from 'fs';
 import path from 'path';
-import { isRealAgency } from '@/lib/agencies';
+import { getCatalogAgency } from '@/lib/agency-catalog';
+import { isRealAgency, REAL_AGENCIES } from '@/lib/agencies';
+import { buildCatalogStubReport } from '@/lib/pipeline/catalog-stub';
 
 export async function GET(
   _req: Request,
@@ -12,16 +14,18 @@ export async function GET(
   }
 
   const file = path.join(process.cwd(), 'data', 'real', `${id}.json`);
-  if (!fs.existsSync(file)) {
-    return Response.json(
-      {
-        error: 'Real data not cached',
-        hint: `Run: node scripts/fetch-real-data.mjs ${id}`,
-      },
-      { status: 503 }
-    );
+  if (fs.existsSync(file)) {
+    const raw = fs.readFileSync(file, 'utf8');
+    return Response.json(JSON.parse(raw));
   }
 
-  const raw = fs.readFileSync(file, 'utf8');
-  return Response.json(JSON.parse(raw));
+  const agency =
+    getCatalogAgency(id) || REAL_AGENCIES.find((a) => a.id === id);
+  if (!agency) {
+    return Response.json({ error: 'Agency not found' }, { status: 404 });
+  }
+
+  return Response.json(buildCatalogStubReport(agency), {
+    headers: { 'X-TRACE24-Catalog-Only': '1' },
+  });
 }

@@ -1,16 +1,17 @@
 'use client';
 
-import { useMemo } from 'react';
-import { REAL_AGENCIES } from '@/lib/agencies';
+import { useEffect, useState } from 'react';
+import { REAL_AGENCIES, type AgencyRecord } from '@/lib/agencies';
 import { D, useTrace24 } from '@/context/trace24-context';
 import { Footer, Logo } from './ui';
 
-const SEARCH_AGENCIES = [...REAL_AGENCIES, ...D.munis];
+type SearchHit = AgencyRecord & { cached?: boolean };
 
 export function HomeScreen() {
   const {
     query,
     selMuniId,
+    selAgency,
     setQuery,
     selectMuni,
     clearSel,
@@ -19,18 +20,54 @@ export function HomeScreen() {
   } = useTrace24();
 
   const q = query.trim();
-  const sel = selMuniId ? SEARCH_AGENCIES.find((m) => m.id === selMuniId) : null;
+  const sel =
+    selMuniId && selAgency?.id === selMuniId
+      ? selAgency
+      : selMuniId
+        ? REAL_AGENCIES.find((m) => m.id === selMuniId) ||
+          (D.munis as AgencyRecord[]).find((m) => m.id === selMuniId) ||
+          null
+        : null;
 
-  const results = useMemo(() => {
-    if (sel || q.length < 1) return [];
-    const needle = q.toLowerCase();
-    return SEARCH_AGENCIES.filter((m) =>
-      [m.th, m.en, m.prov, m.dist, m.type, m.tshort, m.web, m.id]
-        .join(' ')
-        .toLowerCase()
-        .includes(needle)
-    ).slice(0, 12);
+  const [results, setResults] = useState<SearchHit[]>([]);
+  const [searching, setSearching] = useState(false);
+  const [catalogCount, setCatalogCount] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (sel || q.length < 1) {
+      setResults([]);
+      setSearching(false);
+      return;
+    }
+    const ctrl = new AbortController();
+    setSearching(true);
+    const t = setTimeout(() => {
+      fetch(`/api/agencies?q=${encodeURIComponent(q)}&limit=15`, { signal: ctrl.signal })
+        .then((r) => r.json())
+        .then((data) => {
+          setResults((data.results || []) as SearchHit[]);
+          if (data.meta?.count) setCatalogCount(data.meta.count);
+        })
+        .catch((e: Error) => {
+          if (e.name === 'AbortError') return;
+          setResults([]);
+        })
+        .finally(() => setSearching(false));
+    }, 220);
+    return () => {
+      clearTimeout(t);
+      ctrl.abort();
+    };
   }, [sel, q]);
+
+  useEffect(() => {
+    fetch('/api/agencies')
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.meta?.count) setCatalogCount(data.meta.count);
+      })
+      .catch(() => {});
+  }, []);
 
   return (
     <div
@@ -75,6 +112,7 @@ export function HomeScreen() {
       >
         <div style={{ fontSize: 11, letterSpacing: '.1em', color: '#8B8B85', fontWeight: 500 }}>
           แพลตฟอร์มข้อมูลการใช้จ่ายภาครัฐ — ประเทศไทย
+          {catalogCount != null ? ` · ทะเบียนหน่วยจัดซื้อ ${catalogCount.toLocaleString('th-TH')} แห่ง` : ''}
         </div>
         <h1
           style={{
@@ -101,7 +139,7 @@ export function HomeScreen() {
             textWrap: 'pretty',
           }}
         >
-          ค้นหาหน่วยงานรัฐที่มีการจัดซื้อจัดจ้าง — เทศบาล อบต. อำเภอ จังหวัด กระทรวง กรม โรงพยาบาล โรงเรียน ตำรวจ ทหาร — เพื่อติดตามว่าเงินสาธารณะถูกวางแผน จัดซื้อจัดจ้าง และตกลงราคาอย่างไร ทุกข้อค้นพบมีเอกสารต้นทางรองรับ
+          ค้นหาจากทะเบียนหน่วยจัดซื้อ e-GP ทั้งประเทศ — เทศบาล · อำเภอ · จังหวัด · กระทรวง · ทบวง · กรม · โรงเรียนรัฐ · มหาวิทยาลัย · โรงพยาบาลรัฐ — พร้อมรหัสหน่วยงาน
         </p>
 
         <div style={{ width: '100%', maxWidth: 620, position: 'relative' }}>
@@ -115,9 +153,9 @@ export function HomeScreen() {
                 startScan();
                 return;
               }
-              if (results[0]) selectMuni(results[0].id);
+              if (results[0]) selectMuni(results[0].id, results[0]);
             }}
-            placeholder="ค้นหาหน่วยงาน — เช่น เทศบาลตำบลโพทะเล หรือ เทศบาลตำบลป่าไผ่"
+            placeholder="ค้นหา — เทศบาล · อำเภอ · จังหวัด · กระทรวง · กรม · โรงเรียน · มหาวิทยาลัย · โรงพยาบาล · หรือรหัสหน่วยงาน"
             autoComplete="off"
             style={{
               width: '100%',
@@ -143,12 +181,14 @@ export function HomeScreen() {
                 border: '1px solid #111110',
                 borderTop: 'none',
                 zIndex: 20,
+                maxHeight: 360,
+                overflowY: 'auto',
               }}
             >
               {results.map((r) => (
                 <div
                   key={r.id}
-                  onClick={() => selectMuni(r.id)}
+                  onClick={() => selectMuni(r.id, r)}
                   className="trace24-hover-row"
                   style={{
                     display: 'flex',
@@ -161,18 +201,22 @@ export function HomeScreen() {
                 >
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: 14.5 }}>{r.th}</div>
-                    <div style={{ fontSize: 12, color: '#8B8B85', marginTop: 2 }}>{r.en}</div>
+                    <div style={{ fontSize: 12, color: '#8B8B85', marginTop: 2 }}>
+                      รหัส {r.code}
+                      {r.prov ? ` · ${r.prov}` : ''}
+                      {r.en ? ` · ${r.en}` : ''}
+                    </div>
                   </div>
                   <div style={{ fontSize: 12, color: '#55554F', whiteSpace: 'nowrap' }}>
-                    {r.tshort} · {r.loc}
-                    {'real' in r && r.real ? ' · ข้อมูลจริง' : ''}
+                    {r.tshort}
+                    {r.cached || r.real ? ' · มีรายงาน' : ''}
                   </div>
                 </div>
               ))}
             </div>
           )}
 
-          {!sel && q.length >= 2 && results.length === 0 && (
+          {!sel && q.length >= 1 && !searching && results.length === 0 && (
             <div
               style={{
                 position: 'absolute',
@@ -184,11 +228,49 @@ export function HomeScreen() {
                 borderTop: 'none',
                 padding: '14px 18px',
                 fontSize: 13,
+                color: '#55554F',
+                zIndex: 20,
+                lineHeight: 1.55,
+              }}
+            >
+              <div style={{ marginBottom: 8 }}>ไม่พบ「{q}」ในทะเบียนหน่วยจัดซื้อ</div>
+              <div style={{ color: '#8B8B85', marginBottom: 8 }}>ลองหน่วยงานที่มีรายงานครบ:</div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                {REAL_AGENCIES.map((a) => (
+                  <span
+                    key={a.id}
+                    onClick={() => selectMuni(a.id, a)}
+                    style={{
+                      fontSize: 12,
+                      padding: '5px 9px',
+                      border: '1px solid #C9C9C4',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    {a.th}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {!sel && q.length >= 1 && searching && (
+            <div
+              style={{
+                position: 'absolute',
+                top: '100%',
+                left: 0,
+                right: 0,
+                background: '#fff',
+                border: '1px solid #111110',
+                borderTop: 'none',
+                padding: '12px 18px',
+                fontSize: 13,
                 color: '#8B8B85',
                 zIndex: 20,
               }}
             >
-              ไม่พบหน่วยงานที่ตรงกัน — ระบบครอบคลุมหน่วยงานรัฐที่มีการจัดซื้อจัดจ้างทุกระดับ จับคู่จากชื่อทางการ รหัสหน่วยงาน และการสะกดแบบอื่น ลองระบุจังหวัดหรือประเภทหน่วยงาน
+              กำลังค้นหา…
             </div>
           )}
 
@@ -197,7 +279,9 @@ export function HomeScreen() {
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 16 }}>
                 <div>
                   <div style={{ fontSize: 19, fontWeight: 500 }}>{sel.th}</div>
-                  <div style={{ fontSize: 13, color: '#55554F', marginTop: 3 }}>{sel.en}</div>
+                  <div style={{ fontSize: 13, color: '#55554F', marginTop: 3 }}>
+                    {sel.en || `รหัสหน่วยงาน ${sel.code}`}
+                  </div>
                 </div>
                 <div
                   onClick={clearSel}
@@ -226,7 +310,14 @@ export function HomeScreen() {
                 <div><div style={{ fontSize: 11, color: '#8B8B85' }}>ประเภท</div><div style={{ fontSize: 13, marginTop: 4 }}>{sel.type}</div></div>
                 <div><div style={{ fontSize: 11, color: '#8B8B85' }}>พื้นที่</div><div style={{ fontSize: 13, marginTop: 4 }}>{sel.loc}</div></div>
                 <div><div style={{ fontSize: 11, color: '#8B8B85' }}>รหัสหน่วยงาน</div><div style={{ fontSize: 13, marginTop: 4 }}>{sel.code}</div></div>
-                <div><div style={{ fontSize: 11, color: '#8B8B85' }}>เว็บไซต์ทางการ</div><div style={{ fontSize: 13, marginTop: 4 }}>{sel.web} <span style={{ color: '#8B8B85' }}>· ยืนยันแล้ว</span>{'real' in sel && sel.real ? <span style={{ color: '#8A5A1C' }}> · ข้อมูลจริง</span> : null}</div></div>
+                <div>
+                  <div style={{ fontSize: 11, color: '#8B8B85' }}>แหล่ง</div>
+                  <div style={{ fontSize: 13, marginTop: 4 }}>
+                    ทะเบียน e-GP
+                    {sel.real ? <span style={{ color: '#8A5A1C' }}> · มีรายงาน</span> : null}
+                    {sel.web ? <span style={{ color: '#8B8B85' }}> · {sel.web}</span> : null}
+                  </div>
+                </div>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 18, marginTop: 24 }}>
                 <div

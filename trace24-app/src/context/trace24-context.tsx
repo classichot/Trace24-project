@@ -13,7 +13,9 @@ import {
 import { findAgency, isRealAgency, type AgencyRecord } from '@/lib/agencies';
 import { C, D, H } from '@/lib/data';
 
-export type Trace24Dataset = Omit<typeof D, 'munis' | 'reviewOptions'>;
+export type Trace24Dataset = Omit<typeof D, 'munis' | 'reviewOptions'> & {
+  agency?: AgencyRecord;
+};
 
 export type Page =
   | 'home'
@@ -44,6 +46,7 @@ type Trace24State = {
   page: Page;
   query: string;
   selMuniId: string | null;
+  selAgency: AgencyRecord | null;
   scannedId: string | null;
   scanStep: number;
   selProjectId: string;
@@ -72,7 +75,7 @@ type Trace24ContextValue = Trace24State & {
   dataset: Trace24Dataset;
   go: (page: Page, extra?: Partial<Trace24State>) => void;
   setQuery: (query: string) => void;
-  selectMuni: (id: string) => void;
+  selectMuni: (id: string, agency?: AgencyRecord | null) => void;
   clearSel: () => void;
   startScan: () => void;
   setSelProjectId: (id: string) => void;
@@ -100,6 +103,7 @@ const INITIAL: Trace24State = {
   page: 'home',
   query: '',
   selMuniId: null,
+  selAgency: null,
   scannedId: null,
   scanStep: -1,
   selProjectId: 'p14',
@@ -150,16 +154,16 @@ export function Trace24Provider({ children }: { children: ReactNode }) {
 
   const muni = useMemo(() => {
     const id = state.scannedId ?? state.selMuniId ?? 'm1';
+    const fromLive = state.liveDataset?.agency as AgencyRecord | undefined;
+    if (fromLive?.id === id) return fromLive;
     return (
-      findAgency(id, D.munis as AgencyRecord[]) ??
+      findAgency(id, D.munis as AgencyRecord[], state.selAgency) ??
       (D.munis[0] as AgencyRecord)
     );
-  }, [state.scannedId, state.selMuniId]);
+  }, [state.scannedId, state.selMuniId, state.selAgency, state.liveDataset]);
 
   const dataset = useMemo(() => {
-    if (isRealAgency(state.scannedId) && state.liveDataset) {
-      return state.liveDataset;
-    }
+    if (state.liveDataset) return state.liveDataset;
     return mockDataset(state.scannedId);
   }, [state.scannedId, state.liveDataset]);
 
@@ -186,7 +190,8 @@ export function Trace24Provider({ children }: { children: ReactNode }) {
     if (timerRef.current) clearInterval(timerRef.current);
     fetchRef.current?.abort();
 
-    if (isRealAgency(id)) {
+    // Catalog / curated agencies → live report (cached or registry stub)
+    if (isRealAgency(id) || state.selAgency?.id === id) {
       const controller = new AbortController();
       fetchRef.current = controller;
 
@@ -203,7 +208,7 @@ export function Trace24Provider({ children }: { children: ReactNode }) {
       }));
       window.scrollTo(0, 0);
 
-      fetch(`/api/agencies/${id}/report`, { signal: controller.signal })
+      fetch(`/api/agencies/${encodeURIComponent(id)}/report`, { signal: controller.signal })
         .then(async (res) => {
           if (!res.ok) {
             const err = await res.json().catch(() => ({}));
@@ -212,14 +217,17 @@ export function Trace24Provider({ children }: { children: ReactNode }) {
           return res.json() as Promise<Trace24Dataset>;
         })
         .then((data) => {
+          const projectIds = Object.keys(data.projects || {});
+          const contractorIds = Object.keys(data.contractors || {});
           const extra: Partial<Trace24State> = {
             scannedId: id,
             liveDataset: data,
             datasetLoading: false,
             datasetError: null,
-            selProjectId: data.def?.project ?? 'p1',
-            selContractorId: data.def?.contractor ?? 'c1',
-            selNodeId: data.def?.node ?? 'muni',
+            selProjectId: data.def?.project || projectIds[0] || '',
+            selContractorId: data.def?.contractor || contractorIds[0] || '',
+            selNodeId: data.def?.node || 'muni',
+            selAgency: (data.agency as AgencyRecord) || state.selAgency,
           };
           beginScanAnimation(data.stages?.length ?? 7, extra);
         })
@@ -248,7 +256,7 @@ export function Trace24Provider({ children }: { children: ReactNode }) {
       graphLayer: 'entity',
     };
     beginScanAnimation(ds.stages.length, extra);
-  }, [state.selMuniId, beginScanAnimation]);
+  }, [state.selMuniId, state.selAgency, beginScanAnimation]);
 
   const value: Trace24ContextValue = {
     ...state,
@@ -260,18 +268,20 @@ export function Trace24Provider({ children }: { children: ReactNode }) {
         ...s,
         query,
         selMuniId: null,
+        selAgency: null,
         liveDataset: null,
         datasetError: null,
       })),
-    selectMuni: (id) =>
+    selectMuni: (id, agency = null) =>
       setState((s) => ({
         ...s,
         selMuniId: id,
+        selAgency: agency ?? s.selAgency,
         query: '',
         liveDataset: null,
         datasetError: null,
       })),
-    clearSel: () => setState((s) => ({ ...s, selMuniId: null })),
+    clearSel: () => setState((s) => ({ ...s, selMuniId: null, selAgency: null })),
     startScan,
     setSelProjectId: (id) => setState((s) => ({ ...s, selProjectId: id })),
     setSelContractorId: (id) => setState((s) => ({ ...s, selContractorId: id })),

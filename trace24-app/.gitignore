@@ -41,4 +41,5 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-.vercel
+# large uncompressed catalog (commit agencies.json.gz only)
+/data/catalog/agencies.json

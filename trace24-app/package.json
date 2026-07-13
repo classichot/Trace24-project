@@ -8,7 +8,9 @@
     "start": "next start",
     "lint": "eslint",
     "fetch-real-data": "node scripts/fetch-real-data.mjs",
-    "enrich-govspending": "node scripts/enrich-govspending.mjs"
+    "enrich-govspending": "node scripts/enrich-govspending.mjs",
+    "build-from-govspending": "node scripts/build-from-govspending.mjs",
+    "build-agency-catalog": "node scripts/build-agency-catalog.mjs"
   },
   "dependencies": {
     "next": "16.2.10",
