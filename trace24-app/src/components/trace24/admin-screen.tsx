@@ -1,8 +1,12 @@
 'use client';
 
+import { useEffect, useState } from 'react';
+import { isRealAgency } from '@/lib/agencies';
 import { useTrace24 } from '@/context/trace24-context';
 import { REVIEW_OPTIONS, sev } from '@/lib/utils';
 import { SeverityBadge, inputStyle, selectStyle } from './ui';
+import type { InvestigationPack, PipelineStatusResponse } from '@/lib/pipeline';
+import type { HybridRagResult } from '@/lib/pipeline/rag';
 
 const ADMIN_TABS = [
   ['crawl', 'การเก็บข้อมูล'],
@@ -10,6 +14,8 @@ const ADMIN_TABS = [
   ['entities', 'ตรวจการจับคู่นิติบุคคล'],
   ['review', 'สถานะการตรวจสอบ'],
   ['case', 'พื้นที่ทำงานคดี'],
+  ['pipeline', 'สถาปัตยกรรมท่อข้อมูล'],
+  ['investigate', 'ผู้ช่วยสอบสวน'],
 ] as const;
 
 export function AdminScreen() {
@@ -25,6 +31,7 @@ export function AdminScreen() {
     setCaseNote,
     addCaseNote,
     caseNotesAdded,
+    scannedId,
   } = useTrace24();
 
   const CF = dataset.caseFile;
@@ -33,6 +40,61 @@ export function AdminScreen() {
     ...caseAdded.map((n) => ({ date: n[0], text: n[1] })),
     ...CF.notes.map((n) => ({ date: n[0], text: n[1] })),
   ];
+
+  const [pipelineStatus, setPipelineStatus] = useState<PipelineStatusResponse | null>(null);
+  const [pack, setPack] = useState<InvestigationPack | null>(null);
+  const [packError, setPackError] = useState<string | null>(null);
+  const [packLoading, setPackLoading] = useState(false);
+  const [ragQuery, setRagQuery] = useState('ผู้ชนะ');
+  const [ragResult, setRagResult] = useState<HybridRagResult | null>(null);
+  const [ragLoading, setRagLoading] = useState(false);
+
+  useEffect(() => {
+    if (adminTab !== 'pipeline') return;
+    fetch('/api/pipeline')
+      .then((r) => r.json())
+      .then(setPipelineStatus)
+      .catch(() => setPipelineStatus(null));
+  }, [adminTab]);
+
+  useEffect(() => {
+    if (adminTab !== 'investigate') return;
+    if (!isRealAgency(scannedId)) {
+      setPack(null);
+      setPackError('สแกนหน่วยงานข้อมูลจริงก่อน (เช่น โพทะเล) เพื่อสร้างสำนวนผู้ช่วยสอบสวน');
+      return;
+    }
+    setPackLoading(true);
+    setPackError(null);
+    fetch(`/api/agencies/${scannedId}/investigate`)
+      .then(async (r) => {
+        if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || `HTTP ${r.status}`);
+        return r.json();
+      })
+      .then((data: InvestigationPack) => setPack(data))
+      .catch((e: Error) => {
+        setPack(null);
+        setPackError(e.message);
+      })
+      .finally(() => setPackLoading(false));
+  }, [adminTab, scannedId]);
+
+  const runRag = () => {
+    if (!isRealAgency(scannedId) || ragQuery.trim().length < 2) return;
+    setRagLoading(true);
+    fetch(`/api/agencies/${scannedId}/rag`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ query: ragQuery.trim() }),
+    })
+      .then(async (r) => {
+        if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || `HTTP ${r.status}`);
+        return r.json();
+      })
+      .then((data: HybridRagResult) => setRagResult(data))
+      .catch(() => setRagResult(null))
+      .finally(() => setRagLoading(false));
+  };
 
   return (
     <div
@@ -491,6 +553,284 @@ export function AdminScreen() {
               </div>
             </div>
           </div>
+        </div>
+      )}
+
+      {adminTab === 'pipeline' && (
+        <div style={{ marginTop: 28 }}>
+          <h2 style={{ fontSize: 18, fontWeight: 600, margin: '0 0 8px' }}>สถาปัตยกรรมท่อข้อมูล TRACE24</h2>
+          <p style={{ margin: '0 0 22px', fontSize: 13.5, color: '#55554F', maxWidth: 760, lineHeight: 1.6 }}>
+            Source → Ingestion → Evidence → Extract/Normalise → DB/Graph → Detection → Risk → Alerts / Investigation Assistant
+          </p>
+          {!pipelineStatus && <div style={{ fontSize: 13, color: '#8B8B85' }}>กำลังโหลดสถานะท่อข้อมูล…</div>}
+          {pipelineStatus && (
+            <>
+              <div style={{ fontSize: 12, color: '#8B8B85', marginBottom: 14 }}>
+                อัปเดต {pipelineStatus.generatedAt} · cache หน่วยงาน: {pipelineStatus.ingestion.cachedAgencies.join(', ') || '—'} · คำสั่ง: {pipelineStatus.ingestion.command}
+                {' · '}vector passages {('totalPassages' in pipelineStatus.vector ? pipelineStatus.vector.totalPassages : 0) as number}
+              </div>
+              <div style={{ borderTop: '1px solid #111110' }}>
+                {pipelineStatus.layers.map((layer) => (
+                  <div
+                    key={layer.layer}
+                    style={{
+                      display: 'grid',
+                      gridTemplateColumns: '220px 100px 1fr',
+                      gap: 16,
+                      padding: '12px 0',
+                      borderBottom: '1px solid #EEEEEA',
+                      alignItems: 'baseline',
+                    }}
+                  >
+                    <div style={{ fontSize: 13.5 }}>{layer.layer}</div>
+                    <div
+                      style={{
+                        fontSize: 11,
+                        letterSpacing: '.04em',
+                        color:
+                          layer.status === 'live'
+                            ? '#111110'
+                            : layer.status === 'partial'
+                              ? 'var(--accent)'
+                              : '#8B8B85',
+                      }}
+                    >
+                      {layer.status}
+                    </div>
+                    <div style={{ fontSize: 12.5, color: '#55554F' }}>{layer.note}</div>
+                  </div>
+                ))}
+              </div>
+              <h3 style={{ fontSize: 15, fontWeight: 600, margin: '28px 0 10px' }}>Source Registry</h3>
+              <div style={{ borderTop: '1px solid #111110' }}>
+                {pipelineStatus.sources.map((src) => (
+                  <div
+                    key={src.id}
+                    style={{
+                      display: 'grid',
+                      gridTemplateColumns: '1.2fr 0.8fr 1fr 100px',
+                      gap: 14,
+                      padding: '11px 0',
+                      borderBottom: '1px solid #EEEEEA',
+                      fontSize: 12.5,
+                    }}
+                  >
+                    <div>{src.owner}</div>
+                    <div style={{ color: '#55554F' }}>{src.kind}</div>
+                    <div style={{ color: '#8B8B85', overflow: 'hidden', textOverflow: 'ellipsis' }}>{src.url}</div>
+                    <div>{src.crawlerStatus}</div>
+                  </div>
+                ))}
+              </div>
+              {pipelineStatus.govApis && (
+                <>
+                  <h3 style={{ fontSize: 15, fontWeight: 600, margin: '28px 0 8px' }}>Thai Gov APIs · เหมาะกับ TRACE24</h3>
+                  <p style={{ margin: '0 0 14px', fontSize: 12.5, color: '#55554F', maxWidth: 760, lineHeight: 1.55 }}>
+                    {pipelineStatus.govApis.mcpNote} · API: <code style={{ fontSize: 11 }}>/api/gov-apis</code>
+                  </p>
+                  {(
+                    [
+                      ['core', 'ใช้ได้แกน', pipelineStatus.govApis.core],
+                      ['adjacent', 'บริบทเสริม', pipelineStatus.govApis.adjacent],
+                      ['not_fit', 'ไม่เหมาะ / หน่วยงานเท่านั้น', pipelineStatus.govApis.notFit],
+                    ] as const
+                  ).map(([key, label, rows]) => (
+                    <div key={key} style={{ marginBottom: 18 }}>
+                      <div
+                        style={{
+                          fontSize: 12,
+                          letterSpacing: '.04em',
+                          marginBottom: 8,
+                          color: key === 'core' ? '#111110' : key === 'adjacent' ? 'var(--accent)' : '#8B8B85',
+                        }}
+                      >
+                        {label}
+                      </div>
+                      <div style={{ borderTop: '1px solid #111110' }}>
+                        {rows.map((api) => (
+                          <div
+                            key={api.id}
+                            style={{
+                              display: 'grid',
+                              gridTemplateColumns: '1.1fr 0.7fr 1.4fr 0.9fr',
+                              gap: 12,
+                              padding: '10px 0',
+                              borderBottom: '1px solid #EEEEEA',
+                              fontSize: 12.5,
+                            }}
+                          >
+                            <div>
+                              <div>{api.nameTh}</div>
+                              <div style={{ fontSize: 11, color: '#8B8B85' }}>{api.owner}</div>
+                            </div>
+                            <div style={{ color: '#55554F' }}>{api.access}</div>
+                            <div style={{ color: '#55554F' }}>{api.why}</div>
+                            <div style={{ color: '#8B8B85', fontSize: 11.5 }}>{api.statusNote}</div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </>
+              )}
+            </>
+          )}
+        </div>
+      )}
+
+      {adminTab === 'investigate' && (
+        <div style={{ marginTop: 28 }}>
+          <h2 style={{ fontSize: 18, fontWeight: 600, margin: '0 0 8px' }}>Investigation Assistant</h2>
+          <p style={{ margin: '0 0 20px', fontSize: 13.5, color: '#55554F', maxWidth: 720, lineHeight: 1.6 }}>
+            Evidence Map · Case Brief · Leads · Entity Resolution · Hybrid Graph RAG
+          </p>
+          {packLoading && <div style={{ fontSize: 13, color: '#8B8B85' }}>กำลังสร้างสำนวน…</div>}
+          {packError && <div style={{ fontSize: 13.5, color: 'var(--accent)' }}>{packError}</div>}
+          {pack && (
+            <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.2fr) minmax(0, 1fr)', gap: 36 }}>
+              <div>
+                <div style={{ fontSize: 12.5, color: '#8B8B85', marginBottom: 14, lineHeight: 1.55 }}>
+                  Vector index {pack.vector.passages} passages · Extraction {pack.extraction.methods.join(', ')} · Entity clusters {pack.entityClusters.length}
+                </div>
+                <h3 style={{ fontSize: 15, fontWeight: 600, margin: '0 0 10px' }}>Hybrid Graph RAG</h3>
+                <div style={{ display: 'flex', gap: 10, marginBottom: 14 }}>
+                  <input
+                    value={ragQuery}
+                    onChange={(e) => setRagQuery(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && runRag()}
+                    placeholder="ถาม เช่น ผู้ชนะ อาหารกลางวัน"
+                    style={{ ...inputStyle, flex: 1 }}
+                  />
+                  <div
+                    onClick={runRag}
+                    className="trace24-btn-dark"
+                    style={{ padding: '11px 18px', fontSize: 13, flex: 'none' }}
+                  >
+                    {ragLoading ? '…' : 'ถาม'}
+                  </div>
+                </div>
+                {ragResult && (
+                  <div style={{ padding: '14px 16px', background: '#F6F6F3', marginBottom: 22, whiteSpace: 'pre-wrap', fontSize: 12.5, lineHeight: 1.6 }}>
+                    {ragResult.answer}
+                    <div style={{ marginTop: 10, color: '#8B8B85' }}>
+                      citations {ragResult.citations.length} · graph nodes {ragResult.graphNodes.length}
+                    </div>
+                  </div>
+                )}
+                <h3 style={{ fontSize: 15, fontWeight: 600, margin: '0 0 10px' }}>Case Brief</h3>
+                <div style={{ padding: '16px 18px', background: '#F6F6F3', marginBottom: 22 }}>
+                  <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 8 }}>{pack.caseBrief.title}</div>
+                  <div style={{ fontSize: 13.5, lineHeight: 1.65 }}>{pack.caseBrief.summary}</div>
+                  <div style={{ fontSize: 12.5, color: '#55554F', marginTop: 12, lineHeight: 1.55 }}>
+                    {pack.caseBrief.riskExplanation}
+                  </div>
+                </div>
+                <div style={{ fontSize: 12.5, color: '#8B8B85', marginBottom: 8 }}>
+                  Risk scores · overall {pack.risk.overall} · project {pack.risk.project} · supplier {pack.risk.supplier} · network {pack.risk.network}
+                </div>
+                <h3 style={{ fontSize: 15, fontWeight: 600, margin: '18px 0 10px' }}>Key findings</h3>
+                <div style={{ borderTop: '1px solid #111110' }}>
+                  {pack.caseBrief.keyFindings.map((f) => (
+                    <div key={f} style={{ padding: '10px 0', borderBottom: '1px solid #EEEEEA', fontSize: 13.5, lineHeight: 1.55 }}>
+                      {f}
+                    </div>
+                  ))}
+                </div>
+                <h3 style={{ fontSize: 15, fontWeight: 600, margin: '28px 0 10px' }}>Investigation Leads</h3>
+                <div style={{ borderTop: '1px solid #111110' }}>
+                  {pack.leads.map((lead) => (
+                    <div key={lead.id} style={{ padding: '14px 0', borderBottom: '1px solid #EEEEEA' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'baseline' }}>
+                        <div style={{ fontSize: 13.5, fontWeight: 500, lineHeight: 1.5 }}>{lead.question}</div>
+                        <SeverityBadge
+                          label={sev(lead.priority).sevLabel}
+                          color={sev(lead.priority).sevColor}
+                          border={sev(lead.priority).sevBorder}
+                        />
+                      </div>
+                      <div style={{ fontSize: 12.5, color: '#55554F', marginTop: 6, lineHeight: 1.55 }}>{lead.why}</div>
+                      <div style={{ fontSize: 12, color: '#8B8B85', marginTop: 8 }}>
+                        เอกสารที่ขาด: {lead.missingDocuments.join(' · ')}
+                      </div>
+                      <div style={{ fontSize: 12, color: '#8B8B85', marginTop: 4 }}>
+                        ขั้นถัดไป: {lead.nextActions.join(' · ')}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <h3 style={{ fontSize: 15, fontWeight: 600, margin: '28px 0 10px' }}>Entity Resolution</h3>
+                <div style={{ borderTop: '1px solid #111110', marginBottom: 24, maxHeight: 220, overflow: 'auto' }}>
+                  {pack.entityClusters.slice(0, 12).map((c) => (
+                    <div key={c.id} style={{ padding: '10px 0', borderBottom: '1px solid #EEEEEA' }}>
+                      <div style={{ fontSize: 13 }}>{c.canonical}</div>
+                      <div style={{ fontSize: 11.5, color: '#8B8B85', marginTop: 3 }}>
+                        {c.type} · aliases {c.aliases.length} · conf {c.confidence}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <h3 style={{ fontSize: 15, fontWeight: 600, margin: '0 0 10px' }}>Evidence Map / Timeline</h3>
+                <div style={{ borderTop: '1px solid #111110', maxHeight: 520, overflow: 'auto' }}>
+                  {pack.evidenceMap.slice(0, 24).map((ev) => (
+                    <div key={ev.id} style={{ padding: '11px 0', borderBottom: '1px solid #EEEEEA' }}>
+                      <div style={{ fontSize: 11.5, color: '#8B8B85' }}>{ev.when} · {ev.kind}</div>
+                      <div style={{ fontSize: 13, lineHeight: 1.5, marginTop: 3 }}>{ev.label}</div>
+                      {ev.url && (
+                        <a
+                          href={ev.url}
+                          target="_blank"
+                          rel="noreferrer"
+                          style={{ fontSize: 11.5, color: '#8B8B85', marginTop: 4, display: 'inline-block' }}
+                        >
+                          แหล่งต้นทาง ↗
+                        </a>
+                      )}
+                    </div>
+                  ))}
+                </div>
+                <h3 style={{ fontSize: 15, fontWeight: 600, margin: '28px 0 10px' }}>Alerts</h3>
+                <div style={{ borderTop: '1px solid #111110' }}>
+                  {pack.alerts.length === 0 && (
+                    <div style={{ padding: '12px 0', fontSize: 13, color: '#8B8B85' }}>ยังไม่มี alert ระดับสูง</div>
+                  )}
+                  {pack.alerts.map((a) => (
+                    <div key={a.id} style={{ padding: '11px 0', borderBottom: '1px solid #EEEEEA' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10 }}>
+                        <div style={{ fontSize: 13.5 }}>{a.title}</div>
+                        <SeverityBadge
+                          label={sev(a.severity).sevLabel}
+                          color={sev(a.severity).sevColor}
+                          border={sev(a.severity).sevBorder}
+                        />
+                      </div>
+                      <div style={{ fontSize: 12.5, color: '#55554F', marginTop: 5, lineHeight: 1.55 }}>{a.body}</div>
+                    </div>
+                  ))}
+                </div>
+                <h3 style={{ fontSize: 15, fontWeight: 600, margin: '28px 0 10px' }}>Source citations</h3>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                  {pack.caseBrief.sourceCitations.slice(0, 16).map((c) => (
+                    <span
+                      key={c}
+                      style={{
+                        fontSize: 11,
+                        padding: '4px 8px',
+                        border: '1px solid #DDDDD8',
+                        color: '#55554F',
+                        maxWidth: '100%',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                      }}
+                    >
+                      {c}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>

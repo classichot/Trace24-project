@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo } from 'react';
-import { C, D, useTrace24 } from '@/context/trace24-context';
+import { C, useTrace24 } from '@/context/trace24-context';
 import { sev } from '@/lib/utils';
 import { SeverityBadge } from './ui';
 import { GraphSvg, type GraphEdge } from './graph-svg';
@@ -52,32 +52,71 @@ export function GraphScreen() {
     return map;
   }, [G.nodes]);
 
-  const details = G.details as typeof D.graph.details;
-  const gSel =
-    details[selNodeId as keyof typeof details] ??
-    details[dataset.def.node as keyof typeof details];
+  const details = (G.details || {}) as Record<
+    string,
+    {
+      typeLabel: string;
+      label: string;
+      sub: string;
+      facts: string[];
+      docs: string[];
+      link?: string | null;
+      target?: string;
+    }
+  >;
+
+  const activeNodeId = useMemo(() => {
+    if (details[selNodeId] || nodeById[selNodeId]) return selNodeId;
+    if (dataset.def?.node && (details[dataset.def.node] || nodeById[dataset.def.node])) {
+      return dataset.def.node;
+    }
+    if (details.muni || nodeById.muni) return 'muni';
+    return G.nodes[0]?.id ?? selNodeId;
+  }, [selNodeId, dataset.def?.node, details, nodeById, G.nodes]);
+
+  const gSel = useMemo(() => {
+    const fromDetails = details[activeNodeId] ?? details[dataset.def?.node ?? ''] ?? details.muni;
+    if (fromDetails) return fromDetails;
+    const node = nodeById[activeNodeId] ?? G.nodes[0];
+    return {
+      typeLabel: node?.type === 'project' ? 'โครงการ' : node?.type === 'company' ? 'ผู้รับจ้าง' : 'หน่วยงาน',
+      label: node?.label || muni.th,
+      sub: dataset.meta?.graphNote || '—',
+      facts: ['ยังไม่มีรายละเอียดโหนดนี้ในกราฟ'],
+      docs: [] as string[],
+      link: null as string | null,
+      target: undefined as string | undefined,
+    };
+  }, [details, activeNodeId, dataset.def?.node, dataset.meta?.graphNote, nodeById, G.nodes, muni.th]);
 
   const gConns = useMemo(
     () =>
       G.edges
-        .filter((e) => e[0] === selNodeId || e[1] === selNodeId)
+        .filter((e) => e[0] === activeNodeId || e[1] === activeNodeId)
         .map((e) => {
-          const otherId = (e[0] === selNodeId ? e[1] : e[0]) as string;
+          const otherId = (e[0] === activeNodeId ? e[1] : e[0]) as string;
+          const other = nodeById[otherId];
           return {
-            label: nodeById[otherId].label,
+            label: other?.label || otherId,
             rel: e[2] as string,
             go: () => setSelNodeId(otherId),
           };
         }),
-    [G.edges, selNodeId, nodeById, setSelNodeId]
+    [G.edges, activeNodeId, nodeById, setSelNodeId]
   );
 
   const gSelLinkLabel =
-    gSel.link === 'project' ? 'เปิดหน้าตรวจสอบโครงการ →' : 'เปิดโปรไฟล์ผู้รับจ้าง →';
+    gSel.link === 'project'
+      ? 'เปิดหน้าตรวจสอบโครงการ →'
+      : gSel.link === 'contractor'
+        ? 'เปิดโปรไฟล์ผู้รับจ้าง →'
+        : null;
 
   const handleSelOpen = () => {
-    if (gSel.link === 'project') go('project', { selProjectId: gSel.target });
-    else if (gSel.link === 'contractor') go('contractor', { selContractorId: gSel.target });
+    if (gSel.link === 'project' && gSel.target) go('project', { selProjectId: gSel.target });
+    else if (gSel.link === 'contractor' && gSel.target) {
+      go('contractor', { selContractorId: gSel.target });
+    }
   };
 
   return (
@@ -167,7 +206,7 @@ export function GraphScreen() {
             <GraphSvg
               nodes={G.nodes}
               edges={G.edges as GraphEdge[]}
-              selNodeId={selNodeId}
+              selNodeId={activeNodeId}
               graphFilter={graphFilter}
               onSelectNode={setSelNodeId}
             />

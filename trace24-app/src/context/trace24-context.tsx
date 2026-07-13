@@ -28,7 +28,7 @@ export type Page =
   | 'corrections'
   | 'about';
 
-export type AdminTab = 'crawl' | 'queue' | 'entities' | 'review' | 'case';
+export type AdminTab = 'crawl' | 'queue' | 'entities' | 'review' | 'case' | 'pipeline' | 'investigate';
 export type GraphLayer = 'country' | 'cluster' | 'entity';
 export type GraphFilter = 'all' | 'company' | 'projectNode' | 'people' | 'doc';
 

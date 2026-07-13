@@ -778,7 +778,8 @@ export async function enrichFromAnnouncementPages(dataset, { maxPages = 120, con
   );
   if (Object.keys(dataset.contractors).length && dataset.def.contractor === 'c1') {
     dataset.def.contractor = Object.keys(dataset.contractors)[0];
-    dataset.def.node = dataset.def.contractor;
+    // Keep graph focus on municipality — contractor nodes are not in the simple graph details map
+    dataset.def.node = 'muni';
   }
   console.log(`Announcement enrich done: ${enriched} ok, ${failed} miss, contractors ${Object.keys(dataset.contractors).length}`);
   return dataset;

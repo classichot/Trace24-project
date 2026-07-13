@@ -1,0 +1,16 @@
+{
+  "name": "trace24-thai-gov-mcp",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "MCP wrapper for Open D + data.go.th + BOT public APIs (TRACE24)",
+  "bin": {
+    "trace24-thai-gov-mcp": "./index.mjs"
+  },
+  "scripts": {
+    "start": "node index.mjs"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.12.1"
+  }
+}

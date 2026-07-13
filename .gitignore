@@ -10,6 +10,9 @@ Thumbs.db
 .env.*
 !.env.example
 
+# MCP servers
+mcp/**/node_modules/
+
 # Next.js app
 trace24-app/node_modules/
 trace24-app/.next/
@@ -24,3 +27,10 @@ trace24-app/yarn-error.log*
 # Scraper debug dumps
 trace24-app/scripts/*.html
 trace24-app/scripts/data/
+trace24-app/scripts/*.bin
+
+# Raw evidence blobs (meta may be regenerated)
+trace24-app/data/evidence/**/*
+!trace24-app/data/evidence/.gitkeep
+trace24-app/data/vector/**/*
+!trace24-app/data/vector/.gitkeep
