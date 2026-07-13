@@ -351,7 +351,7 @@ export async function buildAgencyReportFromCatalog(
             ? `อยู่ในทะเบียน e-GP · ยังไม่มีสัญญาในแคชสำหรับหน่วยงานนี้ (estimate ${totalEstimate})`
             : `อยู่ในทะเบียน e-GP · ค้นสัญญาแล้วยังไม่เจอที่ตรงชื่อ (estimate ${totalEstimate})`,
           dataGapNote: cacheMiss
-            ? `Production อ่านจาก contracts-cache — เพิ่มชื่อนี้ใน data/contracts-cache/agencies-to-sync.json แล้วรัน npm run sync-contracts-cache จากเครือข่ายที่เข้า data.go.th ได้${notes ? ` · ${notes}` : ''}`
+            ? `Production อ่านจาก contracts-cache — รัน npm run build-all-contracts-caches จากเครือข่ายไทย (หรือ sync-contracts-cache รายชื่อ) แล้ว commit แคช${notes ? ` · ${notes}` : ''}`
             : notes || stub.meta.dataGapNote,
         },
       };

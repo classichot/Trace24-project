@@ -1,15 +1,25 @@
 # Sync TRACE24 contracts-cache from data.go.th (egp-contact).
 #
+# Preferred (full อปท.): cd trace24-app && npm run build-all-contracts-caches
+# Priority list fallback: npm run sync-contracts-cache
+#
 # data.go.th often returns HTTP 403 from GitHub-hosted (US) runners and Vercel.
-# Use a self-hosted runner in Thailand, or run locally:
-#   cd trace24-app && npm run sync-contracts-cache
+# Use a self-hosted runner in Thailand, or run locally.
 #
 name: Sync contracts cache
 
 on:
   workflow_dispatch:
+    inputs:
+      mode:
+        description: 'bulk = full egp-contact mirror; priority = agencies-to-sync.json'
+        type: choice
+        options:
+          - priority
+          - bulk
+        default: priority
   schedule:
-    # 02:30 ICT ≈ 19:30 UTC
+    # 02:30 ICT ≈ 19:30 UTC — priority refresh only (bulk needs ~5GB + Thailand IP)
     - cron: '30 19 * * *'
 
 concurrency:
@@ -33,16 +43,25 @@ jobs:
         with:
           node-version: '22'
 
-      - name: Sync contracts cache
-        id: sync
+      - name: Sync contracts cache (priority)
+        id: sync_priority
+        if: ${{ github.event_name == 'schedule' || inputs.mode == 'priority' || inputs.mode == '' }}
         run: npm run sync-contracts-cache
         continue-on-error: true
 
+      - name: Build all contracts caches (bulk mirror)
+        id: sync_bulk
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.mode == 'bulk' }}
+        run: npm run build-all-contracts-caches
+        continue-on-error: true
+
       - name: Fail clearly on IP block
-        if: steps.sync.outcome == 'failure'
+        if: ${{ steps.sync_priority.outcome == 'failure' || steps.sync_bulk.outcome == 'failure' }}
         run: |
           echo "::error::Sync failed. data.go.th likely blocked this runner IP."
-          echo "Run locally in Thailand: cd trace24-app && npm run sync-contracts-cache"
+          echo "Run locally in Thailand:"
+          echo "  cd trace24-app && npm run build-all-contracts-caches"
+          echo "  # or: npm run sync-contracts-cache"
           echo "Or register a self-hosted runner and set repo variable TRACE24_SYNC_RUNNER."
           exit 1
 
@@ -50,7 +69,7 @@ jobs:
         run: |
           git config user.name "trace24-sync"
           git config user.email "trace24-sync@users.noreply.github.com"
-          git add data/contracts-cache/*.json.gz data/contracts-cache/sync-last-run.json data/contracts-cache/agencies-to-sync.json || true
+          git add data/contracts-cache/*.json.gz data/contracts-cache/sync-last-run.json data/contracts-cache/build-all-last-run.json data/contracts-cache/agencies-to-sync.json || true
           if git diff --staged --quiet; then
             echo "No cache changes"
           else

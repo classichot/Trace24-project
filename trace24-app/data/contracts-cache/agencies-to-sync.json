@@ -1,7 +1,7 @@
 {
   "version": 1,
   "updatedAt": "2026-07-14",
-  "note": "Priority agencies synced into data/contracts-cache for Vercel (data.go.th blocks cloud IPs). Add rows here; run npm run sync-contracts-cache from a Thailand-reachable network.",
+  "note": "Legacy priority list. Preferred: npm run build-all-contracts-caches (bulk egp-contact mirror → all อปท. caches). Per-agency fallback: npm run sync-contracts-cache from a Thailand-reachable network.",
   "agencies": [
     {
       "id": "egp-5501408",
