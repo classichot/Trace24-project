@@ -1,3 +1,5 @@
+import 'server-only';
+
 import fs from 'fs';
 import path from 'path';
 import zlib from 'zlib';
@@ -70,7 +72,7 @@ function rowToAgency(row: CatalogFile['rows'][number]): CatalogAgency {
 }
 
 function catalogPaths() {
-  const dir = path.join(process.cwd(), 'data', 'catalog');
+  const dir = path.join(/*turbopackIgnore: true*/ process.cwd(), 'data', 'catalog');
   return {
     gz: path.join(dir, 'agencies.json.gz'),
     json: path.join(dir, 'agencies.json'),

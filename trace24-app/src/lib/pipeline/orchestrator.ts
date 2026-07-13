@@ -3,21 +3,9 @@ import { llmStatus } from '@/lib/llm/config';
 import { evidenceStats } from './evidence';
 import { listSources } from './registry';
 import { vectorIndexStats } from './vector';
-import type { PipelineLayerStatus } from './types';
+import type { PipelineLayerStatus, PipelineStatusResponse } from './types';
 
-export type PipelineStatusResponse = {
-  generatedAt: string;
-  sources: ReturnType<typeof listSources>;
-  evidence: ReturnType<typeof evidenceStats>;
-  vector: ReturnType<typeof vectorIndexStats>;
-  govApis: ReturnType<typeof catalogForTrace24>;
-  llm: ReturnType<typeof llmStatus>;
-  layers: { layer: string; status: PipelineLayerStatus; note: string }[];
-  ingestion: {
-    command: string;
-    cachedAgencies: string[];
-  };
-};
+export type { PipelineStatusResponse };
 
 export function getPipelineStatus(cachedAgencyIds: string[]): PipelineStatusResponse {
   return {

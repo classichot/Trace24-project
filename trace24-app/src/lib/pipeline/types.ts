@@ -200,3 +200,53 @@ export type PipelineReportLike = {
   priorityOrder?: string[];
   stats?: { label: string; value: string; sub: string }[];
 };
+
+/** Client-safe RAG result shape (no fs imports). */
+export type RagCitation = {
+  id: string;
+  kind: string;
+  text: string;
+  url: string | null;
+  score: number;
+  entityIds: string[];
+};
+
+export type HybridRagResult = {
+  query: string;
+  answeredAt: string;
+  answer: string;
+  graphNodes: NormalizedEntity[];
+  graphEdges: { from: string; to: string; rel: string }[];
+  citations: RagCitation[];
+  mode: 'hybrid-graph-vector' | 'hybrid-graph-vector+llm';
+  llm?: { model: string };
+  llmError?: string;
+  extractiveAnswer?: string;
+};
+
+/** Client-safe pipeline status payload (fetched from /api/pipeline). */
+export type PipelineStatusResponse = {
+  generatedAt: string;
+  sources: SourceRecord[];
+  evidence: Record<string, unknown>;
+  vector: Record<string, unknown>;
+  govApis: {
+    mcpNote?: string;
+    core?: unknown[];
+    adjacent?: unknown[];
+    notFit?: unknown[];
+    [key: string]: unknown;
+  };
+  llm: {
+    configured: boolean;
+    enabled: boolean;
+    model: string;
+    baseUrl: string;
+    note: string;
+  };
+  layers: { layer: string; status: PipelineLayerStatus; note: string }[];
+  ingestion: {
+    command: string;
+    cachedAgencies: string[];
+  };
+};

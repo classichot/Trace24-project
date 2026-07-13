@@ -5,8 +5,7 @@ import { isRealAgency } from '@/lib/agencies';
 import { useTrace24 } from '@/context/trace24-context';
 import { REVIEW_OPTIONS, sev } from '@/lib/utils';
 import { SeverityBadge, inputStyle, selectStyle } from './ui';
-import type { InvestigationPack, PipelineStatusResponse } from '@/lib/pipeline';
-import type { HybridRagResult } from '@/lib/pipeline/rag';
+import type { InvestigationPack, PipelineStatusResponse, HybridRagResult } from '@/lib/pipeline/types';
 
 type LlmReview = {
   model: string;
@@ -806,7 +805,7 @@ export function AdminScreen() {
                         {label}
                       </div>
                       <div style={{ borderTop: '1px solid #111110' }}>
-                        {rows.map((api) => (
+                        {((Array.isArray(rows) ? rows : []) as { id: string; nameTh?: string; owner?: string; access?: string; statusNote?: string; why?: string }[]).map((api) => (
                           <div
                             key={api.id}
                             style={{

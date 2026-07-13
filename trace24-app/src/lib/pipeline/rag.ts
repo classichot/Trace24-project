@@ -1,28 +1,8 @@
 import { buildTemporalGraph } from './graph';
 import { searchVectorIndex, ensureVectorIndex, type VectorHit } from './vector';
-import type { NormalizedEntity, PipelineReportLike } from './types';
+import type { HybridRagResult, NormalizedEntity, PipelineReportLike, RagCitation } from './types';
 
-export type RagCitation = {
-  id: string;
-  kind: string;
-  text: string;
-  url: string | null;
-  score: number;
-  entityIds: string[];
-};
-
-export type HybridRagResult = {
-  query: string;
-  answeredAt: string;
-  answer: string;
-  graphNodes: NormalizedEntity[];
-  graphEdges: { from: string; to: string; rel: string }[];
-  citations: RagCitation[];
-  mode: 'hybrid-graph-vector' | 'hybrid-graph-vector+llm';
-  llm?: { model: string };
-  llmError?: string;
-  extractiveAnswer?: string;
-};
+export type { HybridRagResult, RagCitation };
 
 function graphHits(report: PipelineReportLike, query: string) {
   const graph = buildTemporalGraph(report);
