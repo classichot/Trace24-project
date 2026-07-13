@@ -34,7 +34,13 @@ export function DashboardScreen() {
             <span>{meta.dataPct}</span>
           </div>
           <div style={{ height: 4, background: '#ECECE8' }}>
-            <div style={{ height: 4, width: meta.dataPct, background: '#111110' }} />
+            <div
+              style={{
+                height: 4,
+                width: meta.dataPct && meta.dataPct !== '—' ? meta.dataPct : '0%',
+                background: '#111110',
+              }}
+            />
           </div>
           <div style={{ fontSize: 11.5, color: '#8B8B85', marginTop: 6 }}>{meta.dataGapNote}</div>
         </div>
@@ -83,9 +89,15 @@ export function DashboardScreen() {
               <div>วิธี</div>
               <div>สัญญาณ</div>
             </div>
-            {dataset.priorityOrder.map((id) => {
+            {(dataset.priorityOrder || []).length === 0 && (
+              <div style={{ padding: '16px 0', fontSize: 13.5, color: '#8B8B85' }}>
+                ยังไม่มีโครงการในรายงานนี้ — หน่วยงานอยู่ในทะเบียน e-GP แล้ว ระบบจะดึงสัญญาจากภาษีไปไหนเมื่อพร้อม
+              </div>
+            )}
+            {(dataset.priorityOrder || []).map((id) => {
               const projects = dataset.projects as typeof D.projects;
               const p = projects[id as keyof typeof projects];
+              if (!p) return null;
               const s = sev(p.sevKey);
               return (
                 <div
@@ -118,7 +130,7 @@ export function DashboardScreen() {
 
           <h2 style={{ fontSize: 16, fontWeight: 600, margin: '44px 0 0' }}>{meta.vendorsTitle}</h2>
           <div style={{ marginTop: 16, borderTop: '1px solid #111110' }}>
-            {dataset.topContractors.map((c) => (
+            {(dataset.topContractors || []).map((c) => (
               <div
                 key={c.id}
                 onClick={() => go('contractor', { selContractorId: c.id })}
@@ -136,13 +148,16 @@ export function DashboardScreen() {
                 <div style={{ minWidth: 0 }}>
                   <div style={{ fontSize: 13.5, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.name}</div>
                   <div style={{ height: 3, background: '#ECECE8', marginTop: 7, maxWidth: 360 }}>
-                    <div style={{ height: 3, background: '#111110', width: c.pct }} />
+                    <div style={{ height: 3, background: '#111110', width: ('pct' in c ? c.pct : '40%') as string }} />
                   </div>
                 </div>
                 <div style={{ fontSize: 13, textAlign: 'right' }}>{c.value}</div>
                 <div style={{ fontSize: 12, color: '#8B8B85', textAlign: 'right' }}>{c.n} สัญญา</div>
               </div>
             ))}
+            {(dataset.topContractors || []).length === 0 && (
+              <div style={{ padding: '14px 0', fontSize: 13, color: '#8B8B85' }}>ยังไม่มีผู้รับจ้างในชุดข้อมูล</div>
+            )}
           </div>
           <div style={{ fontSize: 12, color: '#55554F', marginTop: 12 }}>{meta.concNote}</div>
         </div>
@@ -171,6 +186,9 @@ export function DashboardScreen() {
                   </div>
                 </div>
               ))}
+              {(dataset.riskCats || []).length === 0 && (
+                <div style={{ padding: '12px 0', fontSize: 13, color: '#8B8B85' }}>ยังไม่มีหมวดสัญญาณ — เปิดผู้ช่วยสอบสวนเพื่อคำนวณ</div>
+              )}
             </div>
             <div style={{ fontSize: 11.5, color: '#8B8B85', marginTop: 10 }}>
               แต่ละหมวดแยกจากกัน — ไม่รวมเป็นคะแนนเดียว

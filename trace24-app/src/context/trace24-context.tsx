@@ -208,7 +208,24 @@ export function Trace24Provider({ children }: { children: ReactNode }) {
       }));
       window.scrollTo(0, 0);
 
-      fetch(`/api/agencies/${encodeURIComponent(id)}/report`, { signal: controller.signal })
+      const qs = new URLSearchParams();
+      const a = state.selAgency?.id === id ? state.selAgency : null;
+      if (a) {
+        qs.set('th', a.th);
+        if (a.code) qs.set('code', a.code);
+        if (a.type) qs.set('type', a.type);
+        if (a.tshort) qs.set('tshort', a.tshort);
+        if (a.prov) qs.set('prov', a.prov);
+        if (a.dist) qs.set('dist', a.dist);
+        if (a.loc) qs.set('loc', a.loc);
+        if (a.web) qs.set('web', a.web);
+        if (a.en) qs.set('en', a.en);
+        if (a.aff) qs.set('aff', a.aff);
+      }
+
+      fetch(`/api/agencies/${encodeURIComponent(id)}/report${qs.toString() ? `?${qs}` : ''}`, {
+        signal: controller.signal,
+      })
         .then(async (res) => {
           if (!res.ok) {
             const err = await res.json().catch(() => ({}));
