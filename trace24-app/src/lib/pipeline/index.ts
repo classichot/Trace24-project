@@ -12,3 +12,5 @@ export * from './risk';
 export * from './investigate';
 export * from './orchestrator';
 export * from './load-report';
+export * from './announce-fallback';
+export * from './rules';

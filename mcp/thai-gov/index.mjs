@@ -12,9 +12,10 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 
 const CATALOG = [
-  { id: 'opend-data', fit: 'core', name: 'Open D cgdcontract', auth: 'OPEND_API_KEY' },
-  { id: 'data-go-th-ckan', fit: 'core', name: 'data.go.th CKAN', auth: 'none' },
-  { id: 'egp-announce-html', fit: 'core', name: 'e-GP / municipal HTML', auth: 'none' },
+  { id: 'opend-data', fit: 'core', name: 'Open D cgdcontract', auth: 'OPEND_API_KEY', status: 'often 404' },
+  { id: 'data-go-th-ckan', fit: 'core', name: 'data.go.th CKAN', auth: 'none', status: 'live' },
+  { id: 'govspending', fit: 'core', name: 'ภาษีไปไหน egp-contact datastore', auth: 'none', status: 'live' },
+  { id: 'egp-announce-html', fit: 'core', name: 'e-GP / municipal HTML', auth: 'none', status: 'live' },
   { id: 'bot-api', fit: 'adjacent', name: 'BOT FX / rates', auth: 'BOT_API_TOKEN' },
   { id: 'gdx-egov', fit: 'not_fit', name: 'api.egov.go.th GDX', auth: 'agency Consumer-Key' },
 ];
@@ -42,6 +43,47 @@ async function fetchOpend({ year, keyword, limit }) {
   });
   const text = await r.text();
   return { status: r.status, body: text.slice(0, 8000) };
+}
+
+async function fetchGovSpending({ keyword, limit = 40 }) {
+  const packageId = 'egp-contact-2568';
+  const show = await fetch(`https://data.go.th/api/3/action/package_show?id=${packageId}`, {
+    headers: { Accept: 'application/json', 'User-Agent': 'TRACE24-MCP/1.0' },
+  }).then((r) => r.json());
+  if (!show.success) throw new Error('package_show failed');
+  const out = [];
+  for (const res of show.result.resources || []) {
+    if (!res.datastore_active) continue;
+    const qs = new URLSearchParams({
+      resource_id: res.id,
+      q: keyword,
+      limit: String(Math.min(100, limit - out.length)),
+    });
+    const data = await fetch(`https://data.go.th/api/3/action/datastore_search?${qs}`, {
+      headers: { Accept: 'application/json', 'User-Agent': 'TRACE24-MCP/1.0' },
+    }).then((r) => r.json());
+    for (const row of data.result?.records || []) {
+      if (String(row['ชื่อหน่วยงาน'] || '').includes(keyword)) {
+        out.push({
+          project_id: row['รหัสโครงการ'],
+          project_name: row['ชื่อโครงการ'],
+          dept_name: row['ชื่อหน่วยงาน'],
+          winner: row['ชื่อผู้ชนะ'],
+          price: row['ราคาตกลงซื้อ/จ้าง'],
+          budget: row['งบประมาณ(บาท)'],
+          fy: row['ปีงบประมาณ'],
+        });
+      }
+      if (out.length >= limit) break;
+    }
+    if (out.length >= limit) break;
+  }
+  return {
+    portal: `https://govspending.data.go.th/#/search?keyword=${encodeURIComponent(keyword)}`,
+    packageId,
+    count: out.length,
+    contracts: out,
+  };
 }
 
 async function fetchBotFx({ startPeriod, endPeriod }) {
@@ -79,6 +121,18 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
       },
     },
     {
+      name: 'fetch_govspending_contracts',
+      description: 'ภาษีไปไหน / data.go.th egp-contact datastore_search by agency name (no API key)',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          keyword: { type: 'string', description: 'Exact agency name e.g. เทศบาลตำบลโพทะเล' },
+          limit: { type: 'number' },
+        },
+        required: ['keyword'],
+      },
+    },
+    {
       name: 'fetch_opend_contracts',
       description: 'Fetch Open D govspending/cgdcontract (needs OPEND_API_KEY; often 404)',
       inputSchema: {
@@ -112,6 +166,7 @@ server.setRequestHandler(CallToolRequestSchema, async (req) => {
     let payload;
     if (name === 'list_catalog') payload = CATALOG;
     else if (name === 'search_data_go_th') payload = await searchDataGoTh(args.query, args.rows);
+    else if (name === 'fetch_govspending_contracts') payload = await fetchGovSpending(args);
     else if (name === 'fetch_opend_contracts') payload = await fetchOpend(args);
     else if (name === 'fetch_bot_fx') payload = await fetchBotFx(args);
     else throw new Error(`Unknown tool: ${name}`);

@@ -1,4 +1,5 @@
 import { runDistributionTests, runRuleEngine, runSimilarityHints } from './detect';
+import { runApprovedDynamicRules } from './rules/evaluate';
 import type { AlertItem, PipelineReportLike, RiskScores, RiskSignal } from './types';
 
 function severityRank(s: RiskSignal['severity']) {
@@ -10,6 +11,7 @@ export function scoreRisks(report: PipelineReportLike): RiskScores {
     ...runRuleEngine(report),
     ...runDistributionTests(report),
     ...runSimilarityHints(report),
+    ...runApprovedDynamicRules(report),
   ].sort((a, b) => severityRank(b.severity) - severityRank(a.severity) || b.score - a.score);
 
   const avg = (xs: number[]) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : 0);

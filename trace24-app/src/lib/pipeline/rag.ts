@@ -18,7 +18,10 @@ export type HybridRagResult = {
   graphNodes: NormalizedEntity[];
   graphEdges: { from: string; to: string; rel: string }[];
   citations: RagCitation[];
-  mode: 'hybrid-graph-vector';
+  mode: 'hybrid-graph-vector' | 'hybrid-graph-vector+llm';
+  llm?: { model: string };
+  llmError?: string;
+  extractiveAnswer?: string;
 };
 
 function graphHits(report: PipelineReportLike, query: string) {

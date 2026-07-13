@@ -16,7 +16,7 @@ function layers(): { layer: string; status: PipelineLayerStatus; note: string }[
   return [
     { layer: 'Public Data Sources', status: 'live', note: 'Municipal + e-GP announce pages' },
     { layer: 'Source Registry + Ingestion Orchestrator', status: 'live', note: 'Registry + fetch-real-data CLI' },
-    { layer: 'Crawler / API / File Ingestion', status: 'live', note: 'HTML scrapers + announce enrich (Open D optional)' },
+    { layer: 'Crawler / API / File Ingestion', status: 'live', note: 'Open D timeout-guarded; announce HTML is official fallback' },
     { layer: 'Immutable Raw Evidence Storage', status: 'live', note: 'Checksum store under data/evidence' },
     { layer: 'OCR + Document Extraction', status: 'live', note: 'HTML/PDF text extract + OCR hook' },
     { layer: 'Validation + Normalisation', status: 'live', note: 'Thai digits, baht, titles, methods' },
@@ -24,11 +24,11 @@ function layers(): { layer: string; status: PipelineLayerStatus; note: string }[
     { layer: 'Vector Index', status: 'live', note: 'Local TF-IDF passages in data/vector' },
     { layer: 'Entity Resolution', status: 'live', note: 'Alias clustering for companies/people/projects' },
     { layer: 'Temporal Knowledge Graph', status: 'live', note: 'Agency–project–supplier graph' },
-    { layer: 'Detection Engines', status: 'live', note: 'Rules + Benford-lite + title similarity' },
-    { layer: 'Risk Signal and Scoring Engine', status: 'live', note: 'Project/supplier/network scores' },
+    { layer: 'Detection Engines', status: 'live', note: 'Built-in rules + human-approved dynamic rules' },
+    { layer: 'Risk Signal and Scoring Engine', status: 'live', note: 'Deterministic scores (LLM drafts only; approve to activate)' },
     { layer: 'Alert System', status: 'live', note: 'High-severity signal alerts' },
-    { layer: 'Hybrid Graph RAG', status: 'live', note: 'Graph neighbourhood + vector citations' },
-    { layer: 'Investigation Assistant', status: 'live', note: 'Evidence map, case brief, leads, RAG' },
+    { layer: 'Hybrid Graph RAG', status: 'live', note: 'Graph + vector + optional LLM synthesize' },
+    { layer: 'Investigation Assistant', status: 'live', note: 'Brief / leads / Rule Proposer queue' },
   ];
 }
 

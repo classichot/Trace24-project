@@ -8,6 +8,57 @@ import { SeverityBadge, inputStyle, selectStyle } from './ui';
 import type { InvestigationPack, PipelineStatusResponse } from '@/lib/pipeline';
 import type { HybridRagResult } from '@/lib/pipeline/rag';
 
+type LlmReview = {
+  model: string;
+  summary: string;
+  reviews: {
+    signalId: string;
+    likelyFalsePositive: boolean;
+    priorityBoost: string;
+    rationale: string;
+    followUpQuestion: string;
+  }[];
+};
+
+type LlmRules = {
+  model: string;
+  notes: string;
+  persisted?: boolean;
+  proposals: {
+    id?: string;
+    suggestedRuleId: string;
+    title: string;
+    category: string;
+    rationale: string;
+    featureHints: string[];
+    thresholdSketch: string;
+    status?: string;
+    executable?: { kind: string } | null;
+  }[];
+};
+
+type RuleProposalRow = {
+  id: string;
+  suggestedRuleId: string;
+  title: string;
+  category: string;
+  rationale: string;
+  thresholdSketch: string;
+  status: 'draft' | 'approved' | 'rejected';
+  model: string;
+  agencyId: string;
+  executable: { kind: string; minShare?: number; minCount?: number; minRatio?: number } | null;
+  featureHints: string[];
+  createdAt: string;
+};
+
+type LlmBrief = {
+  model: string;
+  refinedSummary: string;
+  prioritizedLeads: string[];
+  accuracyNotes: string[];
+};
+
 const ADMIN_TABS = [
   ['crawl', 'การเก็บข้อมูล'],
   ['queue', 'คิวประมวลผลเอกสาร'],
@@ -16,6 +67,7 @@ const ADMIN_TABS = [
   ['case', 'พื้นที่ทำงานคดี'],
   ['pipeline', 'สถาปัตยกรรมท่อข้อมูล'],
   ['investigate', 'ผู้ช่วยสอบสวน'],
+  ['rules', 'Rule Proposer'],
 ] as const;
 
 export function AdminScreen() {
@@ -46,8 +98,23 @@ export function AdminScreen() {
   const [packError, setPackError] = useState<string | null>(null);
   const [packLoading, setPackLoading] = useState(false);
   const [ragQuery, setRagQuery] = useState('ผู้ชนะ');
-  const [ragResult, setRagResult] = useState<HybridRagResult | null>(null);
+  const [ragResult, setRagResult] = useState<(HybridRagResult & { llm?: { model: string }; llmError?: string }) | null>(null);
   const [ragLoading, setRagLoading] = useState(false);
+  const [llmStatus, setLlmStatus] = useState<{ enabled: boolean; model: string; note: string } | null>(null);
+  const [llmBusy, setLlmBusy] = useState<string | null>(null);
+  const [llmReview, setLlmReview] = useState<LlmReview | null>(null);
+  const [llmRules, setLlmRules] = useState<LlmRules | null>(null);
+  const [llmBrief, setLlmBrief] = useState<LlmBrief | null>(null);
+  const [llmError, setLlmError] = useState<string | null>(null);
+  const [ruleRows, setRuleRows] = useState<RuleProposalRow[]>([]);
+  const [ruleFbSummary, setRuleFbSummary] = useState<{
+    confirmed: number;
+    falsePositive: number;
+    needsData: number;
+    total: number;
+  } | null>(null);
+  const [rulesLoading, setRulesLoading] = useState(false);
+  const [rulesMsg, setRulesMsg] = useState<string | null>(null);
 
   useEffect(() => {
     if (adminTab !== 'pipeline') return;
@@ -55,6 +122,14 @@ export function AdminScreen() {
       .then((r) => r.json())
       .then(setPipelineStatus)
       .catch(() => setPipelineStatus(null));
+  }, [adminTab]);
+
+  useEffect(() => {
+    if (adminTab !== 'investigate') return;
+    fetch('/api/llm/status')
+      .then((r) => r.json())
+      .then((d) => setLlmStatus({ enabled: !!d.enabled, model: d.model || '—', note: d.note || '' }))
+      .catch(() => setLlmStatus(null));
   }, [adminTab]);
 
   useEffect(() => {
@@ -85,15 +160,96 @@ export function AdminScreen() {
     fetch(`/api/agencies/${scannedId}/rag`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ query: ragQuery.trim() }),
+      body: JSON.stringify({ query: ragQuery.trim(), useLlm: true }),
     })
       .then(async (r) => {
         if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || `HTTP ${r.status}`);
         return r.json();
       })
-      .then((data: HybridRagResult) => setRagResult(data))
+      .then((data) => setRagResult(data))
       .catch(() => setRagResult(null))
       .finally(() => setRagLoading(false));
+  };
+
+  useEffect(() => {
+    if (adminTab !== 'rules') return;
+    setRulesLoading(true);
+    fetch('/api/rules')
+      .then((r) => r.json())
+      .then((d) => {
+        setRuleRows(d.proposals || []);
+        setRuleFbSummary(d.feedbackSummary || null);
+      })
+      .catch(() => setRuleRows([]))
+      .finally(() => setRulesLoading(false));
+  }, [adminTab]);
+
+  const runLlmAction = (action: 'review-signals' | 'propose-rules' | 'refine-brief') => {
+    if (!isRealAgency(scannedId)) return;
+    setLlmBusy(action);
+    setLlmError(null);
+    fetch(`/api/agencies/${scannedId}/llm`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action, persist: true }),
+    })
+      .then(async (r) => {
+        const data = await r.json().catch(() => ({}));
+        if (!r.ok) throw new Error(data.error || `HTTP ${r.status}`);
+        return data;
+      })
+      .then((data) => {
+        if (action === 'review-signals') setLlmReview(data);
+        if (action === 'propose-rules') {
+          setLlmRules(data);
+          setAdminTab('rules');
+          fetch('/api/rules')
+            .then((r) => r.json())
+            .then((d) => {
+              setRuleRows(d.proposals || []);
+              setRuleFbSummary(d.feedbackSummary || null);
+            })
+            .catch(() => undefined);
+        }
+        if (action === 'refine-brief') setLlmBrief(data);
+      })
+      .catch((e: Error) => setLlmError(e.message))
+      .finally(() => setLlmBusy(null));
+  };
+
+  const decideRule = (ruleId: string, status: 'approved' | 'rejected') => {
+    setRulesMsg(null);
+    fetch(`/api/rules/${ruleId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status, by: 'admin' }),
+    })
+      .then(async (r) => {
+        const data = await r.json().catch(() => ({}));
+        if (!r.ok) throw new Error(data.error || `HTTP ${r.status}`);
+        return data;
+      })
+      .then((data) => {
+        setRuleRows((rows) => rows.map((r) => (r.id === ruleId ? { ...r, ...data.proposal } : r)));
+        setRulesMsg(status === 'approved' ? 'อนุมัติแล้ว — กฎจะรันใน detect รอบถัดไป' : 'ปฏิเสธร่างกฎแล้ว');
+      })
+      .catch((e: Error) => setRulesMsg(e.message));
+  };
+
+  const sendSignalFeedback = (signalId: string, ruleId: string | undefined, label: 'confirmed' | 'false_positive' | 'needs_data') => {
+    if (!isRealAgency(scannedId)) return;
+    fetch('/api/rules', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'feedback', agencyId: scannedId, signalId, ruleId, label }),
+    })
+      .then(async (r) => {
+        const data = await r.json().catch(() => ({}));
+        if (!r.ok) throw new Error(data.error || `HTTP ${r.status}`);
+        setRulesMsg(`บันทึก feedback: ${label}`);
+        if (data.summary) setRuleFbSummary(data.summary);
+      })
+      .catch((e: Error) => setRulesMsg(e.message));
   };
 
   return (
@@ -568,6 +724,9 @@ export function AdminScreen() {
               <div style={{ fontSize: 12, color: '#8B8B85', marginBottom: 14 }}>
                 อัปเดต {pipelineStatus.generatedAt} · cache หน่วยงาน: {pipelineStatus.ingestion.cachedAgencies.join(', ') || '—'} · คำสั่ง: {pipelineStatus.ingestion.command}
                 {' · '}vector passages {('totalPassages' in pipelineStatus.vector ? pipelineStatus.vector.totalPassages : 0) as number}
+                {pipelineStatus.llm
+                  ? ` · LLM ${pipelineStatus.llm.enabled ? pipelineStatus.llm.model : 'off'}`
+                  : ''}
               </div>
               <div style={{ borderTop: '1px solid #111110' }}>
                 {pipelineStatus.layers.map((layer) => (
@@ -714,9 +873,100 @@ export function AdminScreen() {
                     {ragResult.answer}
                     <div style={{ marginTop: 10, color: '#8B8B85' }}>
                       citations {ragResult.citations.length} · graph nodes {ragResult.graphNodes.length}
+                      {ragResult.llm?.model ? ` · LLM ${ragResult.llm.model}` : ''}
+                      {ragResult.llmError ? ` · LLM fallback: ${ragResult.llmError}` : ''}
                     </div>
                   </div>
                 )}
+
+                <h3 style={{ fontSize: 15, fontWeight: 600, margin: '0 0 8px' }}>LLM Assist</h3>
+                <p style={{ margin: '0 0 12px', fontSize: 12.5, color: '#55554F', lineHeight: 1.55, maxWidth: 640 }}>
+                  ช่วยประสิทธิภาพและความแม่นยำในการสอบสวน — คะแนนความเสี่ยงยังมาจากกฎเท่านั้น
+                  {llmStatus
+                    ? ` · ${llmStatus.enabled ? `พร้อม (${llmStatus.model})` : 'ยังไม่ตั้งค่า key'}`
+                    : ''}
+                </p>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginBottom: 14 }}>
+                  {(
+                    [
+                      ['refine-brief', 'ปรับสำนวน'],
+                      ['review-signals', 'ตรวจสัญญาณ'],
+                      ['propose-rules', 'เสนอกฎใหม่'],
+                    ] as const
+                  ).map(([action, label]) => (
+                    <div
+                      key={action}
+                      onClick={() => runLlmAction(action)}
+                      className="trace24-btn-dark"
+                      style={{
+                        padding: '10px 14px',
+                        fontSize: 12.5,
+                        opacity: llmBusy ? 0.6 : 1,
+                        pointerEvents: llmBusy ? 'none' : 'auto',
+                      }}
+                    >
+                      {llmBusy === action ? '…' : label}
+                    </div>
+                  ))}
+                </div>
+                {llmError && (
+                  <div style={{ fontSize: 12.5, color: 'var(--accent)', marginBottom: 12 }}>{llmError}</div>
+                )}
+                {llmBrief && (
+                  <div style={{ padding: '14px 16px', background: '#F6F6F3', marginBottom: 14, fontSize: 12.5, lineHeight: 1.6 }}>
+                    <div style={{ fontWeight: 600, marginBottom: 6 }}>สำนวนที่ปรับแล้ว · {llmBrief.model}</div>
+                    <div>{llmBrief.refinedSummary}</div>
+                    {llmBrief.prioritizedLeads.length > 0 && (
+                      <div style={{ marginTop: 10 }}>
+                        {llmBrief.prioritizedLeads.map((q) => (
+                          <div key={q} style={{ padding: '4px 0' }}>
+                            · {q}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    {llmBrief.accuracyNotes.length > 0 && (
+                      <div style={{ marginTop: 10, color: '#55554F' }}>
+                        {llmBrief.accuracyNotes.map((n) => (
+                          <div key={n}>⚠ {n}</div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+                {llmReview && (
+                  <div style={{ padding: '14px 16px', background: '#F6F6F3', marginBottom: 14, fontSize: 12.5, lineHeight: 1.55 }}>
+                    <div style={{ fontWeight: 600, marginBottom: 6 }}>ทบทวนสัญญาณ · {llmReview.model}</div>
+                    <div style={{ marginBottom: 10 }}>{llmReview.summary}</div>
+                    {llmReview.reviews.slice(0, 8).map((rv) => (
+                      <div key={rv.signalId} style={{ padding: '8px 0', borderTop: '1px solid #EEEEEA' }}>
+                        <div>
+                          {rv.signalId} · {rv.likelyFalsePositive ? 'อาจเป็น false positive' : 'น่าสนใจต่อ'} · boost{' '}
+                          {rv.priorityBoost}
+                        </div>
+                        <div style={{ color: '#55554F' }}>{rv.rationale}</div>
+                        <div style={{ color: '#8B8B85' }}>ถามต่อ: {rv.followUpQuestion}</div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {llmRules && (
+                  <div style={{ padding: '14px 16px', background: '#F6F6F3', marginBottom: 22, fontSize: 12.5, lineHeight: 1.55 }}>
+                    <div style={{ fontWeight: 600, marginBottom: 6 }}>ร่างกฎ (รออนุมัติ) · {llmRules.model}</div>
+                    <div style={{ marginBottom: 10, color: '#55554F' }}>{llmRules.notes}</div>
+                    {llmRules.proposals.map((p) => (
+                      <div key={p.suggestedRuleId + p.title} style={{ padding: '8px 0', borderTop: '1px solid #EEEEEA' }}>
+                        <div style={{ fontWeight: 500 }}>
+                          {p.suggestedRuleId} · {p.title}
+                        </div>
+                        <div>{p.rationale}</div>
+                        <div style={{ color: '#8B8B85' }}>threshold: {p.thresholdSketch}</div>
+                        <div style={{ color: '#8B8B85' }}>features: {(p.featureHints || []).join(', ')}</div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
                 <h3 style={{ fontSize: 15, fontWeight: 600, margin: '0 0 10px' }}>Case Brief</h3>
                 <div style={{ padding: '16px 18px', background: '#F6F6F3', marginBottom: 22 }}>
                   <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 8 }}>{pack.caseBrief.title}</div>
@@ -809,6 +1059,40 @@ export function AdminScreen() {
                     </div>
                   ))}
                 </div>
+
+                <h3 style={{ fontSize: 15, fontWeight: 600, margin: '28px 0 10px' }}>Feedback สัญญาณ (สำหรับ Rule Proposer)</h3>
+                <div style={{ borderTop: '1px solid #111110', maxHeight: 280, overflow: 'auto' }}>
+                  {pack.risk.signals.slice(0, 10).map((s) => (
+                    <div key={s.id} style={{ padding: '10px 0', borderBottom: '1px solid #EEEEEA' }}>
+                      <div style={{ fontSize: 12.5, fontWeight: 500 }}>{s.ruleId} · {s.title}</div>
+                      <div style={{ fontSize: 11.5, color: '#8B8B85', marginTop: 3 }}>{s.explanation.slice(0, 140)}</div>
+                      <div style={{ display: 'flex', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
+                        {(
+                          [
+                            ['confirmed', 'ยืนยัน'],
+                            ['false_positive', 'False +'],
+                            ['needs_data', 'ข้อมูลไม่พอ'],
+                          ] as const
+                        ).map(([label, text]) => (
+                          <div
+                            key={label}
+                            onClick={() => sendSignalFeedback(s.id, s.ruleId, label)}
+                            style={{
+                              fontSize: 11,
+                              padding: '4px 8px',
+                              border: '1px solid #C9C9C4',
+                              cursor: 'pointer',
+                              color: '#55554F',
+                            }}
+                          >
+                            {text}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
                 <h3 style={{ fontSize: 15, fontWeight: 600, margin: '28px 0 10px' }}>Source citations</h3>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                   {pack.caseBrief.sourceCitations.slice(0, 16).map((c) => (
@@ -831,6 +1115,85 @@ export function AdminScreen() {
               </div>
             </div>
           )}
+        </div>
+      )}
+
+      {adminTab === 'rules' && (
+        <div style={{ marginTop: 28 }}>
+          <h2 style={{ fontSize: 18, fontWeight: 600, margin: '0 0 8px' }}>LLM Rule Proposer</h2>
+          <p style={{ margin: '0 0 16px', fontSize: 13.5, color: '#55554F', maxWidth: 760, lineHeight: 1.6 }}>
+            กิน investigation pack + feedback จาก Admin → ร่างกฎ JSON → คนกดอนุมัติก่อนเข้า detection
+            (กฎที่อนุมัติแล้วรันผ่าน <code style={{ fontSize: 12 }}>runApprovedDynamicRules</code> ไม่แก้ severity โดย LLM โดยตรง)
+          </p>
+          {ruleFbSummary && (
+            <div style={{ fontSize: 12.5, color: '#8B8B85', marginBottom: 14 }}>
+              Feedback · confirmed {ruleFbSummary.confirmed} · false+ {ruleFbSummary.falsePositive} · needs data{' '}
+              {ruleFbSummary.needsData} · รวม {ruleFbSummary.total}
+            </div>
+          )}
+          <div style={{ display: 'flex', gap: 10, marginBottom: 16, flexWrap: 'wrap' }}>
+            <div
+              onClick={() => runLlmAction('propose-rules')}
+              className="trace24-btn-dark"
+              style={{ padding: '11px 16px', fontSize: 13, opacity: llmBusy ? 0.6 : 1 }}
+            >
+              {llmBusy === 'propose-rules' ? 'กำลังร่าง…' : 'ร่างกฎจากหน่วยงานปัจจุบัน'}
+            </div>
+            {!isRealAgency(scannedId) && (
+              <div style={{ fontSize: 12.5, color: 'var(--accent)', alignSelf: 'center' }}>
+                สแกนหน่วยงานข้อมูลจริงก่อน (เช่น โพทะเล)
+              </div>
+            )}
+          </div>
+          {rulesMsg && <div style={{ fontSize: 12.5, color: '#55554F', marginBottom: 12 }}>{rulesMsg}</div>}
+          {llmError && <div style={{ fontSize: 12.5, color: 'var(--accent)', marginBottom: 12 }}>{llmError}</div>}
+          {rulesLoading && <div style={{ fontSize: 13, color: '#8B8B85' }}>กำลังโหลดคิวดร่างกฎ…</div>}
+          <div style={{ borderTop: '1px solid #111110' }}>
+            {ruleRows.length === 0 && !rulesLoading && (
+              <div style={{ padding: '14px 0', fontSize: 13, color: '#8B8B85' }}>ยังไม่มีร่างกฎ — กด「ร่างกฎจากหน่วยงานปัจจุบัน」</div>
+            )}
+            {ruleRows.map((r) => (
+              <div key={r.id} style={{ padding: '16px 0', borderBottom: '1px solid #EEEEEA' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'baseline' }}>
+                  <div style={{ fontSize: 14, fontWeight: 600 }}>
+                    {r.suggestedRuleId} · {r.title}
+                  </div>
+                  <div style={{ fontSize: 11, letterSpacing: '.04em', color: r.status === 'approved' ? '#111110' : r.status === 'rejected' ? '#8B8B85' : 'var(--accent)' }}>
+                    {r.status}
+                  </div>
+                </div>
+                <div style={{ fontSize: 12.5, color: '#55554F', marginTop: 6, lineHeight: 1.55 }}>{r.rationale}</div>
+                <div style={{ fontSize: 12, color: '#8B8B85', marginTop: 6 }}>
+                  threshold: {r.thresholdSketch}
+                  {r.executable ? ` · executable: ${r.executable.kind}` : ' · advisory only (ยังไม่มี executable)'}
+                  {' · '}
+                  {r.agencyId} · {r.model}
+                </div>
+                {r.status === 'draft' && (
+                  <div style={{ display: 'flex', gap: 10, marginTop: 12 }}>
+                    <div
+                      onClick={() => decideRule(r.id, 'approved')}
+                      className="trace24-btn-dark"
+                      style={{ padding: '8px 14px', fontSize: 12.5 }}
+                    >
+                      อนุมัติเข้า detect
+                    </div>
+                    <div
+                      onClick={() => decideRule(r.id, 'rejected')}
+                      style={{
+                        padding: '8px 14px',
+                        fontSize: 12.5,
+                        border: '1px solid #C9C9C4',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      ปฏิเสธ
+                    </div>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
         </div>
       )}
     </div>

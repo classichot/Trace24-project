@@ -1,6 +1,7 @@
 /**
  * Open D / govspending contract client (citizen-registerable).
  * Endpoint historically: https://opend.data.go.th/govspending/cgdcontract
+ * Always use short timeout — TRACE24 falls back to announcement HTML extract.
  */
 
 export type OpendContractQuery = {
@@ -10,6 +11,7 @@ export type OpendContractQuery = {
   deptCode?: string;
   offset?: number;
   limit?: number;
+  timeoutMs?: number;
 };
 
 export type OpendFetchResult =
@@ -27,8 +29,13 @@ export async function fetchCgdContracts(q: OpendContractQuery): Promise<OpendFet
   if (q.deptCode) params.set('dept_code', q.deptCode);
 
   const url = `https://opend.data.go.th/govspending/cgdcontract?${params}`;
+  const timeoutMs = q.timeoutMs ?? 8000;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+
   try {
     const r = await fetch(url, {
+      signal: controller.signal,
       headers: {
         Accept: 'application/json',
         'api-key': q.apiKey,
@@ -55,17 +62,20 @@ export async function fetchCgdContracts(q: OpendContractQuery): Promise<OpendFet
       };
     }
   } catch (e) {
+    const msg = e instanceof Error ? e.message : 'fetch failed';
     return {
       ok: false,
       status: 0,
-      error: e instanceof Error ? e.message : 'fetch failed',
+      error: /abort/i.test(msg) ? `Open D timeout after ${timeoutMs}ms` : msg,
       bodyPreview: '',
     };
+  } finally {
+    clearTimeout(timer);
   }
 }
 
-/** CKAN package search on data.go.th (no key required for catalog) */
-export async function searchDataGoTh(query: string, rows = 10) {
+/** CKAN package search on data.go.th (no key required for catalog) — prefer govspending.searchDataGoTh */
+export async function searchDataGoThRaw(query: string, rows = 10) {
   const url = `https://data.go.th/api/3/action/package_search?q=${encodeURIComponent(query)}&rows=${rows}`;
   const r = await fetch(url, { headers: { Accept: 'application/json', 'User-Agent': 'TRACE24/1.0' } });
   if (!r.ok) throw new Error(`data.go.th ${r.status}`);

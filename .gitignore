@@ -34,3 +34,5 @@ trace24-app/data/evidence/**/*
 !trace24-app/data/evidence/.gitkeep
 trace24-app/data/vector/**/*
 !trace24-app/data/vector/.gitkeep
+trace24-app/data/rules/store.json
+!trace24-app/data/rules/.gitkeep

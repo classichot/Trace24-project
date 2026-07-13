@@ -184,12 +184,30 @@ export async function scrapeNakornnont(maxPages = 40) {
   return all;
 }
 
-export async function fetchEgpContracts({ apiKey, deptCode, keyword, years = [2566, 2567, 2568] }) {
+export async function fetchEgpContracts({
+  apiKey,
+  deptCode,
+  keyword,
+  years = [2566, 2567, 2568],
+  timeoutMs = 8000,
+  overallTimeoutMs = 25000,
+} = {}) {
   const all = [];
+  const started = Date.now();
+  let timedOut = false;
+
   for (const year of years) {
+    if (Date.now() - started > overallTimeoutMs) {
+      timedOut = true;
+      break;
+    }
     let offset = 0;
     const limit = 100;
     while (true) {
+      if (Date.now() - started > overallTimeoutMs) {
+        timedOut = true;
+        break;
+      }
       const params = new URLSearchParams({
         'api-key': apiKey,
         year: String(year),
@@ -199,14 +217,32 @@ export async function fetchEgpContracts({ apiKey, deptCode, keyword, years = [25
       if (deptCode) params.set('dept_code', deptCode);
       if (keyword) params.set('keyword', keyword);
       const url = `https://opend.data.go.th/govspending/cgdcontract?${params}`;
-      const r = await fetch(url, {
-        headers: {
-          Accept: 'application/json',
-          'api-key': apiKey,
-          'User-Agent': 'TRACE24/1.0 (public-sector research demo)',
-        },
-      });
-      const raw = await r.text();
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), timeoutMs);
+      let r;
+      let raw;
+      try {
+        r = await fetch(url, {
+          signal: controller.signal,
+          headers: {
+            Accept: 'application/json',
+            'api-key': apiKey,
+            'User-Agent': 'TRACE24/1.0 (public-sector research demo)',
+          },
+        });
+        raw = await r.text();
+      } catch (e) {
+        clearTimeout(timer);
+        const msg = e instanceof Error ? e.message : String(e);
+        if (/abort/i.test(msg)) {
+          timedOut = true;
+          throw new Error(`Open D timeout after ${timeoutMs}ms — falling back to announcement extract`);
+        }
+        throw new Error(`Open D fetch failed: ${msg}`);
+      } finally {
+        clearTimeout(timer);
+      }
+
       if (!r.ok) {
         const snippet = raw.slice(0, 120).replace(/\s+/g, ' ');
         throw new Error(`e-GP API ${r.status}: ${snippet}`);
@@ -226,6 +262,10 @@ export async function fetchEgpContracts({ apiKey, deptCode, keyword, years = [25
       await new Promise((r) => setTimeout(r, 200));
     }
     console.log(`egp year ${year}: total ${all.length}`);
+    if (timedOut) break;
+  }
+  if (timedOut && !all.length) {
+    throw new Error(`Open D overall timeout after ${overallTimeoutMs}ms — falling back to announcement extract`);
   }
   return all;
 }
@@ -465,7 +505,7 @@ export function buildDatasetFromAnnouncements(agency, rows) {
       { n: String(totalAnnouncements), label: 'ประกาศทั้งหมด' },
       { n: String(uniqueProjects), label: 'โครงการที่จัดกลุ่มแล้ว' },
       { n: String(winnerCount), label: 'มีประกาศผู้ชนะ' },
-      { n: '0', label: 'รอ e-GP API' },
+      { n: '0', label: 'รอ Open D / สำรองประกาศ' },
     ],
     queueRows: rows.slice(0, 5).map((r, i) => ({
       id: `D-${i + 1}`,
@@ -667,18 +707,64 @@ function finalizeContractors(dataset, contractors) {
   dataset.topContractors.sort((a, b) => b.n - a.n || String(b.value).localeCompare(String(a.value)));
 }
 
-export async function enrichFromAnnouncementPages(dataset, { maxPages = 120, concurrency = 4 } = {}) {
-  const targets = collectAnnounceTargets(dataset).slice(0, maxPages);
-  console.log(`Enriching from ${targets.length} announcement pages...`);
+function parseBahtLoose(formatted) {
+  if (!formatted || formatted === '—') return 0;
+  const m = String(formatted).match(/([\d,.]+)\s*ล/);
+  if (m) return Number(m[1].replace(/,/g, '')) * 1_000_000;
+  return parseMoney(String(formatted).replace(/[฿\s]/g, '')) || 0;
+}
+
+export async function enrichFromAnnouncementPages(
+  dataset,
+  { maxPages = 120, concurrency = 4, onlyMissing = false, mergeContractors = false } = {}
+) {
+  let targets = collectAnnounceTargets(dataset);
+  if (onlyMissing) {
+    targets = targets.filter(({ pid }) => {
+      const pr = dataset.projects[pid];
+      if (!pr) return false;
+      const missingPrice = !pr.award || pr.award === '—';
+      const missingWinner = !pr.winner;
+      return missingPrice || missingWinner;
+    });
+  }
+  targets = targets.slice(0, maxPages);
+  console.log(
+    `Enriching from ${targets.length} announcement pages${onlyMissing ? ' (fallback · missing only)' : ''}...`
+  );
+
   const contractors = {};
   let cIdx = 0;
+  if (mergeContractors && dataset.contractors) {
+    for (const [cid, co] of Object.entries(dataset.contractors)) {
+      const key = (co.name || cid).slice(0, 40);
+      contractors[key] = {
+        ...co,
+        _id: cid,
+        total: typeof co.total === 'number' ? co.total : parseBahtLoose(co.total),
+        contracts: co.contracts || (co.rows || []).length || 0,
+        rows: [...(co.rows || [])],
+        docs: [...(co.docs || [])],
+      };
+      const n = Number(String(cid).replace(/\D/g, ''));
+      if (Number.isFinite(n)) cIdx = Math.max(cIdx, n);
+    }
+  }
+
   let enriched = 0;
   let failed = 0;
 
   const upsertWinner = (pid, winner, price, budget, sourceUrl) => {
     const pr = dataset.projects[pid];
     if (!pr) return;
-    if (price != null) {
+    if (price != null && (!pr.award || pr.award === '—' || !onlyMissing)) {
+      pr.award = formatBaht(price);
+      if (budget != null) {
+        pr.budget = formatBaht(budget);
+        pr.ref = formatBaht(budget);
+        pr.pct = `${((price / budget) * 100).toFixed(2)}%`;
+      }
+    } else if (price != null && onlyMissing && (!pr.award || pr.award === '—')) {
       pr.award = formatBaht(price);
       if (budget != null) {
         pr.budget = formatBaht(budget);
@@ -687,6 +773,7 @@ export async function enrichFromAnnouncementPages(dataset, { maxPages = 120, con
       }
     }
     if (!winner) return;
+    if (onlyMissing && pr.winner) return;
     const key = winner.slice(0, 40);
     if (!contractors[key]) {
       cIdx++;
@@ -701,7 +788,7 @@ export async function enrichFromAnnouncementPages(dataset, { maxPages = 120, con
         share: '—',
         cats: pr.cat || 'จัดซื้อจัดจ้าง',
         address: '—',
-        addrNote: 'จากประกาศผู้ชนะบน e-GP / เว็บหน่วยงาน',
+        addrNote: 'จากประกาศผู้ชนะบน e-GP / เว็บหน่วยงาน (สำรองเมื่อ Open D ล่ม)',
         addrFlag: false,
         directors: [],
         risks: [],
@@ -721,6 +808,7 @@ export async function enrichFromAnnouncementPages(dataset, { maxPages = 120, con
       pr.methodShort,
       pr.fy || '—',
     ]);
+    if (sourceUrl && !co.docs.includes(sourceUrl)) co.docs.push(sourceUrl);
     pr.winner = co._id;
   };
 
@@ -752,33 +840,38 @@ export async function enrichFromAnnouncementPages(dataset, { maxPages = 120, con
     }
   }
 
-  await Promise.all(Array.from({ length: Math.min(concurrency, targets.length) }, () => worker()));
+  if (targets.length) {
+    await Promise.all(Array.from({ length: Math.min(concurrency, targets.length) }, () => worker()));
+  }
   finalizeContractors(dataset, contractors);
 
   const withAward = Object.values(dataset.projects).filter((p) => p.award && p.award !== '—').length;
-  dataset.meta.dataGapNote = `สกัดจากประกาศผู้ชนะ ${enriched} รายการ · มีราคา ${withAward} โครงการ · ไม่ใช้ e-GP Open D API`;
+  dataset.meta.dataGapNote = onlyMissing
+    ? `สำรองจากประกาศผู้ชนะ ${enriched} รายการ · มีราคา ${withAward} โครงการ (Open D ล่ม/ช้า → ใช้ประกาศโดยตรง)`
+    : `สกัดจากประกาศผู้ชนะ ${enriched} รายการ · มีราคา ${withAward} โครงการ`;
   dataset.meta.concNote = `ราคาและผู้ชนะดึงจากประกาศ e-GP / หน้าประกาศหน่วยงานโดยตรง`;
   dataset.meta.vendorsTitle = 'ผู้รับจ้างจากประกาศผู้ชนะ';
   dataset.sources = dataset.sources || [];
-  const annSource = dataset.sources.find((s) => /ประกาศ/.test(s.type));
-  if (annSource) {
-    annSource.docs = String(Number(annSource.docs || 0));
-    annSource.last = `enrich ผู้ชนะ ${enriched} รายการ`;
+  const fallbackType = 'ประกาศ e-GP โดยตรง (สำรอง Open D)';
+  let fb = dataset.sources.find((s) => s.type === fallbackType);
+  if (!fb) {
+    fb = {
+      url: 'https://process.gprocurement.go.th/',
+      type: fallbackType,
+      status: 'ปกติ',
+      ok: true,
+      last: '—',
+      docs: '0',
+    };
+    dataset.sources.push(fb);
   }
-  dataset.sources = dataset.sources.map((s) =>
-    /e-GP API/.test(s.type)
-      ? {
-          ...s,
-          status: 'ข้าม — ใช้ประกาศหน่วยงานแทน',
-          ok: false,
-          docs: '0',
-          last: 'endpoint 404 / ไม่เสถียร',
-        }
-      : s
-  );
-  if (Object.keys(dataset.contractors).length && dataset.def.contractor === 'c1') {
+  fb.status = enriched ? 'ใช้แล้ว (สำรอง)' : 'ลองแล้วไม่พบรายละเอียด';
+  fb.ok = enriched > 0;
+  fb.last = `enrich ${enriched} รายการ`;
+  fb.docs = String(enriched);
+
+  if (Object.keys(dataset.contractors).length && dataset.def?.contractor === 'c1') {
     dataset.def.contractor = Object.keys(dataset.contractors)[0];
-    // Keep graph focus on municipality — contractor nodes are not in the simple graph details map
     dataset.def.node = 'muni';
   }
   console.log(`Announcement enrich done: ${enriched} ok, ${failed} miss, contractors ${Object.keys(dataset.contractors).length}`);
@@ -833,11 +926,11 @@ export function enrichWithEgpContracts(dataset, contracts) {
     }
 
     if (winner) {
-      const key = winner.slice(0, 24);
+      const key = winner.slice(0, 40);
       if (!contractors[key]) {
         cIdx++;
-        const cid = `c${cIdx}`;
-        contractors[cid] = {
+        contractors[key] = {
+          _id: `c${cIdx}`,
           name: winner,
           reg: contract.winner_tin || '—',
           contracts: 0,
@@ -846,15 +939,14 @@ export function enrichWithEgpContracts(dataset, contracts) {
           share: '—',
           cats: inferCategory(raw.project_name || ''),
           address: '—',
-          addrNote: 'จาก e-GP API',
+          addrNote: raw._source === 'data.go.th/govspending-ckan' ? 'จาก data.go.th / ภาษีไปไหน' : 'จาก e-GP API',
           addrFlag: false,
           directors: [],
           risks: [],
           related: [],
           rows: [],
-          docs: ['e-GP API'],
+          docs: [raw._source === 'data.go.th/govspending-ckan' ? 'data.go.th / ภาษีไปไหน' : 'e-GP API'],
         };
-        contractors[key] = { ...contractors[key], _id: cid };
       }
       const co = contractors[key];
       co.contracts++;
@@ -869,14 +961,19 @@ export function enrichWithEgpContracts(dataset, contracts) {
       ]);
       dataset.projects[pid].winner = co._id;
     }
+
+    if (!projectByName.has(name) && name) projectByName.set(name, pid);
   }
 
-  const totalValue = Object.values(contractors).reduce((s, c) => s + c.total, 0);
+  const list = Object.values(contractors);
+  const totalValue = list.reduce((s, c) => s + (c.total || 0), 0);
   dataset.contractors = {};
   dataset.topContractors = [];
-  for (const co of Object.values(contractors)) {
-    co.total = formatBaht(co.total);
-    co.shareNum = totalValue ? `${((parseMoney(co.total) / totalValue) * 100).toFixed(1)}%` : '—';
+  const maxN = Math.max(1, ...list.map((x) => x.contracts));
+  for (const co of list) {
+    const rawTotal = co.total;
+    co.total = formatBaht(rawTotal);
+    co.shareNum = totalValue ? `${((rawTotal / totalValue) * 100).toFixed(1)}%` : '—';
     co.share = co.shareNum;
     dataset.contractors[co._id] = co;
     dataset.topContractors.push({
@@ -884,11 +981,28 @@ export function enrichWithEgpContracts(dataset, contracts) {
       name: co.name,
       value: co.total,
       n: co.contracts,
-      pct: pctWidth(co.contracts, Math.max(...Object.values(contractors).map((x) => x.contracts))),
+      pct: pctWidth(co.contracts, maxN),
     });
   }
   dataset.topContractors.sort((a, b) => b.n - a.n);
-  dataset.meta.dataGapNote = 'เชื่อม e-GP API แล้ว — มีราคาและผู้ชนะ';
+  const fromPortal = contracts.some((c) => c._source === 'data.go.th/govspending-ckan');
+  dataset.meta.dataGapNote = fromPortal
+    ? 'เชื่อม data.go.th / ภาษีไปไหน แล้ว — มีราคา (ผู้ชนะครบเมื่อคอลัมน์ในชุดข้อมูลถูกต้อง)'
+    : 'เชื่อม e-GP API แล้ว — มีราคาและผู้ชนะ';
+  const priced = Object.values(dataset.projects).filter((p) => p.award && p.award !== '—').length;
+  const withWinner = Object.values(dataset.projects).filter((p) => p.winner).length;
+  dataset.stats = (dataset.stats || []).map((s) => {
+    if (s.label === 'สัญญาณความเสี่ยง') return s;
+    return s;
+  });
+  if (dataset.queueStats) {
+    dataset.queueStats = dataset.queueStats.map((q) =>
+      q.label === 'รอ e-GP API'
+        ? { n: String(priced), label: 'มีราคาจาก data.go.th' }
+        : q
+    );
+  }
+  dataset.meta.concNote = `ราคา ${priced} โครงการ · ผู้ชนะ ${withWinner} · แหล่ง data.go.th / ภาษีไปไหน`;
   return dataset;
 }
 
