@@ -5,30 +5,37 @@ import { Logo } from './ui';
 
 export function Nav() {
   const { page, muni, go, setAdminTab } = useTrace24();
-  const showNav = ['dashboard', 'project', 'contractor', 'graph', 'admin'].includes(
+  const showNav = ['dashboard', 'project', 'contractor', 'graph', 'admin', 'prices'].includes(
     page
   );
   if (!showNav) return null;
 
   const tabs = [
     {
+      id: 'dashboard',
       label: 'แดชบอร์ด',
-      active:
-        page === 'dashboard' || page === 'project' || page === 'contractor',
+      short: 'แดชบอร์ด',
+      active: page === 'dashboard' || page === 'project' || page === 'contractor',
       go: () => go('dashboard'),
     },
     {
+      id: 'graph',
       label: 'กราฟความสัมพันธ์',
+      short: 'กราฟ',
       active: page === 'graph',
       go: () => go('graph'),
     },
     {
+      id: 'prices',
       label: 'ค่ากลางราคา',
-      active: false,
+      short: 'ราคา',
+      active: page === 'prices',
       go: () => go('prices'),
     },
     {
+      id: 'admin',
       label: 'ตัวช่วยทำคดี',
+      short: 'คดี',
       active: page === 'admin',
       go: () => {
         setAdminTab('investigate');
@@ -38,70 +45,66 @@ export function Nav() {
   ];
 
   return (
-    <div
-      style={{
-        position: 'sticky',
-        top: 0,
-        zIndex: 50,
-        background: 'rgba(251,251,249,.95)',
-        backdropFilter: 'blur(8px)',
-        borderBottom: '1px solid #E4E4E0',
-      }}
-    >
-      <div
-        style={{
-          maxWidth: 1160,
-          margin: '0 auto',
-          padding: '0 32px',
-          height: 54,
-          display: 'flex',
-          alignItems: 'center',
-          gap: 20,
-        }}
-      >
-        <Logo onClick={() => go('home', { selMuniId: null, query: '' })} />
-        <div style={{ width: 1, height: 16, background: '#DDDDD8' }} />
-        <div
-          style={{
-            fontSize: 13,
-            color: '#55554F',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            whiteSpace: 'nowrap',
-          }}
-        >
-          {muni.th} · จ.{muni.prov || '—'}
-        </div>
-        <div style={{ flex: 1 }} />
-        <div
-          style={{
-            display: 'flex',
-            gap: 24,
-            alignItems: 'center',
-            height: '100%',
-          }}
-        >
-          {tabs.map((t) => (
-            <div
-              key={t.label}
-              onClick={t.go}
-              className="trace24-tab"
-              style={{
-                cursor: 'pointer',
-                fontSize: 13,
-                height: '100%',
-                display: 'flex',
-                alignItems: 'center',
-                borderBottom: `2px solid ${t.active ? '#111110' : 'transparent'}`,
-                color: t.active ? '#111110' : '#8B8B85',
-                marginBottom: -1,
-              }}
-            >
-              {t.label}
-            </div>
-          ))}
+    <>
+      {/* Top bar — tablet landscape / desktop */}
+      <div className="trace24-nav-top">
+        <div className="trace24-nav-top__inner">
+          <Logo onClick={() => go('home', { selMuniId: null, query: '' })} />
+          <div className="trace24-nav-top__divider" />
+          <div className="trace24-nav-top__muni">
+            {muni.th} · จ.{muni.prov || '—'}
+          </div>
+          <div style={{ flex: 1 }} />
+          <div className="trace24-nav-top__tabs">
+            {tabs.map((t) => (
+              <div
+                key={t.id}
+                onClick={t.go}
+                className="trace24-tab"
+                style={{
+                  cursor: 'pointer',
+                  fontSize: 13,
+                  height: '100%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  borderBottom: `2px solid ${t.active ? '#111110' : 'transparent'}`,
+                  color: t.active ? '#111110' : '#8B8B85',
+                  marginBottom: -1,
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {t.label}
+              </div>
+            ))}
+          </div>
         </div>
       </div>
-    </div>
+
+      {/* Compact top identity — phone / tablet portrait */}
+      <div className="trace24-nav-mobile-head">
+        <Logo
+          size={14}
+          onClick={() => go('home', { selMuniId: null, query: '' })}
+        />
+        <div className="trace24-nav-mobile-head__muni">
+          {muni.th}
+          {muni.prov ? ` · จ.${muni.prov}` : ''}
+        </div>
+      </div>
+
+      {/* Bottom tab bar — phone / tablet portrait */}
+      <nav className="trace24-nav-bottom" aria-label="เมนูหลัก">
+        {tabs.map((t) => (
+          <button
+            key={t.id}
+            type="button"
+            onClick={t.go}
+            className={`trace24-nav-bottom__item${t.active ? ' is-active' : ''}`}
+          >
+            <span className="trace24-nav-bottom__label">{t.short}</span>
+          </button>
+        ))}
+      </nav>
+    </>
   );
 }

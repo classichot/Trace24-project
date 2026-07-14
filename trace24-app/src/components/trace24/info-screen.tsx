@@ -915,6 +915,7 @@ function AboutPage({ go }: { go: (page: Page) => void }) {
       </div>
 
       <div
+        className="trace24-responsive-grid-3"
         style={{
           display: 'grid',
           gridTemplateColumns: 'repeat(3,1fr)',

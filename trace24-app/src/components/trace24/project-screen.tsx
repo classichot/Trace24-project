@@ -204,6 +204,7 @@ export function ProjectScreen() {
       </div>
 
       <div
+        className="trace24-responsive-grid-4"
         style={{
           display: 'grid',
           gridTemplateColumns: 'repeat(4, 1fr)',

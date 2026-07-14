@@ -80,6 +80,7 @@ export function HomeScreen() {
       }}
     >
       <div
+        className="trace24-home-bar"
         style={{
           maxWidth: 1160,
           width: '100%',
@@ -92,7 +93,7 @@ export function HomeScreen() {
         }}
       >
         <Logo size={16} />
-        <div style={{ display: 'flex', gap: 26, fontSize: 13, color: '#55554F' }}>
+        <div className="trace24-home-links">
           <span onClick={() => go('prices')} className="trace24-hover-text" style={{ cursor: 'pointer' }}>ค่ากลางราคางาน</span>
           <span onClick={() => go('method')} className="trace24-hover-text" style={{ cursor: 'pointer' }}>ระเบียบวิธี</span>
           <span onClick={() => go('sources')} className="trace24-hover-text" style={{ cursor: 'pointer' }}>แหล่งข้อมูล</span>
@@ -102,6 +103,7 @@ export function HomeScreen() {
       </div>
 
       <div
+        className="trace24-home-hero"
         style={{
           flex: 1,
           display: 'flex',
@@ -300,6 +302,7 @@ export function HomeScreen() {
                 </div>
               </div>
               <div
+                className="trace24-responsive-grid-4"
                 style={{
                   display: 'grid',
                   gridTemplateColumns: 'repeat(4, 1fr)',
