@@ -14,14 +14,19 @@ import {
   preferredUnitRateKind,
   unitKindLabel,
   unitRateFromAward,
-  UNIT_RATE_LABELS,
   type ParsedProjectQuantity,
   type UnitRateKind,
 } from '@/lib/parse-project-quantity';
+import {
+  SERVICE_SIMILARITY_THRESHOLD,
+  stemSimilarity,
+  titleStem,
+} from '@/lib/title-similarity';
 import { categorizeWork, type WorkCategoryId } from '@/lib/work-categories';
 
 export type { WorkCategoryId };
 export { categorizeWork };
+export { SERVICE_SIMILARITY_THRESHOLD };
 
 export type BenchmarkBucket = {
   label: string;
@@ -33,15 +38,24 @@ export type BenchmarkBucket = {
   byProvince?: Record<string, BenchmarkBucket>;
 };
 
+export type StemBenchmarkBucket = BenchmarkBucket & {
+  stem: string;
+  byUnit?: Partial<Record<UnitRateKind, BenchmarkBucket & { byProvince?: Record<string, BenchmarkBucket> }>>;
+};
+
 export type PriceBenchmarkFile = {
   generatedAt: string;
   source: string;
   note: string;
+  similarityThreshold?: number;
   categories: Record<
     string,
     BenchmarkBucket & {
       byProvince?: Record<string, BenchmarkBucket>;
       byUnit?: Partial<Record<UnitRateKind, BenchmarkBucket>>;
+      byStem?: Record<string, StemBenchmarkBucket>;
+      stemCount?: number;
+      note?: string;
     }
   >;
 };
@@ -68,6 +82,9 @@ export type ProjectPriceBenchmark = {
   quantityLabel?: string;
   unitRate?: number;
   unitRateLabel?: string;
+  /** Matched peer stem / similarity (>0.80 required) */
+  matchStem?: string;
+  matchSimilarity?: number;
   parsed?: {
     widthM: number | null;
     lengthM: number | null;
@@ -196,17 +213,45 @@ export function loadNationalPriceBenchmarks(): PriceBenchmarkFile | null {
   return cachedNational || null;
 }
 
-function pickUnitBucket(
+function findSimilarStem(
   catEntry: PriceBenchmarkFile['categories'][string] | undefined,
+  projectStem: string
+): { stem: string; bucket: StemBenchmarkBucket; similarity: number } | null {
+  const stems = catEntry?.byStem;
+  if (!stems || !projectStem) return null;
+  let best: { stem: string; bucket: StemBenchmarkBucket; similarity: number } | null = null;
+  for (const [stem, bucket] of Object.entries(stems)) {
+    const sim = stemSimilarity(projectStem, stem);
+    if (sim <= SERVICE_SIMILARITY_THRESHOLD) continue;
+    if (!best || sim > best.similarity || (sim === best.similarity && bucket.n > best.bucket.n)) {
+      best = { stem, bucket, similarity: sim };
+    }
+  }
+  return best;
+}
+
+function pickStemUnitBucket(
+  stemBucket: StemBenchmarkBucket,
   kind: UnitRateKind,
   province?: string
 ): { bucket: BenchmarkBucket; scope: ProjectPriceBenchmark['scope'] } | null {
-  const u = catEntry?.byUnit?.[kind];
+  const u = stemBucket.byUnit?.[kind];
   if (!u) return null;
   if (province && u.byProvince?.[province] && u.byProvince[province].n >= 5) {
     return { bucket: u.byProvince[province], scope: 'province' };
   }
   if (u.n >= 5) return { bucket: u, scope: 'national' };
+  return null;
+}
+
+function pickStemContractBucket(
+  stemBucket: StemBenchmarkBucket,
+  province?: string
+): { bucket: BenchmarkBucket; scope: ProjectPriceBenchmark['scope'] } | null {
+  if (province && stemBucket.byProvince?.[province] && stemBucket.byProvince[province].n >= 5) {
+    return { bucket: stemBucket.byProvince[province], scope: 'province' };
+  }
+  if (stemBucket.n >= 5) return { bucket: stemBucket, scope: 'national' };
   return null;
 }
 
@@ -240,20 +285,32 @@ function quantityLabelFor(
 }
 
 /**
- * Prefer unit-rate compare when title has quantity; else whole-contract median.
- * Order: province unit → national unit → province contract → national contract → agency peers.
+ * Compare only against peers with service/title similarity > 80%.
+ * Never use coarse category-wide medians (they widen P25–P75 across unlike work).
+ *
+ * Order: similar national stem (unit) → similar agency peers (unit)
+ *      → similar national stem (contract) → similar agency peers (contract)
  */
 export function resolveProjectBenchmark(opts: {
   projectName: string;
   award: number;
   province?: string;
+  /** Awards from agency peers already filtered to similarity > 80% */
+  similarPeerAwards?: number[];
+  /** Unit rates from agency peers already filtered to similarity > 80% */
+  similarPeerUnitRates?: Partial<Record<UnitRateKind, number[]>>;
+  /** @deprecated ignored — category-wide peers mixed unlike services */
   agencyPeerAwardsByCategory?: Partial<Record<WorkCategoryId, number[]>>;
-  agencyPeerUnitRatesByCategory?: Partial<Record<WorkCategoryId, Partial<Record<UnitRateKind, number[]>>>>;
+  agencyPeerUnitRatesByCategory?: Partial<
+    Record<WorkCategoryId, Partial<Record<UnitRateKind, number[]>>>
+  >;
 }): ProjectPriceBenchmark | null {
   if (!opts.award || opts.award <= 0) return null;
   const cat = categorizeWork(opts.projectName);
   const national = loadNationalPriceBenchmarks();
   const parsed = parseProjectQuantity(opts.projectName);
+  const projectStem = titleStem(opts.projectName);
+  const stemHit = findSimilarStem(national?.categories?.[cat.id], projectStem);
   const parsedMeta = {
     widthM: parsed.widthM,
     lengthM: parsed.lengthM,
@@ -263,6 +320,12 @@ export function resolveProjectBenchmark(opts: {
     pieceLabel: parsed.pieceLabel,
     capacityKw: parsed.capacityKw,
   };
+  const matchExtras = stemHit
+    ? { matchStem: stemHit.stem, matchSimilarity: stemHit.similarity }
+    : { matchStem: projectStem, matchSimilarity: undefined as number | undefined };
+
+  const similarNote = (scopeLabel: string) =>
+    `กลุ่มงานคล้าย >${Math.round(SERVICE_SIMILARITY_THRESHOLD * 100)}% · ${scopeLabel} — ไม่รวมบริการต่างชนิด`;
 
   for (const kind of unitKindsToTry(cat.id, parsed)) {
     const qty = parsed.rates[kind]?.qty;
@@ -271,30 +334,32 @@ export function resolveProjectBenchmark(opts: {
     if (!unitRate) continue;
 
     const label = unitKindLabel(kind, parsed.pieceLabel);
-    const nationalHit = pickUnitBucket(national?.categories?.[cat.id], kind, opts.province);
-    if (nationalHit) {
-      return compareValues(unitRate, cat, nationalHit.bucket, nationalHit.scope, {
-        compareMode: 'unit',
-        award: opts.award,
-        unitKind: kind,
-        unitLabel: label,
-        quantity: qty,
-        quantityLabel: quantityLabelFor(kind, qty, parsed),
-        unitRate,
-        unitRateLabel: formatUnitRate(unitRate, kind, parsed.pieceLabel),
-        parsed: {
-          ...parsedMeta,
-          pieceCount: parsed.pieceCount,
-          pieceLabel: parsed.pieceLabel,
-          capacityKw: parsed.capacityKw,
-        },
-      });
+    if (stemHit) {
+      const nationalHit = pickStemUnitBucket(stemHit.bucket, kind, opts.province);
+      if (nationalHit) {
+        const hit = compareValues(unitRate, cat, nationalHit.bucket, nationalHit.scope, {
+          compareMode: 'unit',
+          award: opts.award,
+          unitKind: kind,
+          unitLabel: label,
+          quantity: qty,
+          quantityLabel: quantityLabelFor(kind, qty, parsed),
+          unitRate,
+          unitRateLabel: formatUnitRate(unitRate, kind, parsed.pieceLabel),
+          parsed: parsedMeta,
+          ...matchExtras,
+        });
+        if (hit) {
+          hit.note = `${similarNote(nationalHit.scope)} · n=${nationalHit.bucket.n} · คล้าย ${Math.round(stemHit.similarity * 100)}% — ไม่ใช่ราคากลางราชการ`;
+          return hit;
+        }
+      }
     }
 
-    const peerRates = opts.agencyPeerUnitRatesByCategory?.[cat.id]?.[kind] || [];
+    const peerRates = opts.similarPeerUnitRates?.[kind] || [];
     const agencyBucket = bucketFromAwards(`${cat.label} · ${label}`, peerRates);
     if (agencyBucket) {
-      return compareValues(unitRate, cat, agencyBucket, 'agency', {
+      const hit = compareValues(unitRate, cat, agencyBucket, 'agency', {
         compareMode: 'unit',
         award: opts.award,
         unitKind: kind,
@@ -303,17 +368,17 @@ export function resolveProjectBenchmark(opts: {
         quantityLabel: quantityLabelFor(kind, qty, parsed),
         unitRate,
         unitRateLabel: formatUnitRate(unitRate, kind, parsed.pieceLabel),
-        parsed: {
-          ...parsedMeta,
-          pieceCount: parsed.pieceCount,
-          pieceLabel: parsed.pieceLabel,
-          capacityKw: parsed.capacityKw,
-        },
+        parsed: parsedMeta,
+        ...matchExtras,
       });
+      if (hit) {
+        hit.note = `${similarNote('ในหน่วยงาน')} · n=${agencyBucket.n} — ไม่ใช่ราคากลางราชการ`;
+        return hit;
+      }
     }
   }
 
-  // Fallback: whole-contract medians — still attach parsed unit rate for UI display
+  // Contract totals — only similar stem / similar agency peers (never whole category)
   const firstUnitKind = unitKindsToTry(cat.id, parsed)[0];
   const firstQty = firstUnitKind ? parsed.rates[firstUnitKind]?.qty : null;
   const displayUnitRate =
@@ -327,32 +392,55 @@ export function resolveProjectBenchmark(opts: {
           quantityLabel: quantityLabelFor(firstUnitKind, firstQty, parsed),
           unitRate: displayUnitRate,
           unitRateLabel: formatUnitRate(displayUnitRate, firstUnitKind, parsed.pieceLabel),
-          parsed: {
-            ...parsedMeta,
-            pieceCount: parsed.pieceCount,
-            pieceLabel: parsed.pieceLabel,
-            capacityKw: parsed.capacityKw,
-          },
+          parsed: parsedMeta,
+          ...matchExtras,
         }
-      : { parsed: { ...parsedMeta, pieceCount: parsed.pieceCount, pieceLabel: parsed.pieceLabel, capacityKw: parsed.capacityKw } };
+      : { parsed: parsedMeta, ...matchExtras };
 
-  if (national?.categories?.[cat.id] && opts.province) {
-    const prov = national.categories[cat.id].byProvince?.[opts.province];
-    if (prov && prov.n >= 5) {
-      const hit = compareToBucket(opts.award, cat, prov, 'province');
-      if (hit) return { ...hit, ...unitExtras };
+  if (stemHit) {
+    const contractHit = pickStemContractBucket(stemHit.bucket, opts.province);
+    if (contractHit) {
+      const hit = compareToBucket(opts.award, cat, contractHit.bucket, contractHit.scope);
+      if (hit) {
+        return {
+          ...hit,
+          ...unitExtras,
+          note: `${similarNote(contractHit.scope)} · n=${contractHit.bucket.n} · คล้าย ${Math.round(stemHit.similarity * 100)}% — ไม่ใช่ราคากลางราชการ`,
+        };
+      }
     }
   }
-  if (national?.categories?.[cat.id] && national.categories[cat.id].n >= 5) {
-    const hit = compareToBucket(opts.award, cat, national.categories[cat.id], 'national');
-    if (hit) return { ...hit, ...unitExtras };
-  }
 
-  const peers = opts.agencyPeerAwardsByCategory?.[cat.id] || [];
+  const peers = opts.similarPeerAwards || [];
   const agencyBucket = bucketFromAwards(cat.label, peers);
   if (agencyBucket) {
     const hit = compareToBucket(opts.award, cat, agencyBucket, 'agency');
-    if (hit) return { ...hit, ...unitExtras };
+    if (hit) {
+      return {
+        ...hit,
+        ...unitExtras,
+        note: `${similarNote('ในหน่วยงาน')} · n=${agencyBucket.n} — ไม่ใช่ราคากลางราชการ`,
+      };
+    }
+  }
+
+  // No similar peer group — still return unit rate display extras without false category median
+  if (displayUnitRate && firstUnitKind) {
+    return {
+      categoryId: cat.id,
+      categoryLabel: cat.label,
+      scope: 'agency',
+      n: 0,
+      median: 0,
+      p25: 0,
+      p75: 0,
+      award: opts.award,
+      ratio: 0,
+      vsMedianPct: 0,
+      compareMode: 'unit',
+      note: `ยังไม่พบกลุ่มงานคล้าย >${Math.round(SERVICE_SIMILARITY_THRESHOLD * 100)}% ที่นับได้พอ — ไม่ใช้ค่าเฉลี่ยทั้งหมวด (จะกว้างเกินจริง)`,
+      ...unitExtras,
+    };
   }
 
   return null;

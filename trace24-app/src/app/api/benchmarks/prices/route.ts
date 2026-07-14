@@ -122,7 +122,10 @@ export async function GET(req: Request) {
   return Response.json({
     generatedAt: data.generatedAt,
     source: data.source,
-    note: data.note,
+    note:
+      data.note ||
+      'ค่ากลางสำหรับเทียบโครงการใช้เฉพาะกลุ่มงานคล้าย >80% — ค่าในตารางหมวดเป็นภาพรวมหยาบ',
+    similarityThreshold: data.similarityThreshold ?? 0.8,
     catalog: WORK_CATEGORY_DEFS.map((d) => ({ id: d.id, label: d.label, hint: d.hint })),
     categories,
     inferred,

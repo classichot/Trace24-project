@@ -11,6 +11,9 @@ import {
   unitRateFromAward,
   type UnitRateKind,
 } from '@/lib/parse-project-quantity';
+import { servicesSimilar } from '@/lib/title-similarity';
+import { detectCatalogRules } from './detect-catalog-rules';
+import { detectContractSplitClusters } from './detect-contract-split';
 import {
   categorizeWork,
   formatBenchmarkBaht,
@@ -134,6 +137,7 @@ export function enrichStubWithContracts(
     const egpUrl = /^\d{8,}$/.test(projectCode) ? egpAnnounceUrl(projectCode) : null;
 
     const workCat = categorizeWork(c.project_name);
+    const budgetN = parseMoney(c.project_money);
     projects[pid] = {
       code: c.project_id || pid,
       name: c.project_name,
@@ -144,7 +148,8 @@ export function enrichStubWithContracts(
       methodShort: c.project_type_name || '—',
       award: formatBaht(awardN),
       awardN,
-      budget: formatBaht(parseMoney(c.project_money)),
+      budget: formatBaht(budgetN),
+      budgetN,
       ref: '—',
       pct: '—',
       winner: winnerId,
@@ -180,36 +185,12 @@ export function enrichStubWithContracts(
     };
   }
 
-  // Market price benchmarks (cache medians + unit rates) — not official ราคากลาง
-  const peerByCat: Partial<Record<WorkCategoryId, number[]>> = {};
-  const peerUnitByCat: Partial<
-    Record<WorkCategoryId, Partial<Record<UnitRateKind, number[]>>>
-  > = {};
-  for (const p of Object.values(projects) as {
-    workCategoryId?: WorkCategoryId;
-    awardN?: number;
-    name?: string;
-  }[]) {
-    const id = p.workCategoryId || 'other';
-    const n = p.awardN || 0;
-    if (!n) continue;
-    if (!peerByCat[id]) peerByCat[id] = [];
-    peerByCat[id]!.push(n);
-    const parsed = parseProjectQuantity(p.name || '');
-    for (const kind of Object.keys(parsed.rates) as UnitRateKind[]) {
-      const qty = parsed.rates[kind]?.qty;
-      if (!qty) continue;
-      const rate = unitRateFromAward(n, kind, qty);
-      if (!rate) continue;
-      if (!peerUnitByCat[id]) peerUnitByCat[id] = {};
-      if (!peerUnitByCat[id]![kind]) peerUnitByCat[id]![kind] = [];
-      peerUnitByCat[id]![kind]!.push(rate);
-    }
-  }
+  // Market price benchmarks — only peers with service similarity > 80%
   const province = String(stub.agency.prov || '').trim();
-  for (const p of Object.values(projects) as {
+  const projectList = Object.values(projects) as {
     name?: string;
     awardN?: number;
+    workCategoryId?: WorkCategoryId;
     ref?: string;
     pct?: string;
     sevKey?: string;
@@ -226,22 +207,48 @@ export function enrichStubWithContracts(
     }[];
     priceBenchmark?: unknown;
     cat?: string;
-  }[]) {
+  }[];
+
+  for (const p of projectList) {
+    const similarPeerAwards: number[] = [];
+    const similarPeerUnitRates: Partial<Record<UnitRateKind, number[]>> = {};
+    for (const other of projectList) {
+      if (other === p) continue;
+      if (!other.awardN) continue;
+      if (!servicesSimilar(p.name || '', other.name || '')) continue;
+      similarPeerAwards.push(other.awardN);
+      const parsed = parseProjectQuantity(other.name || '');
+      for (const kind of Object.keys(parsed.rates) as UnitRateKind[]) {
+        const qty = parsed.rates[kind]?.qty;
+        if (!qty) continue;
+        const rate = unitRateFromAward(other.awardN, kind, qty);
+        if (!rate) continue;
+        if (!similarPeerUnitRates[kind]) similarPeerUnitRates[kind] = [];
+        similarPeerUnitRates[kind]!.push(rate);
+      }
+    }
+
     const bm = resolveProjectBenchmark({
       projectName: p.name || '',
       award: p.awardN || 0,
       province,
-      agencyPeerAwardsByCategory: peerByCat,
-      agencyPeerUnitRatesByCategory: peerUnitByCat,
+      similarPeerAwards,
+      similarPeerUnitRates,
     });
     if (!bm) continue;
-    p.ref =
-      bm.compareMode === 'unit' && bm.unitLabel
-        ? `ค่ากลาง ${Math.round(bm.median).toLocaleString('th-TH')} ${bm.unitLabel}`
-        : formatBenchmarkBaht(bm.median);
-    p.pct = pctLabel(bm);
-    p.cat = bm.categoryLabel;
     p.priceBenchmark = bm;
+    p.cat = bm.categoryLabel;
+    if (bm.median > 0 && bm.n >= 5) {
+      p.ref =
+        bm.compareMode === 'unit' && bm.unitLabel
+          ? `ค่ากลาง ${Math.round(bm.median).toLocaleString('th-TH')} ${bm.unitLabel}`
+          : formatBenchmarkBaht(bm.median);
+      p.pct = pctLabel(bm);
+    } else if (bm.unitRateLabel) {
+      p.ref = 'ยังไม่มีกลุ่มคล้าย >80%';
+      p.pct = '—';
+    }
+    if (!(bm.median > 0 && bm.n >= 5)) continue;
     const priceSev = severityFromVsMedian(bm.vsMedianPct);
     if (priceSev !== 'Low') {
       p.sevKey = p.sevKey === 'High' ? 'High' : priceSev;
@@ -295,6 +302,246 @@ export function enrichStubWithContracts(
   for (const co of Object.values(contractors)) {
     co.shareNum = `${Math.round((co.contracts / totalContracts) * 1000) / 10}%`;
     (co as { share?: string }).share = co.shareNum;
+  }
+
+  // R6 — same winner + similar titles (ซอยสัญญา / แบ่งซื้อแบ่งจ้าง)
+  const splitClusters = detectContractSplitClusters(
+    Object.entries(projects).map(([id, p]) => {
+      const pr = p as {
+        name?: string;
+        winner?: string | null;
+        fy?: string;
+        method?: string;
+        methodShort?: string;
+        awardN?: number;
+        workCategoryId?: string;
+      };
+      return {
+        id,
+        name: pr.name || '',
+        winner: pr.winner,
+        fy: pr.fy,
+        method: pr.method || pr.methodShort,
+        awardN: pr.awardN,
+        workCategoryId: pr.workCategoryId,
+      };
+    }),
+    { minSize: 3 }
+  );
+  for (const cluster of splitClusters) {
+    const peerIds = cluster.projectIds.slice(0, 8);
+    for (const pid of cluster.projectIds) {
+      const p = projects[pid] as {
+        sevKey?: string;
+        ind?: number;
+        alerts?: {
+          tag: string;
+          title: string;
+          sevKey: string;
+          conf: string;
+          facts: string[][];
+          explain: string;
+          innocent: string;
+          evidence: string[];
+        }[];
+        related?: [string, string, string][];
+        name?: string;
+      };
+      if (!p) continue;
+      if (p.alerts?.some((a) => a.tag.startsWith('R6'))) continue;
+      p.sevKey = p.sevKey === 'High' || cluster.severity === 'High' ? 'High' : cluster.severity;
+      p.ind = (p.ind || 0) + 1;
+      p.alerts = p.alerts || [];
+      p.alerts.push({
+        tag: 'R6 · กระบวนการ',
+        title: `อาจมีการแบ่งซื้อแบ่งจ้าง / ซอยสัญญา (${cluster.projectIds.length} สัญญาชื่อคล้าย ผู้ชนะรายเดียว)`,
+        sevKey: cluster.severity,
+        conf: `n=${cluster.projectIds.length} · ปีงบ ${cluster.fy}`,
+        facts: [
+          ['จำนวนสัญญาในกลุ่ม', String(cluster.projectIds.length)],
+          ['มูลค่ารวมกลุ่ม', formatBaht(cluster.totalAward)],
+          ['ผู้ชนะ', contractors[cluster.winnerId]?.name || cluster.winnerId],
+          ['ปีงบ', cluster.fy],
+        ],
+        explain:
+          'ผู้รับจ้างรายเดียวชนะหลายสัญญาที่ชื่องานคล้ายกันมากในช่วงเวลาใกล้เคียง — รูปแบบที่พบบ่อยเมื่อซอยงานเป็นสัญญาย่อย (อาจเพื่อหลีกเลณฑ์วิธีจัดซื้อหรือกระจายงบ) ต้องเทียบ TOR/แผนงาน/ปริมาณจริง',
+        innocent:
+          'งานซ่อมถนนหลายสายในปีงบเดียวกันอาจใช้แม่แบบชื่อคล้ายกันได้ตามแผน — ไม่ใช่ข้อกล่าวหาโดยลำพัง',
+        evidence: ['contracts-cache · title-stem clustering · R6'],
+      });
+      p.related = p.related || [];
+      for (const otherId of peerIds) {
+        if (otherId === pid) continue;
+        const other = projects[otherId] as { code?: string; name?: string };
+        const label = `${other?.code || otherId} · ${(other?.name || '').slice(0, 48)}`;
+        if (!p.related.some((r) => r[0] === otherId)) {
+          p.related.push([otherId, label, 'สัญญาชื่อคล้าย · ผู้ชนะเดียวกัน (R6)']);
+        }
+      }
+    }
+    const co = contractors[cluster.winnerId];
+    if (co) {
+      co.risks = co.risks || [];
+      if (!co.risks.some((r) => r.tag?.startsWith('R6'))) {
+        co.risks.push({
+          tag: 'R6 · กระบวนการ',
+          text: `ชนะ ${cluster.projectIds.length} สัญญาชื่องานคล้ายกัน (มูลค่ารวมกลุ่ม ~${formatBaht(cluster.totalAward)}) — สัญญาณอาจซอยสัญญา`,
+          sevKey: cluster.severity,
+        });
+      }
+    }
+  }
+
+  // R1-FREQ — same winner wins >5 contracts in one FY from this agency
+  // (ปกติปีละ ~1–2 สัญญาก็ถือว่าเยอะแล้ว; เกิน 5 = ความเสี่ยงสูง)
+  const byWinnerFy = new Map<string, { winnerId: string; fy: string; pids: string[]; total: number }>();
+  for (const [pid, raw] of Object.entries(projects)) {
+    const p = raw as { winner?: string | null; fy?: string; awardN?: number };
+    if (!p.winner) continue;
+    const fyM = String(p.fy || '').match(/(\d{4})/);
+    const fy = fyM?.[1] || 'unknown';
+    if (fy === 'unknown') continue;
+    const key = `${p.winner}::${fy}`;
+    if (!byWinnerFy.has(key)) byWinnerFy.set(key, { winnerId: p.winner, fy, pids: [], total: 0 });
+    const slot = byWinnerFy.get(key)!;
+    slot.pids.push(pid);
+    slot.total += p.awardN || 0;
+  }
+  for (const slot of byWinnerFy.values()) {
+    const n = slot.pids.length;
+    if (n <= 5) continue; // เกิน 5 เท่านั้น
+    const winnerName = contractors[slot.winnerId]?.name || slot.winnerId;
+    for (const pid of slot.pids) {
+      const p = projects[pid] as {
+        sevKey?: string;
+        ind?: number;
+        alerts?: {
+          tag: string;
+          title: string;
+          sevKey: string;
+          conf: string;
+          facts: string[][];
+          explain: string;
+          innocent: string;
+          evidence: string[];
+        }[];
+      };
+      if (!p) continue;
+      if (p.alerts?.some((a) => a.tag.startsWith('R1') && a.title.includes('เกิน 5 สัญญา'))) continue;
+      p.sevKey = 'High';
+      p.ind = (p.ind || 0) + 1;
+      p.alerts = p.alerts || [];
+      p.alerts.push({
+        tag: 'R1 · การแข่งขัน',
+        title: `ผู้รับจ้างรายเดียวชนะเกิน 5 สัญญาในปีงบ ${slot.fy} จากหน่วยงานนี้ (${n} สัญญา)`,
+        sevKey: 'High',
+        conf: `n=${n} · ปีงบ ${slot.fy}`,
+        facts: [
+          ['ผู้ชนะ', winnerName],
+          ['จำนวนสัญญาในปีงบ', String(n)],
+          ['มูลค่ารวมปีงบ', formatBaht(slot.total)],
+          ['ปีงบ', slot.fy],
+        ],
+        explain:
+          'ในบริบท อปท. การที่บริษัทเดียวรับงานจากหน่วยงานเดียวเกิน 5 สัญญาต่อปีถือเป็นความถี่สูงผิดปกติ (ปกติปีละ 1–2 สัญญาก็มักถือว่าเยอะแล้ว) — ใช้จัดลำดับตรวจ ไม่ใช่ข้อกล่าวหา',
+        innocent:
+          'บางพื้นที่ผู้รับเหมาคุณสมบัติจำกัดหรือเป็นผู้รับจ้างต่อเนื่องตามแผนหลายสายงาน — ต้องดู TOR และการแข่งขันประกอบ',
+        evidence: ['contracts-cache · winner×FY count · R1-FREQ'],
+      });
+    }
+    const co = contractors[slot.winnerId];
+    if (co) {
+      co.risks = co.risks || [];
+      if (!co.risks.some((r) => r.tag?.startsWith('R1') && r.text.includes('เกิน 5 สัญญา'))) {
+        co.risks.push({
+          tag: 'R1 · การแข่งขัน',
+          text: `ชนะ ${n} สัญญาในปีงบ ${slot.fy} จากหน่วยงานนี้ (เกินเกณฑ์ 5 สัญญา/ปี) · มูลค่ารวม ~${formatBaht(slot.total)}`,
+          sevKey: 'High',
+        });
+      }
+    }
+  }
+
+  // R2 / R4 / R7 / R9 / R10 / R11 / R12 — catalog rules from cache fields
+  const catalogHits = detectCatalogRules(
+    Object.entries(projects).map(([id, raw]) => {
+      const p = raw as {
+        name?: string;
+        code?: string;
+        winner?: string | null;
+        fy?: string;
+        method?: string;
+        methodShort?: string;
+        awardN?: number;
+        budgetN?: number;
+        announced?: string;
+        _sourceUrl?: string;
+        workCategoryId?: string;
+        priceBenchmark?: {
+          p75?: number;
+          median?: number;
+          vsMedianPct?: number;
+          compareMode?: string;
+          unitLabel?: string;
+          scope?: string;
+          n?: number;
+        };
+      };
+      return {
+        id,
+        name: p.name || '',
+        code: p.code,
+        winner: p.winner,
+        fy: p.fy,
+        method: p.method || p.methodShort,
+        awardN: p.awardN,
+        budgetN: p.budgetN,
+        announced: p.announced,
+        sourceUrl: p._sourceUrl || null,
+        workCategoryId: p.workCategoryId,
+        priceBenchmark: p.priceBenchmark || null,
+      };
+    }),
+    Object.entries(contractors).map(([id, co]) => ({
+      id,
+      name: co.name,
+      contracts: co.contracts,
+      totalN: co.totalN,
+      reg: co.reg,
+    }))
+  );
+  for (const [pid, alerts] of catalogHits.projectAlerts) {
+    const p = projects[pid] as {
+      sevKey?: string;
+      ind?: number;
+      alerts?: {
+        tag: string;
+        title: string;
+        sevKey: string;
+        conf: string;
+        facts: string[][];
+        explain: string;
+        innocent: string;
+        evidence: string[];
+      }[];
+    };
+    if (!p) continue;
+    p.alerts = p.alerts || [];
+    for (const a of alerts) {
+      if (p.alerts.some((x) => x.tag === a.tag && x.title === a.title)) continue;
+      p.alerts.push(a);
+      p.ind = (p.ind || 0) + 1;
+      if (a.sevKey === 'High') p.sevKey = 'High';
+      else if (a.sevKey === 'Medium' && p.sevKey !== 'High') p.sevKey = 'Medium';
+    }
+  }
+  for (const [cid, risks] of catalogHits.contractorRisks) {
+    const co = contractors[cid];
+    if (!co) continue;
+    co.risks = co.risks || [];
+    for (const r of risks) {
+      if (!co.risks.some((x) => x.tag === r.tag && x.text === r.text)) co.risks.push(r);
+    }
   }
 
   // Province from contracts — egpdepartment catalog often has empty จังหวัด,

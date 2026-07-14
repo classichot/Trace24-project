@@ -194,8 +194,8 @@ export function detectMissingInformation(report: PipelineReportLike): {
   for (const g of gaps) {
     signals.push({
       id: `sig-missing-${g.id}`,
-      ruleId: 'MISS-INFO',
-      category: 'การเปิดเผยข้อมูล · ขาดเอกสาร/ช่องว่าง',
+      ruleId: 'R11',
+      category: 'R11 · การเปิดเผยข้อมูล',
       title: g.expected,
       severity: g.gapScore >= 0.5 ? 'High' : g.gapScore >= 0.3 ? 'Medium' : 'Low',
       score: g.gapScore,

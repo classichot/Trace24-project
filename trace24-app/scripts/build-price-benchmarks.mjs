@@ -1,11 +1,10 @@
 /**
  * Build national market price benchmarks from contracts-cache.
  *
- *   npm run build-price-benchmarks
+ * Groups ONLY titles/services with stem similarity > 80%.
+ * Category-wide averages are kept as coarse browse stats only — not for project compare.
  *
- * Output: data/benchmarks/price-by-category.json.gz
- * Includes whole-contract medians AND unit rates (บาท/กม., บาท/ม., บาท/ตร.ม.)
- * when titles encode length/area.
+ *   npm run build-price-benchmarks
  *
  * NOTE: Statistical market medians — NOT official CGD ราคากลาง.
  */
@@ -15,6 +14,7 @@ import zlib from 'zlib';
 import { fileURLToPath } from 'url';
 import { looksLikeWinnerName } from './lib/egp-contact-row.mjs';
 import { parseProjectQuantity, unitRateFromAward } from './lib/parse-project-quantity.mjs';
+import { SERVICE_SIMILARITY_THRESHOLD, titleStem } from './lib/title-similarity.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.join(__dirname, '..');
@@ -92,7 +92,7 @@ function bucket(label, awards) {
   };
 }
 
-function emptySlot() {
+function emptyStem() {
   return {
     awards: [],
     byProv: new Map(),
@@ -100,13 +100,19 @@ function emptySlot() {
   };
 }
 
+function emptyCat() {
+  return { byStem: new Map() };
+}
+
 const byCat = new Map();
 const labelOf = Object.fromEntries(CATEGORY_DEFS.map((d) => [d.id, d.label]));
 labelOf.other = 'งานจัดซื้อจัดจ้างอื่น';
 
-function push(catId, prov, award, unitRates) {
-  if (!byCat.has(catId)) byCat.set(catId, emptySlot());
-  const slot = byCat.get(catId);
+function push(catId, stem, prov, award, unitRates) {
+  if (!byCat.has(catId)) byCat.set(catId, emptyCat());
+  const cat = byCat.get(catId);
+  if (!cat.byStem.has(stem)) cat.byStem.set(stem, emptyStem());
+  const slot = cat.byStem.get(stem);
   slot.awards.push(award);
   if (prov) {
     if (!slot.byProv.has(prov)) slot.byProv.set(prov, []);
@@ -122,7 +128,37 @@ function push(catId, prov, award, unitRates) {
   }
 }
 
-console.log('=== TRACE24 build price benchmarks (contract + unit rates) ===');
+function serializeStem(stemKey, slot, catLabel) {
+  const b = bucket(catLabel, slot.awards);
+  if (!b || b.n < 5) return null;
+  const byProvince = {};
+  for (const [prov, awards] of slot.byProv) {
+    const pb = bucket(catLabel, awards);
+    if (pb && pb.n >= 5) byProvince[prov] = pb;
+  }
+  const byUnit = {};
+  for (const kind of UNIT_KINDS) {
+    const u = slot.byUnit[kind];
+    const ub = bucket(`${catLabel} · ${UNIT_LABELS[kind]}`, u.rates);
+    if (!ub || ub.n < 5) continue;
+    const uByProv = {};
+    for (const [prov, rates] of u.byProv) {
+      const pb = bucket(`${catLabel} · ${UNIT_LABELS[kind]}`, rates);
+      if (pb && pb.n >= 5) uByProv[prov] = pb;
+    }
+    byUnit[kind] = { ...ub, unitLabel: UNIT_LABELS[kind], byProvince: uByProv };
+  }
+  return {
+    stem: stemKey,
+    ...b,
+    byProvince,
+    byUnit,
+  };
+}
+
+console.log(
+  `=== TRACE24 build price benchmarks (similarity > ${SERVICE_SIMILARITY_THRESHOLD * 100}%) ===`
+);
 const files = fs.readdirSync(CACHE_DIR).filter((f) => f.endsWith('.json.gz') && !f.startsWith('.'));
 console.log(`files: ${files.length}`);
 
@@ -145,6 +181,8 @@ for (let i = 0; i < files.length; i++) {
       if (!award || award < 1000) continue;
       if (award > 5e9) continue;
       const cat = categorize(name);
+      const stem = titleStem(name);
+      if (!stem || stem.length < 6) continue;
       const rowProv = String(r['จังหวัด'] || prov || '').trim();
       const parsed = parseProjectQuantity(name);
       const unitRates = {};
@@ -157,7 +195,7 @@ for (let i = 0; i < files.length; i++) {
         unitHits[kind]++;
       }
       if (Object.keys(unitRates).length) withUnit++;
-      push(cat.id, rowProv, award, unitRates);
+      push(cat.id, stem, rowProv, award, unitRates);
       used++;
     }
   } catch {
@@ -166,18 +204,45 @@ for (let i = 0; i < files.length; i++) {
   if ((i + 1) % 1000 === 0) console.log(`  scanned ${i + 1}/${files.length} · used ${used} · withUnit ${withUnit}`);
 }
 
+console.log('serializing stem groups (compare uses similarity > 80% at resolve time) …');
 const categories = {};
-for (const [id, slot] of byCat) {
-  const b = bucket(labelOf[id] || id, slot.awards);
-  if (!b) continue;
+let stemGroupsKept = 0;
+for (const [id, cat] of byCat) {
+  const byStem = {};
+  const allAwards = [];
+  const allByProv = new Map();
+  const allByUnit = Object.fromEntries(UNIT_KINDS.map((k) => [k, { rates: [], byProv: new Map() }]));
+
+  for (const [stemKey, slot] of cat.byStem) {
+    const ser = serializeStem(stemKey, slot, labelOf[id] || id);
+    if (!ser) continue;
+    byStem[stemKey] = ser;
+    stemGroupsKept++;
+    allAwards.push(...slot.awards);
+    for (const [prov, arr] of slot.byProv) {
+      if (!allByProv.has(prov)) allByProv.set(prov, []);
+      allByProv.get(prov).push(...arr);
+    }
+    for (const kind of UNIT_KINDS) {
+      allByUnit[kind].rates.push(...slot.byUnit[kind].rates);
+      for (const [prov, arr] of slot.byUnit[kind].byProv) {
+        if (!allByUnit[kind].byProv.has(prov)) allByUnit[kind].byProv.set(prov, []);
+        allByUnit[kind].byProv.get(prov).push(...arr);
+      }
+    }
+  }
+
+  // Coarse category rollup — for browse UI only (NOT used for project peer compare)
+  const coarse = bucket(labelOf[id] || id, allAwards);
+  if (!coarse) continue;
   const byProvince = {};
-  for (const [prov, awards] of slot.byProv) {
+  for (const [prov, awards] of allByProv) {
     const pb = bucket(labelOf[id] || id, awards);
     if (pb && pb.n >= 5) byProvince[prov] = pb;
   }
   const byUnit = {};
   for (const kind of UNIT_KINDS) {
-    const u = slot.byUnit[kind];
+    const u = allByUnit[kind];
     const ub = bucket(`${labelOf[id] || id} · ${UNIT_LABELS[kind]}`, u.rates);
     if (!ub || ub.n < 5) continue;
     const uByProv = {};
@@ -185,24 +250,31 @@ for (const [id, slot] of byCat) {
       const pb = bucket(`${labelOf[id] || id} · ${UNIT_LABELS[kind]}`, rates);
       if (pb && pb.n >= 5) uByProv[prov] = pb;
     }
-    byUnit[kind] = {
-      ...ub,
-      unitLabel: UNIT_LABELS[kind],
-      byProvince: uByProv,
-    };
+    byUnit[kind] = { ...ub, unitLabel: UNIT_LABELS[kind], byProvince: uByProv };
   }
-  categories[id] = { ...b, byProvince, byUnit };
+
+  categories[id] = {
+    ...coarse,
+    label: labelOf[id] || id,
+    byProvince,
+    byUnit,
+    byStem,
+    stemCount: Object.keys(byStem).length,
+    note: 'เปรียบเทียบโครงการใช้ byStem (similarity > 80%) เท่านั้น — ค่าหมวดรวมเป็นภาพรวมหยาบ',
+  };
 }
 
 const payload = {
   generatedAt: new Date().toISOString(),
   source: 'contracts-cache egp-contact-2568',
+  similarityThreshold: SERVICE_SIMILARITY_THRESHOLD,
   note:
-    'ค่ากลางตลาดเชิงสถิติจากราคาตกลงในแคช — รวมอัตราต่อหน่วย (บาท/กม. ฯลฯ) เมื่อดึงปริมาณจากชื่องานได้ — ไม่ใช่ราคากลางราชการของกรมบัญชีกลาง',
+    'ค่ากลางตลาดจัดกลุ่มเฉพาะงานที่คล้ายกันมากกว่า 80% (title stem) — ไม่รวมบริการต่างชนิดในกลุ่มเดียวกัน · ไม่ใช่ราคากลางราชการ',
   rowsScanned: rows,
   rowsUsed: used,
   rowsWithUnitRate: withUnit,
   unitHits,
+  stemGroupsKept,
   categories,
 };
 
@@ -214,8 +286,10 @@ fs.writeFileSync(
   JSON.stringify(
     {
       generatedAt: payload.generatedAt,
+      similarityThreshold: SERVICE_SIMILARITY_THRESHOLD,
       rowsUsed: used,
       rowsWithUnitRate: withUnit,
+      stemGroupsKept,
       unitHits,
       categories: Object.fromEntries(
         Object.entries(categories).map(([k, v]) => [
@@ -226,13 +300,11 @@ fs.writeFileSync(
             median: v.median,
             p25: v.p25,
             p75: v.p75,
-            provinces: Object.keys(v.byProvince || {}).length,
-            byUnit: Object.fromEntries(
-              Object.entries(v.byUnit || {}).map(([uk, uv]) => [
-                uk,
-                { n: uv.n, median: uv.median, p25: uv.p25, p75: uv.p75, unitLabel: uv.unitLabel },
-              ])
-            ),
+            stemCount: v.stemCount,
+            sampleStems: Object.entries(v.byStem || {})
+              .sort((a, b) => b[1].n - a[1].n)
+              .slice(0, 5)
+              .map(([stem, s]) => ({ stem, n: s.n, median: s.median, p25: s.p25, p75: s.p75 })),
           },
         ])
       ),
@@ -243,28 +315,13 @@ fs.writeFileSync(
 );
 
 console.log('wrote', gzPath);
-console.log('withUnit', withUnit, unitHits);
+console.log('stemGroupsKept', stemGroupsKept, 'withUnit', withUnit);
 console.log(
   JSON.stringify(
     Object.fromEntries(
       Object.entries(categories).map(([k, v]) => [
         k,
-        {
-          n: v.n,
-          median: v.median,
-          perKm: v.byUnit?.baht_per_km
-            ? { n: v.byUnit.baht_per_km.n, median: v.byUnit.baht_per_km.median }
-            : null,
-          perM2: v.byUnit?.baht_per_m2
-            ? { n: v.byUnit.baht_per_m2.n, median: v.byUnit.baht_per_m2.median }
-            : null,
-          perPiece: v.byUnit?.baht_per_piece
-            ? { n: v.byUnit.baht_per_piece.n, median: v.byUnit.baht_per_piece.median }
-            : null,
-          perKw: v.byUnit?.baht_per_kw
-            ? { n: v.byUnit.baht_per_kw.n, median: v.byUnit.baht_per_kw.median }
-            : null,
-        },
+        { n: v.n, median: v.median, p25: v.p25, p75: v.p75, stemCount: v.stemCount },
       ])
     ),
     null,

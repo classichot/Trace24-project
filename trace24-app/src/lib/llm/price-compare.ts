@@ -6,8 +6,9 @@ import {
   unitRateFromAward,
   type UnitRateKind,
 } from '@/lib/parse-project-quantity';
-import { resolveProjectBenchmark, type WorkCategoryId } from '@/lib/pipeline/price-benchmark';
+import { resolveProjectBenchmark } from '@/lib/pipeline/price-benchmark';
 import type { PipelineReportLike } from '@/lib/pipeline/types';
+import { servicesSimilar } from '@/lib/title-similarity';
 
 const GUARDRAILS = `You assist TRACE24, a Thai municipal procurement integrity tool.
 Rules:
@@ -148,36 +149,33 @@ export function buildPriceComparePayload(
   const awardN = moneyN(project);
   const parsed = parseProjectQuantity(project.name || '');
 
-  const peerByCat: Partial<Record<WorkCategoryId, number[]>> = {};
-  const peerUnitByCat: Partial<
-    Record<WorkCategoryId, Partial<Record<UnitRateKind, number[]>>>
-  > = {};
+  const similarPeerAwards: number[] = [];
+  const similarPeerUnitRates: Partial<Record<UnitRateKind, number[]>> = {};
   for (const p of Object.values(projects)) {
+    if (p === project) continue;
     const n = moneyN(p);
     if (!n) continue;
-    const id = (p.priceBenchmark?.categoryId || p.workCategoryId || 'other') as WorkCategoryId;
-    if (!peerByCat[id]) peerByCat[id] = [];
-    peerByCat[id]!.push(n);
+    if (!servicesSimilar(project.name || '', p.name || '')) continue;
+    similarPeerAwards.push(n);
     const pq = parseProjectQuantity(p.name || '');
     for (const kind of Object.keys(pq.rates) as UnitRateKind[]) {
       const qty = pq.rates[kind]?.qty;
       if (!qty) continue;
       const rate = unitRateFromAward(n, kind, qty);
       if (!rate) continue;
-      if (!peerUnitByCat[id]) peerUnitByCat[id] = {};
-      if (!peerUnitByCat[id]![kind]) peerUnitByCat[id]![kind] = [];
-      peerUnitByCat[id]![kind]!.push(rate);
+      if (!similarPeerUnitRates[kind]) similarPeerUnitRates[kind] = [];
+      similarPeerUnitRates[kind]!.push(rate);
     }
   }
 
   let bm = project.priceBenchmark || null;
-  if ((!bm || !bm.compareMode) && awardN) {
+  if ((!bm || !bm.compareMode || !bm.n) && awardN) {
     bm = resolveProjectBenchmark({
       projectName: project.name || '',
       award: awardN,
       province,
-      agencyPeerAwardsByCategory: peerByCat,
-      agencyPeerUnitRatesByCategory: peerUnitByCat,
+      similarPeerAwards,
+      similarPeerUnitRates,
     });
   }
 
