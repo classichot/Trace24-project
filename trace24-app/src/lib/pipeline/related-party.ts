@@ -29,6 +29,10 @@ export type AgencyExecutive = {
   sourceUrl?: string;
 };
 
+export type CompanyAgePrecision = 'day' | 'month' | 'year' | 'unknown';
+export type CompanyAgeSource = 'web' | 'news' | 'dbd' | 'dataforthai' | 'manual';
+export type CompanyAgeConfidence = 'high' | 'medium' | 'low';
+
 export type RelatedCompanyRecord = {
   tin?: string;
   name?: string;
@@ -36,6 +40,14 @@ export type RelatedCompanyRecord = {
   directors: CompanyPerson[];
   sourceUrl?: string;
   fetchedAt?: string;
+  /** วัน/ปีจดทะเบียนหรือก่อตั้ง — จากเว็บ/ข่าว/DBD (รอยืนยัน) */
+  registeredAt?: string | null;
+  registeredAtPrecision?: CompanyAgePrecision;
+  registeredAtSource?: CompanyAgeSource;
+  registeredAtSourceUrl?: string;
+  registeredAtQuote?: string;
+  registeredAtConfidence?: CompanyAgeConfidence;
+  registeredAtNote?: string;
 };
 
 /** Persisted pack under data/related/{agencyId}.json */
@@ -49,8 +61,8 @@ export type RelatedPartyPack = {
 
 export type RelatedPartyMatch = {
   id: string;
-  ruleId: 'R5' | 'R13';
-  matchType: 'full_name' | 'surname' | 'shared_director' | 'shared_address';
+  ruleId: 'R5' | 'R13' | 'R19';
+  matchType: 'full_name' | 'surname' | 'shared_director' | 'shared_address' | 'shared_address_volume';
   severity: 'High' | 'Medium' | 'Low';
   confirmed: false;
   executiveName?: string;
@@ -65,6 +77,20 @@ export type RelatedPartyMatch = {
   innocentExplanation: string;
   evidenceRefs: string[];
 };
+
+/** Normalize registered address for clustering (DataForThai / DBD). */
+export function normalizeAddressKey(address: string): string {
+  return String(address || '')
+    .replace(/\s+/g, ' ')
+    .replace(/ค้นหาบริษัท.*$/i, '')
+    .replace(/ที่ตั้ง\s*แผนที่/gi, '')
+    .replace(/^แผนที่\s*[:|]?/i, '')
+    .replace(/^ที่ตั้ง\s*[:|]?/i, '')
+    .replace(/[.,\u3002]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toLowerCase();
+}
 
 const TITLE_RE =
   /^(นาย|นางสาว|นาง|ว่าที่\s*ร\.ต\.|ว่าที่\s*รต\.|ว่าที่ร้อยตรี|ดร\.|ผศ\.|รศ\.|ศ\.|Mr\.|Mrs\.|Ms\.)\s*/i;
@@ -99,6 +125,7 @@ type ContractorMutable = {
   address?: string;
   contracts?: number;
   total?: string;
+  totalN?: number;
   shareNum?: string;
   cats?: string;
   addrFlag?: boolean;
@@ -107,8 +134,64 @@ type ContractorMutable = {
   related?: { id: string; name: string; note: string }[];
   risks?: { tag: string; text: string; sevKey: string }[];
   rows?: unknown[];
+  registeredAt?: string | null;
+  registeredAtSourceUrl?: string;
+  registeredAtConfidence?: string;
+  registeredAtNote?: string;
   [k: string]: unknown;
 };
+
+/** Gregorian calendar year from registeredAt string (supports พ.ศ.). */
+export function parseRegisteredYear(registeredAt?: string | null): number | null {
+  const m = String(registeredAt || '').match(/(25\d{2}|20\d{2}|19\d{2})/);
+  if (!m) return null;
+  let y = Number(m[1]);
+  if (y >= 2400) y -= 543;
+  if (y < 1900 || y > 2100) return null;
+  return y;
+}
+
+function companyAgeYears(registeredAt?: string | null, asOf = new Date().getFullYear()): number | null {
+  const y = parseRegisteredYear(registeredAt);
+  if (y == null) return null;
+  return Math.max(0, asOf - y);
+}
+
+function attachCompanyAgeRisks(contractors: Record<string, ContractorMutable>) {
+  const asOf = new Date().getFullYear();
+  for (const co of Object.values(contractors)) {
+    const age = companyAgeYears(co.registeredAt, asOf);
+    if (age == null || !co.registeredAt) continue;
+
+    // Older company → soften first-seen proxy R18
+    if (age > 5) {
+      co.risks = (co.risks || []).filter(
+        (r) => !(r.tag?.includes('R18') && /ปรากฏครั้งแรก/.test(r.text || ''))
+      );
+      continue;
+    }
+
+    const contracts = co.contracts || 0;
+    const totalN =
+      typeof co.totalN === 'number'
+        ? co.totalN
+        : Number(String(co.total || '').replace(/[^\d.]/g, '')) || 0;
+    if (contracts < 3 && totalN < 2_000_000) continue;
+
+    const sev = age <= 2 || contracts >= 5 || totalN >= 5_000_000 ? 'High' : 'Medium';
+    const src = co.registeredAtSourceUrl ? ` · แหล่ง ${co.registeredAtSourceUrl}` : '';
+    const conf = co.registeredAtConfidence ? ` · ความมั่นใจ ${co.registeredAtConfidence}` : '';
+    const text = `จดทะเบียน/ก่อตั้งประมาณ ${co.registeredAt} (อายุ ~${age} ปี) แล้วชนะ ${contracts} สัญญาในหน่วยงานนี้${src}${conf} — รอยืนยันจาก DBD`;
+    co.risks = co.risks || [];
+    if (!co.risks.some((r) => r.tag?.includes('R18') && r.text.includes(String(co.registeredAt)))) {
+      co.risks.push({
+        tag: 'R18 · ผู้รับจ้างใหม่',
+        text,
+        sevKey: sev,
+      });
+    }
+  }
+}
 
 function roleLabel(role: CompanyPersonRole | string | undefined) {
   if (role === 'shareholder') return 'ผู้ถือหุ้น';
@@ -214,19 +297,26 @@ export function detectRelatedPartyMatches(
     });
   }
 
-  // R5 — shared registered address
-  const byAddr = new Map<string, { cid: string; name: string }[]>();
+  // R5 — shared registered address · R19 — same address cluster wins > 5 contracts
+  const contractorsMap = (report.contractors || {}) as Record<
+    string,
+    { contracts?: number; name?: string; address?: string }
+  >;
+  const byAddr = new Map<string, { cid: string; name: string; address: string; contracts: number }[]>();
   for (const [cid, row] of companies) {
     if (!report.contractors?.[cid]) continue;
-    const addr = row.address.replace(/\s+/g, ' ').trim();
-    if (addr.length < 12 || addr === '—') continue;
-    const list = byAddr.get(addr) || [];
-    list.push({ cid, name: row.name });
-    byAddr.set(addr, list);
+    const addrDisplay = row.address.replace(/\s+/g, ' ').trim();
+    const key = normalizeAddressKey(addrDisplay);
+    if (key.length < 12 || addrDisplay === '—') continue;
+    const contracts = Number(contractorsMap[cid]?.contracts || 0) || 0;
+    const list = byAddr.get(key) || [];
+    list.push({ cid, name: row.name, address: addrDisplay, contracts });
+    byAddr.set(key, list);
   }
-  for (const [addr, list] of byAddr) {
+  for (const [, list] of byAddr) {
     const unique = [...new Map(list.map((x) => [x.cid, x])).values()];
     if (unique.length < 2) continue;
+    const addr = unique[0].address;
     matches.push({
       id: `r5-addr-${unique[0].cid}-${unique[1].cid}`,
       ruleId: 'R5',
@@ -242,6 +332,28 @@ export function detectRelatedPartyMatches(
       innocentExplanation: 'อาคารสำนักงานร่วมหรือที่อยู่จดทะเบียนกลุ่มบริษัทอาจเป็นเรื่องปกติทางธุรกิจ',
       evidenceRefs: [],
     });
+
+    const totalWins = unique.reduce((s, x) => s + (x.contracts || 0), 0);
+    if (totalWins > 5) {
+      const names = unique.map((x) => x.name).slice(0, 4).join(' · ');
+      const more = unique.length > 4 ? ` และอีก ${unique.length - 4} ราย` : '';
+      matches.push({
+        id: `r19-addr-${unique.map((x) => x.cid).sort().join('-')}`,
+        ruleId: 'R19',
+        matchType: 'shared_address_volume',
+        severity: totalWins >= 10 ? 'High' : 'Medium',
+        confirmed: false,
+        personName: addr,
+        companyId: unique[0].cid,
+        companyName: unique[0].name,
+        otherCompanyId: unique[1]?.cid,
+        otherCompanyName: unique[1]?.name,
+        explanation: `ผู้รับจ้าง ${unique.length} รายจดทะเบียนที่อยู่เดียวกันชนะรวม ${totalWins} สัญญาในหน่วยงานนี้ (เกิน 5): ${names}${more} · ที่อยู่: ${addr}`,
+        innocentExplanation:
+          'กลุ่มบริษัทเดียวกันหรืออาคารสำนักงานร่วมอาจใช้ที่อยู่เดียวกันได้ — ต้องดูกรรมการ/ผู้ถือหุ้นประกอบ',
+        evidenceRefs: [],
+      });
+    }
   }
 
   // R13 — executive ↔ director/shareholder
@@ -305,16 +417,25 @@ export function relatedMatchesToSignals(matches: RelatedPartyMatch[]): RiskSigna
   return matches.map((m) => ({
     id: `sig-${m.id}`,
     ruleId: m.ruleId,
-    category: `${m.ruleId} · ความสัมพันธ์`,
+    category: m.ruleId === 'R19' ? 'R19 · ที่อยู่ร่วม' : `${m.ruleId} · ความสัมพันธ์`,
     title:
       m.ruleId === 'R13'
         ? 'ผู้บริหารหน่วยงานเชื่อมโยงกับกรรมการ/ผู้ถือหุ้นผู้ชนะ'
-        : m.matchType === 'shared_address'
-          ? 'ผู้รับจ้างมีที่อยู่จดทะเบียนร่วมกัน'
-          : 'ผู้รับจ้างมีกรรมการ/ผู้ถือหุ้นร่วมกัน',
+        : m.ruleId === 'R19'
+          ? 'บริษัทที่อยู่เดียวกันชนะรวมเกิน 5 สัญญา'
+          : m.matchType === 'shared_address'
+            ? 'ผู้รับจ้างมีที่อยู่จดทะเบียนร่วมกัน'
+            : 'ผู้รับจ้างมีกรรมการ/ผู้ถือหุ้นร่วมกัน',
     severity: m.severity,
     score: m.severity === 'High' ? 0.82 : 0.55,
-    confidence: m.matchType === 'full_name' ? 0.78 : m.matchType === 'surname' ? 0.45 : 0.8,
+    confidence:
+      m.matchType === 'full_name'
+        ? 0.78
+        : m.matchType === 'surname'
+          ? 0.45
+          : m.ruleId === 'R19'
+            ? 0.75
+            : 0.8,
     subjectIds: [
       `company:${m.companyId}`,
       m.otherCompanyId ? `company:${m.otherCompanyId}` : '',
@@ -379,6 +500,12 @@ export function applyRelatedPartyToReport(
           : co.addrNote || 'จากทะเบียนนิติบุคคลที่บันทึกไว้';
       }
       if (tin) co.reg = tin;
+      if (company.registeredAt) {
+        co.registeredAt = company.registeredAt;
+        co.registeredAtSourceUrl = company.registeredAtSourceUrl || company.sourceUrl;
+        co.registeredAtConfidence = company.registeredAtConfidence;
+        co.registeredAtNote = company.registeredAtNote;
+      }
       const existing = new Set((co.directors || []).map((d) => normalizePersonName(d.name)));
       const added = (company.directors || [])
         .filter((d) => !existing.has(normalizePersonName(d.name)))
@@ -397,6 +524,7 @@ export function applyRelatedPartyToReport(
         }));
       co.directors = [...(co.directors || []), ...added];
     }
+    attachCompanyAgeRisks(contractors);
   }
 
   const executives = [
@@ -421,10 +549,19 @@ export function applyRelatedPartyToReport(
 
   const matches = detectRelatedPartyMatches(cloned, null);
   for (const m of matches) {
-    const tag = `${m.ruleId} · ความสัมพันธ์`;
+    const tag =
+      m.ruleId === 'R19'
+        ? 'R19 · ที่อยู่ร่วม'
+        : `${m.ruleId} · ความสัมพันธ์`;
     const sevKey = m.severity;
     const co = contractors[m.companyId];
     if (co) {
+      if (m.matchType === 'shared_address' || m.matchType === 'shared_address_volume') {
+        co.addrFlag = true;
+        if (m.ruleId === 'R19') {
+          co.addrNote = `ที่อยู่ร่วมหลายบริษัทชนะรวมเกิน 5 สัญญา · ${m.personName}`;
+        }
+      }
       if (!co.risks!.some((r) => r.text === m.explanation)) {
         co.risks!.push({ tag, text: m.explanation, sevKey });
       }
@@ -462,6 +599,29 @@ export function applyRelatedPartyToReport(
     cloned.alerts = cloned.alerts || [];
     if (!cloned.alerts.some((a) => a.text === m.explanation)) {
       cloned.alerts.push({ tag, text: m.explanation, sevKey });
+    }
+  }
+
+  // R19 — attach risk to every winner at the shared address (not just the first pair)
+  for (const m of matches) {
+    if (m.ruleId !== 'R19') continue;
+    const key = normalizeAddressKey(m.personName);
+    const tag = 'R19 · ที่อยู่ร่วม';
+    const cluster = Object.entries(contractors).filter(
+      ([, co]) => normalizeAddressKey(String(co.address || '')) === key
+    );
+    for (const [cid, co] of cluster) {
+      co.addrFlag = true;
+      co.addrNote = `ที่อยู่ร่วมหลายบริษัทชนะรวมเกิน 5 สัญญา · ${m.personName}`;
+      if (!co.risks!.some((r) => r.text === m.explanation)) {
+        co.risks!.push({ tag, text: m.explanation, sevKey: m.severity });
+      }
+      for (const [oid, other] of cluster) {
+        if (oid === cid) continue;
+        if (!co.related!.some((r) => r.id === oid)) {
+          co.related!.push({ id: oid, name: other.name, note: m.explanation });
+        }
+      }
     }
   }
 

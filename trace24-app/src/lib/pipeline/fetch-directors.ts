@@ -431,9 +431,16 @@ export function mergeCompanyDrafts(
       ...co,
       tin: co.tin || prev.tin,
       name: co.name || prev.name,
-      address: co.address || prev.address,
+      address: co.address || prev.address || undefined,
       sourceUrl: co.sourceUrl || prev.sourceUrl,
       directors: [...prev.directors, ...added],
+      registeredAt: co.registeredAt ?? prev.registeredAt,
+      registeredAtPrecision: co.registeredAtPrecision || prev.registeredAtPrecision,
+      registeredAtSource: co.registeredAtSource || prev.registeredAtSource,
+      registeredAtSourceUrl: co.registeredAtSourceUrl || prev.registeredAtSourceUrl,
+      registeredAtQuote: co.registeredAtQuote || prev.registeredAtQuote,
+      registeredAtConfidence: co.registeredAtConfidence || prev.registeredAtConfidence,
+      registeredAtNote: co.registeredAtNote || prev.registeredAtNote,
     };
   }
   return out;

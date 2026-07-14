@@ -138,6 +138,7 @@ export function AdminScreen() {
   const [relatedBusy, setRelatedBusy] = useState(false);
   const [relatedFetchBusy, setRelatedFetchBusy] = useState(false);
   const [relatedDirectorsBusy, setRelatedDirectorsBusy] = useState(false);
+  const [relatedAgeBusy, setRelatedAgeBusy] = useState(false);
   const [relatedExecUrl, setRelatedExecUrl] = useState('');
   const [relatedDbdPaste, setRelatedDbdPaste] = useState('');
   const [relatedDbdTin, setRelatedDbdTin] = useState('');
@@ -322,6 +323,38 @@ export function AdminScreen() {
       .catch((e: Error) => setRelatedMsg(e.message))
       .finally(() => setRelatedDirectorsBusy(false));
   };
+
+  const fetchCompanyAgeFromWeb = () => {
+    if (!isRealAgency(scannedId)) return;
+    setRelatedAgeBusy(true);
+    setRelatedMsg(null);
+    fetch(`/api/agencies/${encodeURIComponent(scannedId)}/related/fetch-company-age`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ merge: true, limit: 6 }),
+    })
+      .then(async (r) => {
+        const data = await r.json().catch(() => ({}));
+        if (!r.ok) throw new Error(data.error || data.note || `HTTP ${r.status}`);
+        return data;
+      })
+      .then((d) => {
+        if (d.draftPack) setRelatedPackJson(JSON.stringify(d.draftPack, null, 2));
+        const nAge = (d.companies || []).filter(
+          (c: { registeredAt?: string | null }) => c.registeredAt
+        ).length;
+        const nAddr = (d.companies || []).filter(
+          (c: { address?: string }) => c.address && c.address.length > 8
+        ).length;
+        setRelatedMsg(
+          `${d.note || ''}${d.model ? ` · model ${d.model}` : ''} · วันที่ ${nAge} · ที่อยู่ ${nAddr} — ตรวจแล้วกดบันทึก (ที่อยู่ร่วมชนะ >5 → R19)`
+        );
+      })
+      .catch((e: Error) => setRelatedMsg(e.message))
+      .finally(() => setRelatedAgeBusy(false));
+  };
+
+  const relatedAnyBusy = relatedFetchBusy || relatedDirectorsBusy || relatedAgeBusy;
 
   const runRag = () => {
     if (!isRealAgency(scannedId) || ragQuery.trim().length < 2) return;
@@ -623,7 +656,7 @@ export function AdminScreen() {
             — นามสกุลตรงกันเป็นเพียง lead (ระดับ Medium) ไม่ใช่ข้อพิสูจน์
           </p>
           <RiskDisclaimer style={{ marginBottom: 16 }} />
-          {relatedBusy && !relatedFetchBusy && !relatedDirectorsBusy && (
+          {relatedBusy && !relatedAnyBusy && (
             <LoadingHint label="กำลังโหลดความเชื่อมโยง" style={{ marginBottom: 12 }} />
           )}
           {relatedFetchBusy && (
@@ -637,6 +670,13 @@ export function AdminScreen() {
             <LoadingHint
               label="กำลังดึงกรรมการจาก DBD"
               hint="รวบรวมผู้ชนะ · ลองเปิดโปรไฟล์ DBD · หรือสกัดจากข้อความที่วาง"
+              style={{ marginBottom: 12 }}
+            />
+          )}
+          {relatedAgeBusy && (
+            <LoadingHint
+              label="กำลังดึงวันจดทะเบียนจาก DataForThai"
+              hint="เปิดหน้า dataforthai.com ตามเลขนิติบุคคลก่อน · ถ้าไม่เจอค่อยค้นเว็บ/ข่าว + AI — อาจใช้เวลาสักครู่"
               style={{ marginBottom: 12 }}
             />
           )}
@@ -659,7 +699,7 @@ export function AdminScreen() {
             </div>
           )}
           <div style={{ fontSize: 12.5, color: '#8B8B85', marginBottom: 8 }}>
-            ดึงทำเนียบจากเว็บหน่วยงาน · ดึงกรรมการผู้ชนะจาก DBD (กึ่งอัตโนมัติ — ตรวจก่อนบันทึก) ·{' '}
+            ดึงทำเนียบจากเว็บ · กรรมการจาก DBD · วันจดทะเบียนจาก DataForThai / เว็บ (ตรวจก่อนบันทึก) ·{' '}
             <a href="https://datawarehouse.dbd.go.th/" target="_blank" rel="noreferrer" style={{ color: '#55554F' }}>
               datawarehouse.dbd.go.th
             </a>
@@ -672,12 +712,12 @@ export function AdminScreen() {
               style={{ ...inputStyle, flex: '1 1 280px', minWidth: 200 }}
             />
             <div
-              onClick={relatedFetchBusy || relatedDirectorsBusy ? undefined : fetchExecutivesFromWeb}
+              onClick={relatedAnyBusy ? undefined : fetchExecutivesFromWeb}
               className="trace24-btn-outline"
               style={{
                 padding: '10px 16px',
                 fontSize: 13,
-                opacity: relatedFetchBusy || relatedDirectorsBusy || !isRealAgency(scannedId) ? 0.55 : 1,
+                opacity: relatedAnyBusy || !isRealAgency(scannedId) ? 0.55 : 1,
                 cursor: relatedFetchBusy ? 'wait' : 'pointer',
                 userSelect: 'none',
               }}
@@ -692,14 +732,12 @@ export function AdminScreen() {
               )}
             </div>
             <div
-              onClick={
-                relatedFetchBusy || relatedDirectorsBusy ? undefined : () => fetchDirectorsFromDbd('winners')
-              }
+              onClick={relatedAnyBusy ? undefined : () => fetchDirectorsFromDbd('winners')}
               className="trace24-btn-outline"
               style={{
                 padding: '10px 16px',
                 fontSize: 13,
-                opacity: relatedFetchBusy || relatedDirectorsBusy || !isRealAgency(scannedId) ? 0.55 : 1,
+                opacity: relatedAnyBusy || !isRealAgency(scannedId) ? 0.55 : 1,
                 cursor: relatedDirectorsBusy ? 'wait' : 'pointer',
                 userSelect: 'none',
               }}
@@ -711,6 +749,26 @@ export function AdminScreen() {
                 </span>
               ) : (
                 'ดึงกรรมการจาก DBD'
+              )}
+            </div>
+            <div
+              onClick={relatedAnyBusy ? undefined : fetchCompanyAgeFromWeb}
+              className="trace24-btn-outline"
+              style={{
+                padding: '10px 16px',
+                fontSize: 13,
+                opacity: relatedAnyBusy || !isRealAgency(scannedId) ? 0.55 : 1,
+                cursor: relatedAgeBusy ? 'wait' : 'pointer',
+                userSelect: 'none',
+              }}
+            >
+              {relatedAgeBusy ? (
+                <span className="trace24-btn-busy">
+                  <span className="trace24-scan-spin trace24-scan-spin--sm" aria-hidden />
+                  กำลังดึงวันจดทะเบียน
+                </span>
+              ) : (
+                'ดึงวันจดทะเบียน (DataForThai)'
               )}
             </div>
           </div>
@@ -756,7 +814,7 @@ export function AdminScreen() {
             />
             <div
               onClick={
-                relatedDirectorsBusy || relatedDbdPaste.trim().length < 40
+                relatedAnyBusy || relatedDbdPaste.trim().length < 40
                   ? undefined
                   : () => fetchDirectorsFromDbd('paste')
               }
@@ -765,7 +823,7 @@ export function AdminScreen() {
                 display: 'inline-block',
                 padding: '9px 14px',
                 fontSize: 12.5,
-                opacity: relatedDirectorsBusy || relatedDbdPaste.trim().length < 40 ? 0.5 : 1,
+                opacity: relatedAnyBusy || relatedDbdPaste.trim().length < 40 ? 0.5 : 1,
                 cursor: relatedDbdPaste.trim().length < 40 ? 'not-allowed' : 'pointer',
                 userSelect: 'none',
               }}

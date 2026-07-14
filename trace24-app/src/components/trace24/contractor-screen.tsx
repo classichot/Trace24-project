@@ -11,6 +11,11 @@ export function ContractorScreen() {
   const coRaw =
     contractors[selContractorId as keyof typeof contractors] ??
     contractors[dataset.def.contractor as keyof typeof contractors];
+  const coRawExtra = coRaw as {
+    registeredAt?: string | null;
+    registeredAtNote?: string;
+    registeredAtSourceUrl?: string;
+  } | undefined;
   const co = {
     name: coRaw?.name || '—',
     reg: coRaw?.reg || '—',
@@ -26,6 +31,9 @@ export function ContractorScreen() {
     addrFlag: coRaw?.addrFlag || false,
     addrNote: coRaw?.addrNote || 'ยังไม่มีข้อมูลกรรมการ/ที่อยู่จาก DBD — เพิ่มได้ที่แท็บความเชื่อมโยง',
     docs: coRaw?.docs || [],
+    registeredAt: coRawExtra?.registeredAt || null,
+    registeredAtNote: coRawExtra?.registeredAtNote || '',
+    registeredAtSourceUrl: coRawExtra?.registeredAtSourceUrl || '',
   };
 
   return (
@@ -53,6 +61,20 @@ export function ContractorScreen() {
       <div style={{ fontSize: 13.5, color: '#55554F' }}>
         เลขทะเบียนนิติบุคคล {co.reg} · {co.address}
       </div>
+      {co.registeredAt && (
+        <div style={{ fontSize: 13, color: '#55554F', marginTop: 6, lineHeight: 1.5 }}>
+          จดทะเบียน/ก่อตั้งประมาณ {co.registeredAt}
+          {co.registeredAtNote ? ` · ${co.registeredAtNote}` : ' · จากเว็บ/ข่าว (รอยืนยัน)'}
+          {co.registeredAtSourceUrl ? (
+            <>
+              {' · '}
+              <a href={co.registeredAtSourceUrl} target="_blank" rel="noreferrer" style={{ color: '#55554F' }}>
+                แหล่งที่มา
+              </a>
+            </>
+          ) : null}
+        </div>
+      )}
 
       <div
         style={{
