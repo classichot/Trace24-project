@@ -27,6 +27,7 @@ const limitIdx = args.indexOf('--limit');
 const limitN = limitIdx >= 0 ? Number(args[limitIdx + 1]) : 0;
 const concurrencyIdx = args.indexOf('--concurrency');
 const concurrency = concurrencyIdx >= 0 ? Number(args[concurrencyIdx + 1]) : 4;
+const needsRepairOnly = args.includes('--needs-repair');
 
 async function listResources() {
   const r = await fetch('https://data.go.th/api/3/action/package_show?id=egp-contact-2568', {
@@ -48,35 +49,82 @@ function cacheNeedsRepair(rows) {
   return good < Math.min(3, rows.length);
 }
 
+async function datastoreSearch(resourceId, params) {
+  const qs = new URLSearchParams({ resource_id: resourceId, ...params });
+  const r = await fetch(`https://data.go.th/api/3/action/datastore_search?${qs}`, {
+    headers: UA,
+  });
+  const j = await r.json();
+  if (!j.success) return [];
+  return j.result.records || [];
+}
+
+function pushNormalized(out, seen, records, province, maxRows, looseProvince = false) {
+  for (const raw of records) {
+    if (out.length >= maxRows) break;
+    const n = normalizeEgpContactRow(raw);
+    if (!looseProvince && province && n['จังหวัด'] && n['จังหวัด'] !== province) continue;
+    if (!n['ชื่อโครงการ']) continue;
+    const key = `${n['รหัสโครงการ']}|${n['ชื่อผู้ชนะ']}|${n['ราคาตกลงซื้อ/จ้าง']}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(n);
+  }
+  return out;
+}
+
 async function fetchAgencyRows(resourceIds, keyword, province, maxRows = 300) {
   const out = [];
   const seen = new Set();
+
+  // 1) Exact filter on ชื่อหน่วยงาน
   for (const rid of resourceIds) {
     if (out.length >= maxRows) break;
-    const qs = new URLSearchParams({
-      resource_id: rid,
-      filters: JSON.stringify({ ชื่อหน่วยงาน: keyword }),
-      limit: String(Math.min(100, maxRows - out.length)),
-      offset: '0',
-    });
     try {
-      const r = await fetch(`https://data.go.th/api/3/action/datastore_search?${qs}`, {
-        headers: UA,
+      const records = await datastoreSearch(rid, {
+        filters: JSON.stringify({ ชื่อหน่วยงาน: keyword }),
+        limit: String(Math.min(100, maxRows - out.length)),
+        offset: '0',
       });
-      const j = await r.json();
-      if (!j.success) continue;
-      for (const raw of j.result.records || []) {
-        const n = normalizeEgpContactRow(raw);
-        if (province && n['จังหวัด'] && n['จังหวัด'] !== province) continue;
-        if (!n['ชื่อโครงการ']) continue;
-        const key = `${n['รหัสโครงการ']}|${n['ชื่อผู้ชนะ']}|${n['ราคาตกลงซื้อ/จ้าง']}`;
-        if (seen.has(key)) continue;
-        seen.add(key);
-        out.push(n);
-        if (out.length >= maxRows) break;
-      }
+      pushNormalized(out, seen, records, province, maxRows, false);
     } catch {
-      /* next resource */
+      /* next */
+    }
+  }
+  if (out.length) return out;
+
+  // 2) Same filter, ignore province mismatch (common cause of ckan-empty)
+  for (const rid of resourceIds) {
+    if (out.length >= maxRows) break;
+    try {
+      const records = await datastoreSearch(rid, {
+        filters: JSON.stringify({ ชื่อหน่วยงาน: keyword }),
+        limit: String(Math.min(100, maxRows - out.length)),
+        offset: '0',
+      });
+      pushNormalized(out, seen, records, province, maxRows, true);
+    } catch {
+      /* next */
+    }
+  }
+  if (out.length) return out;
+
+  // 3) Full-text q= fallback, keep rows whose dept contains keyword
+  for (const rid of resourceIds) {
+    if (out.length >= maxRows) break;
+    try {
+      const records = await datastoreSearch(rid, {
+        q: keyword,
+        limit: String(Math.min(100, maxRows - out.length)),
+        offset: '0',
+      });
+      const matched = records.filter((raw) => {
+        const dept = String(raw['ชื่อหน่วยงาน'] || '').trim();
+        return dept === keyword || dept.includes(keyword) || keyword.includes(dept);
+      });
+      pushNormalized(out, seen, matched, province, maxRows, true);
+    } catch {
+      /* next */
     }
   }
   return out;
@@ -136,6 +184,17 @@ const resources = await listResources();
 console.log(`resources: ${resources.length}`);
 let files = listCacheFiles();
 if (onlyId) files = files.filter((f) => path.basename(f, '.json.gz') === onlyId);
+if (needsRepairOnly) {
+  files = files.filter((file) => {
+    try {
+      const raw = JSON.parse(zlib.gunzipSync(fs.readFileSync(file)).toString('utf8'));
+      return cacheNeedsRepair(raw.rows);
+    } catch {
+      return true;
+    }
+  });
+  console.log(`needs-repair filter: ${files.length} files`);
+}
 if (limitN > 0) files = files.slice(0, limitN);
 console.log(`files: ${files.length}`);
 
@@ -143,6 +202,7 @@ let repaired = 0;
 let skipped = 0;
 let failed = 0;
 const sample = [];
+const failedList = [];
 
 await pool(files, concurrency, async (file, idx) => {
   try {
@@ -151,8 +211,11 @@ await pool(files, concurrency, async (file, idx) => {
     else if (r.ok) {
       repaired++;
       if (sample.length < 15) sample.push(r);
-    } else failed++;
-    if ((idx + 1) % 50 === 0 || r.ok) {
+    } else {
+      failed++;
+      failedList.push({ agencyId: r.agencyId, reason: r.reason || 'unknown' });
+    }
+    if ((idx + 1) % 25 === 0 || r.ok || !r.skipped) {
       console.log(
         `  [${idx + 1}/${files.length}] ${r.agencyId} · ${
           r.skipped ? `skip ${r.reason || ''}` : r.ok ? `ok ${r.winners}/${r.rows}` : r.reason
@@ -161,7 +224,9 @@ await pool(files, concurrency, async (file, idx) => {
     }
   } catch (e) {
     failed++;
-    console.error(`  FAIL ${path.basename(file)}:`, e.message || e);
+    const agencyId = path.basename(file, '.json.gz');
+    failedList.push({ agencyId, reason: e.message || String(e) });
+    console.error(`  FAIL ${agencyId}:`, e.message || e);
   }
 });
 
@@ -171,8 +236,10 @@ const report = {
   skipped,
   failed,
   sample,
+  failedList,
 };
 fs.writeFileSync(path.join(CACHE_DIR, 'repair-winners-last-run.json'), JSON.stringify(report, null, 2));
 console.log('---');
-console.log(JSON.stringify(report, null, 2));
+console.log(JSON.stringify({ ...report, failedList: failedList.slice(0, 30) }, null, 2));
+if (failedList.length > 30) console.log(`... +${failedList.length - 30} more failures in repair-winners-last-run.json`);
 console.log('Done.');

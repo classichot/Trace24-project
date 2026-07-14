@@ -365,7 +365,7 @@ export function GraphScreen() {
             <div>สัญญาณ</div>
             <div style={{ textAlign: 'right' }}>ระดับ</div>
           </div>
-          {dataset.clusters.map((cl, i) => {
+          {(Array.isArray(dataset.clusters) ? dataset.clusters : []).map((cl, i) => {
             const s = sev(cl.sevKey);
             return (
               <div
@@ -397,6 +397,12 @@ export function GraphScreen() {
               </div>
             );
           })}
+          {(Array.isArray(dataset.clusters) ? dataset.clusters : []).length === 0 && (
+            <div style={{ padding: '28px 0', fontSize: 13.5, color: '#55554F', lineHeight: 1.6 }}>
+              ยังไม่พบกลุ่มความสัมพันธ์ — ดึงสัญญาแล้วจะแสดงกลุ่มผู้รับจ้างหลัก ·
+              เพิ่มทำเนียบ/กรรมการที่แท็บความเชื่อมโยงเพื่อตรวจสัญญาณ R5/R13
+            </div>
+          )}
           <div style={{ fontSize: 12, color: '#8B8B85', marginTop: 14 }}>
             คลิกกลุ่มเพื่อเจาะลงชั้นที่ 3 (กราฟรายหน่วย · บุคคล) — ทุกการจัดกลุ่มมีเอกสารต้นทางรองรับ
           </div>

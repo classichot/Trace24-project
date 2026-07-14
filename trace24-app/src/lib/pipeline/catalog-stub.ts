@@ -1,6 +1,7 @@
 import type { AgencyRecord } from '@/lib/agencies';
 import { websiteForAgency } from '@/lib/agency-websites';
 import { govSpendingPortalSearchUrl } from '@/lib/gov-apis/govspending';
+import { buildUiClusters } from './ui-clusters';
 import { buildUiEntityGraph } from './ui-entity-graph';
 
 /** Minimal live dataset for catalog agencies without a cached report yet. */
@@ -128,5 +129,6 @@ export function buildCatalogStubReport(agency: AgencyRecord) {
       details: uiGraph.details,
     },
     details: uiGraph.details,
+    clusters: buildUiClusters({ contractors: {}, relatedMatches: [] }),
   };
 }

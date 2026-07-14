@@ -6,6 +6,7 @@ import {
   looksLikeBadWinner,
 } from './announce-enrich';
 import { buildCatalogStubReport } from './catalog-stub';
+import { buildUiClusters } from './ui-clusters';
 import { buildUiEntityGraph } from './ui-entity-graph';
 
 type ContractLike = {
@@ -300,6 +301,7 @@ export function enrichStubWithContracts(
       details: uiGraph.details,
     },
     details: uiGraph.details,
+    clusters: buildUiClusters({ contractors }),
     caseFile: {
       id: `case-${stub.agency.id}`,
       title: stub.agency.th,

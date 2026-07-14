@@ -1,98 +1,196 @@
 {
-  "ranAt": "2026-07-14T05:48:31.538Z",
-  "repaired": 9033,
-  "skipped": 1,
-  "failed": 76,
+  "ranAt": "2026-07-14T16:07:24.890Z",
+  "repaired": 54,
+  "skipped": 0,
+  "failed": 24,
   "sample": [
     {
-      "agencyId": "egp-001116800",
+      "agencyId": "egp-5430302",
       "ok": true,
-      "rows": 300,
-      "winners": 300
+      "rows": 106,
+      "winners": 105
     },
     {
-      "agencyId": "egp-001098400",
+      "agencyId": "egp-5430301",
       "ok": true,
-      "rows": 300,
-      "winners": 299
+      "rows": 282,
+      "winners": 277
     },
     {
-      "agencyId": "egp-001157700",
+      "agencyId": "egp-5430401",
       "ok": true,
-      "rows": 242,
-      "winners": 242
+      "rows": 138,
+      "winners": 138
     },
     {
-      "agencyId": "egp-000228400",
+      "agencyId": "egp-5430303",
       "ok": true,
-      "rows": 128,
-      "winners": 128
+      "rows": 246,
+      "winners": 243
     },
     {
-      "agencyId": "egp-001154200",
+      "agencyId": "egp-5430402",
       "ok": true,
-      "rows": 200,
-      "winners": 199
+      "rows": 288,
+      "winners": 288
     },
     {
-      "agencyId": "egp-001184000",
+      "agencyId": "egp-5430601",
       "ok": true,
-      "rows": 300,
-      "winners": 299
+      "rows": 139,
+      "winners": 139
     },
     {
-      "agencyId": "egp-001181400",
+      "agencyId": "egp-5430901",
       "ok": true,
-      "rows": 131,
-      "winners": 131
+      "rows": 225,
+      "winners": 225
     },
     {
-      "agencyId": "egp-001183900",
+      "agencyId": "egp-5430902",
       "ok": true,
-      "rows": 202,
-      "winners": 201
+      "rows": 161,
+      "winners": 161
     },
     {
-      "agencyId": "egp-001189600",
+      "agencyId": "egp-5431001",
       "ok": true,
-      "rows": 165,
-      "winners": 164
+      "rows": 104,
+      "winners": 103
     },
     {
-      "agencyId": "egp-001184100",
+      "agencyId": "egp-5431201",
       "ok": true,
-      "rows": 280,
-      "winners": 278
+      "rows": 185,
+      "winners": 185
     },
     {
-      "agencyId": "egp-001194500",
+      "agencyId": "egp-5431101",
       "ok": true,
-      "rows": 300,
-      "winners": 297
+      "rows": 285,
+      "winners": 279
     },
     {
-      "agencyId": "egp-001240000",
+      "agencyId": "egp-6430301",
       "ok": true,
-      "rows": 300,
-      "winners": 300
+      "rows": 282,
+      "winners": 277
     },
     {
-      "agencyId": "egp-001198700",
+      "agencyId": "egp-6260406",
       "ok": true,
-      "rows": 300,
-      "winners": 300
+      "rows": 187,
+      "winners": 187
     },
     {
-      "agencyId": "egp-001239700",
+      "agencyId": "egp-6430303",
       "ok": true,
-      "rows": 300,
-      "winners": 300
+      "rows": 69,
+      "winners": 69
     },
     {
-      "agencyId": "egp-001239900",
+      "agencyId": "egp-6430304",
       "ok": true,
-      "rows": 300,
-      "winners": 300
+      "rows": 154,
+      "winners": 154
+    }
+  ],
+  "failedList": [
+    {
+      "agencyId": "egp-3030100148",
+      "reason": "ckan-empty"
+    },
+    {
+      "agencyId": "egp-e15082918",
+      "reason": "ckan-empty"
+    },
+    {
+      "agencyId": "egp-e15083420",
+      "reason": "ckan-empty"
+    },
+    {
+      "agencyId": "egp-e15083358",
+      "reason": "ckan-empty"
+    },
+    {
+      "agencyId": "egp-e15083293",
+      "reason": "ckan-empty"
+    },
+    {
+      "agencyId": "egp-e15083587",
+      "reason": "ckan-empty"
+    },
+    {
+      "agencyId": "egp-e15083470",
+      "reason": "ckan-empty"
+    },
+    {
+      "agencyId": "egp-e15083472",
+      "reason": "ckan-empty"
+    },
+    {
+      "agencyId": "egp-e15083715",
+      "reason": "ckan-empty"
+    },
+    {
+      "agencyId": "egp-e15083719",
+      "reason": "ckan-empty"
+    },
+    {
+      "agencyId": "egp-e15083717",
+      "reason": "ckan-empty"
+    },
+    {
+      "agencyId": "egp-e15084086",
+      "reason": "ckan-empty"
+    },
+    {
+      "agencyId": "egp-e15083798",
+      "reason": "ckan-empty"
+    },
+    {
+      "agencyId": "egp-e15084138",
+      "reason": "ckan-empty"
+    },
+    {
+      "agencyId": "egp-e15084324",
+      "reason": "ckan-empty"
+    },
+    {
+      "agencyId": "egp-e15084250",
+      "reason": "ckan-empty"
+    },
+    {
+      "agencyId": "egp-e15084508",
+      "reason": "ckan-empty"
+    },
+    {
+      "agencyId": "egp-e15084594",
+      "reason": "ckan-empty"
+    },
+    {
+      "agencyId": "egp-e15084539",
+      "reason": "ckan-empty"
+    },
+    {
+      "agencyId": "egp-e15084626",
+      "reason": "ckan-empty"
+    },
+    {
+      "agencyId": "egp-e15084662",
+      "reason": "ckan-empty"
+    },
+    {
+      "agencyId": "egp-e15084740",
+      "reason": "ckan-empty"
+    },
+    {
+      "agencyId": "egp-e15084864",
+      "reason": "ckan-empty"
+    },
+    {
+      "agencyId": "egp-e15084879",
+      "reason": "ckan-empty"
     }
   ]
 }

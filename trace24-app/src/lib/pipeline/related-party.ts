@@ -6,6 +6,7 @@
  */
 
 import type { PipelineReportLike, RiskSignal } from './types';
+import { buildUiClusters } from './ui-clusters';
 import { buildUiEntityGraph } from './ui-entity-graph';
 
 export type CompanyPersonRole = 'director' | 'shareholder' | 'authorized' | 'other';
@@ -527,6 +528,10 @@ export function applyRelatedPartyToReport(
       details: uiGraph.details,
     };
     (cloned as { details?: unknown }).details = uiGraph.details;
+    (cloned as { clusters?: unknown }).clusters = buildUiClusters({
+      contractors: (cloned.contractors || {}) as Record<string, never>,
+      relatedMatches: matches,
+    });
     if (cloned.meta) {
       cloned.meta = {
         ...cloned.meta,
