@@ -72,6 +72,11 @@ type ProjectLike = {
     unitRateLabel?: string;
     quantityLabel?: string;
     unitRate?: number;
+    parsed?: {
+      pieceCount?: number | null;
+      pieceLabel?: string | null;
+      capacityKw?: number | null;
+    };
   };
 };
 
@@ -217,10 +222,8 @@ export function ProjectScreen() {
             pr0.ref || '—',
           ],
           [
-            pr0.priceBenchmark?.compareMode === 'unit' ? 'อัตราราคาโครงการ' : 'ราคาที่ตกลง',
-            pr0.priceBenchmark?.compareMode === 'unit'
-              ? pr0.priceBenchmark.unitRateLabel || pr0.award || '—'
-              : pr0.award || '—',
+            pr0.priceBenchmark?.unitRateLabel ? 'อัตราราคาโครงการ' : 'ราคาที่ตกลง',
+            pr0.priceBenchmark?.unitRateLabel || pr0.award || '—',
           ],
         ].map(([label, value]) => (
           <div key={label as string} style={{ padding: '20px 20px 20px 0', borderRight: '1px solid #EEEEEA', marginRight: 20 }}>
@@ -284,8 +287,11 @@ export function ProjectScreen() {
                   pr0.priceBenchmark.p75
                 ).toLocaleString('th-TH')} บาท`
               : ''}
-          {pr0.priceBenchmark.compareMode === 'unit' && pr0.award
+          {pr0.priceBenchmark.unitRateLabel && pr0.award
             ? ` · ราคารวมสัญญา ${pr0.award}`
+            : ''}
+          {pr0.priceBenchmark.compareMode !== 'unit' && pr0.priceBenchmark.unitRateLabel
+            ? ` · มีอัตราต่อหน่วยจากชื่องานแล้ว แต่ยังเทียบค่ากลางต่อหน่วยในหมวดนี้ไม่ได้ (ตัวอย่างน้อย) — แสดงเทียบราคารวมแทน`
             : ''}
         </div>
       )}

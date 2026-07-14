@@ -12,6 +12,7 @@ import {
   formatUnitRate,
   parseProjectQuantity,
   preferredUnitRateKind,
+  unitKindLabel,
   unitRateFromAward,
   UNIT_RATE_LABELS,
   type ParsedProjectQuantity,
@@ -72,6 +73,9 @@ export type ProjectPriceBenchmark = {
     lengthM: number | null;
     lengthKm: number | null;
     areaM2: number | null;
+    pieceCount?: number | null;
+    pieceLabel?: string | null;
+    capacityKw?: number | null;
   };
 };
 
@@ -211,16 +215,27 @@ function unitKindsToTry(categoryId: string, parsed: ParsedProjectQuantity): Unit
   const available = (Object.keys(parsed.rates) as UnitRateKind[]).filter((k) => parsed.rates[k]);
   const ordered: UnitRateKind[] = [];
   if (preferred && available.includes(preferred)) ordered.push(preferred);
-  // for roads, also try m2 as strong secondary
-  for (const k of ['baht_per_m2', 'baht_per_km', 'baht_per_m'] as UnitRateKind[]) {
+  for (const k of [
+    'baht_per_kw',
+    'baht_per_piece',
+    'baht_per_m2',
+    'baht_per_km',
+    'baht_per_m',
+  ] as UnitRateKind[]) {
     if (!ordered.includes(k) && available.includes(k)) ordered.push(k);
   }
   return ordered;
 }
 
-function quantityLabelFor(kind: UnitRateKind, qty: number): string {
+function quantityLabelFor(
+  kind: UnitRateKind,
+  qty: number,
+  parsed: ParsedProjectQuantity
+): string {
   if (kind === 'baht_per_km') return formatQuantity(qty, 'km');
   if (kind === 'baht_per_m2') return formatQuantity(qty, 'm2');
+  if (kind === 'baht_per_piece') return formatQuantity(qty, 'piece', parsed.pieceLabel);
+  if (kind === 'baht_per_kw') return formatQuantity(qty, 'kw');
   return formatQuantity(qty, 'm');
 }
 
@@ -244,6 +259,9 @@ export function resolveProjectBenchmark(opts: {
     lengthM: parsed.lengthM,
     lengthKm: parsed.lengthKm,
     areaM2: parsed.areaM2,
+    pieceCount: parsed.pieceCount,
+    pieceLabel: parsed.pieceLabel,
+    capacityKw: parsed.capacityKw,
   };
 
   for (const kind of unitKindsToTry(cat.id, parsed)) {
@@ -252,56 +270,89 @@ export function resolveProjectBenchmark(opts: {
     const unitRate = unitRateFromAward(opts.award, kind, qty);
     if (!unitRate) continue;
 
+    const label = unitKindLabel(kind, parsed.pieceLabel);
     const nationalHit = pickUnitBucket(national?.categories?.[cat.id], kind, opts.province);
     if (nationalHit) {
       return compareValues(unitRate, cat, nationalHit.bucket, nationalHit.scope, {
         compareMode: 'unit',
         award: opts.award,
         unitKind: kind,
-        unitLabel: UNIT_RATE_LABELS[kind],
+        unitLabel: label,
         quantity: qty,
-        quantityLabel: quantityLabelFor(kind, qty),
+        quantityLabel: quantityLabelFor(kind, qty, parsed),
         unitRate,
-        unitRateLabel: formatUnitRate(unitRate, kind),
-        parsed: parsedMeta,
+        unitRateLabel: formatUnitRate(unitRate, kind, parsed.pieceLabel),
+        parsed: {
+          ...parsedMeta,
+          pieceCount: parsed.pieceCount,
+          pieceLabel: parsed.pieceLabel,
+          capacityKw: parsed.capacityKw,
+        },
       });
     }
 
     const peerRates = opts.agencyPeerUnitRatesByCategory?.[cat.id]?.[kind] || [];
-    const agencyBucket = bucketFromAwards(`${cat.label} · ${UNIT_RATE_LABELS[kind]}`, peerRates);
+    const agencyBucket = bucketFromAwards(`${cat.label} · ${label}`, peerRates);
     if (agencyBucket) {
       return compareValues(unitRate, cat, agencyBucket, 'agency', {
         compareMode: 'unit',
         award: opts.award,
         unitKind: kind,
-        unitLabel: UNIT_RATE_LABELS[kind],
+        unitLabel: label,
         quantity: qty,
-        quantityLabel: quantityLabelFor(kind, qty),
+        quantityLabel: quantityLabelFor(kind, qty, parsed),
         unitRate,
-        unitRateLabel: formatUnitRate(unitRate, kind),
-        parsed: parsedMeta,
+        unitRateLabel: formatUnitRate(unitRate, kind, parsed.pieceLabel),
+        parsed: {
+          ...parsedMeta,
+          pieceCount: parsed.pieceCount,
+          pieceLabel: parsed.pieceLabel,
+          capacityKw: parsed.capacityKw,
+        },
       });
     }
   }
 
-  // Fallback: whole-contract medians
+  // Fallback: whole-contract medians — still attach parsed unit rate for UI display
+  const firstUnitKind = unitKindsToTry(cat.id, parsed)[0];
+  const firstQty = firstUnitKind ? parsed.rates[firstUnitKind]?.qty : null;
+  const displayUnitRate =
+    firstUnitKind && firstQty ? unitRateFromAward(opts.award, firstUnitKind, firstQty) : null;
+  const unitExtras =
+    firstUnitKind && firstQty && displayUnitRate
+      ? {
+          unitKind: firstUnitKind,
+          unitLabel: unitKindLabel(firstUnitKind, parsed.pieceLabel),
+          quantity: firstQty,
+          quantityLabel: quantityLabelFor(firstUnitKind, firstQty, parsed),
+          unitRate: displayUnitRate,
+          unitRateLabel: formatUnitRate(displayUnitRate, firstUnitKind, parsed.pieceLabel),
+          parsed: {
+            ...parsedMeta,
+            pieceCount: parsed.pieceCount,
+            pieceLabel: parsed.pieceLabel,
+            capacityKw: parsed.capacityKw,
+          },
+        }
+      : { parsed: { ...parsedMeta, pieceCount: parsed.pieceCount, pieceLabel: parsed.pieceLabel, capacityKw: parsed.capacityKw } };
+
   if (national?.categories?.[cat.id] && opts.province) {
     const prov = national.categories[cat.id].byProvince?.[opts.province];
     if (prov && prov.n >= 5) {
       const hit = compareToBucket(opts.award, cat, prov, 'province');
-      if (hit) return { ...hit, parsed: parsedMeta };
+      if (hit) return { ...hit, ...unitExtras };
     }
   }
   if (national?.categories?.[cat.id] && national.categories[cat.id].n >= 5) {
     const hit = compareToBucket(opts.award, cat, national.categories[cat.id], 'national');
-    if (hit) return { ...hit, parsed: parsedMeta };
+    if (hit) return { ...hit, ...unitExtras };
   }
 
   const peers = opts.agencyPeerAwardsByCategory?.[cat.id] || [];
   const agencyBucket = bucketFromAwards(cat.label, peers);
   if (agencyBucket) {
     const hit = compareToBucket(opts.award, cat, agencyBucket, 'agency');
-    if (hit) return { ...hit, parsed: parsedMeta };
+    if (hit) return { ...hit, ...unitExtras };
   }
 
   return null;

@@ -28,6 +28,14 @@ const RE_WIDTH_M = new RegExp(
 );
 const RE_KM_STATION =
   /กม\.?\s*ที่\s*(\d+)\+(\d+(?:\.\d+)?)\s*(?:ถึง|-|–)\s*กม\.?\s*ที่\s*(\d+)\+(\d+(?:\.\d+)?)/i;
+const RE_PIECE = new RegExp(
+  String.raw`(?:จำนวน|ปริมาณ)?${SP}(${NUM})${SP}(ระบบ|ชุด|เครื่อง|คัน|หลัง|หน่วย|รายการ|ตัว|แปลง|จุด)(?!\s*เฟส)`,
+  'i'
+);
+const RE_KW = new RegExp(
+  String.raw`(${NUM})${SP}(?:กิโลวัตต์|กิโลวัต|กิโล\s*วัตต์|kw)`,
+  'i'
+);
 
 function toArabicDigitsLocal(s) {
   return String(s || '')
@@ -45,6 +53,8 @@ function inBounds(kind, qty) {
   if (kind === 'baht_per_km') return qty >= 0.05 && qty <= 80;
   if (kind === 'baht_per_m') return qty >= 10 && qty <= 80000;
   if (kind === 'baht_per_m2') return qty >= 20 && qty <= 250000;
+  if (kind === 'baht_per_piece') return qty >= 2 && qty <= 5000;
+  if (kind === 'baht_per_kw') return qty >= 0.5 && qty <= 5000;
   return false;
 }
 
@@ -53,11 +63,13 @@ function rateSane(kind, rate) {
   if (kind === 'baht_per_km') return rate >= 50000 && rate <= 80000000;
   if (kind === 'baht_per_m') return rate >= 200 && rate <= 5000000;
   if (kind === 'baht_per_m2') return rate >= 100 && rate <= 80000;
+  if (kind === 'baht_per_piece') return rate >= 500 && rate <= 50000000;
+  if (kind === 'baht_per_kw') return rate >= 1000 && rate <= 5000000;
   return false;
 }
 
 export function parseProjectQuantity(title) {
-  const empty = { rates: {} };
+  const empty = { rates: {}, pieceCount: null, pieceLabel: null, capacityKw: null };
   const raw = String(title || '');
   if (!raw.trim() || RE_FALSE.test(raw)) return empty;
   const t = toArabicDigitsLocal(raw);
@@ -89,17 +101,25 @@ export function parseProjectQuantity(title) {
     areaM2 = widthM * lengthM;
   }
 
+  const pieceMatch = t.match(RE_PIECE);
+  let pieceCount = parseNum(pieceMatch?.[1]);
+  let pieceLabel = pieceMatch?.[2] || null;
+  if (pieceCount === 1) {
+    pieceCount = null;
+    pieceLabel = null;
+  }
+  const kwEach = parseNum(t.match(RE_KW)?.[1]);
+  let capacityKw = null;
+  if (kwEach) capacityKw = pieceCount ? kwEach * pieceCount : kwEach;
+
   const rates = {};
-  if (lengthKm && inBounds('baht_per_km', lengthKm)) {
-    rates.baht_per_km = { qty: lengthKm };
-  }
-  if (lengthM && inBounds('baht_per_m', lengthM)) {
-    rates.baht_per_m = { qty: lengthM };
-  }
-  if (areaM2 && inBounds('baht_per_m2', areaM2)) {
-    rates.baht_per_m2 = { qty: areaM2 };
-  }
-  return { widthM, lengthM, lengthKm, areaM2, rates };
+  if (lengthKm && inBounds('baht_per_km', lengthKm)) rates.baht_per_km = { qty: lengthKm };
+  if (lengthM && inBounds('baht_per_m', lengthM)) rates.baht_per_m = { qty: lengthM };
+  if (areaM2 && inBounds('baht_per_m2', areaM2)) rates.baht_per_m2 = { qty: areaM2 };
+  if (pieceCount && inBounds('baht_per_piece', pieceCount)) rates.baht_per_piece = { qty: pieceCount };
+  if (capacityKw && inBounds('baht_per_kw', capacityKw)) rates.baht_per_kw = { qty: capacityKw };
+
+  return { widthM, lengthM, lengthKm, areaM2, pieceCount, pieceLabel, capacityKw, rates };
 }
 
 export function unitRateFromAward(award, kind, qty) {

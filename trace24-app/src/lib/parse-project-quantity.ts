@@ -1,12 +1,17 @@
 /**
  * Parse quantities from Thai procurement project titles
- * so we can compare unit rates (บาท/กม., บาท/ม., บาท/ตร.ม.)
+ * so we can compare unit rates (บาท/กม., บาท/ม., บาท/ตร.ม., บาท/หน่วย, บาท/กิโลวัตต์)
  * instead of whole-contract awards only.
  */
 
-export type QuantityUnit = 'km' | 'm' | 'm2';
+export type QuantityUnit = 'km' | 'm' | 'm2' | 'piece' | 'kw';
 
-export type UnitRateKind = 'baht_per_km' | 'baht_per_m' | 'baht_per_m2';
+export type UnitRateKind =
+  | 'baht_per_km'
+  | 'baht_per_m'
+  | 'baht_per_m2'
+  | 'baht_per_piece'
+  | 'baht_per_kw';
 
 export type ParsedProjectQuantity = {
   widthM: number | null;
@@ -14,6 +19,9 @@ export type ParsedProjectQuantity = {
   lengthKm: number | null;
   areaM2: number | null;
   thicknessM: number | null;
+  pieceCount: number | null;
+  pieceLabel: string | null;
+  capacityKw: number | null;
   /** Best qty for the preferred unit of this title */
   primary: { unit: QuantityUnit; qty: number; source: string } | null;
   /** All usable measures for unit-rate calculation */
@@ -67,10 +75,24 @@ const RE_THICK = new RegExp(
 const RE_KM_STATION =
   /กม\.?\s*ที่\s*(\d+)\+(\d+(?:\.\d+)?)\s*(?:ถึง|-|–)\s*กม\.?\s*ที่\s*(\d+)\+(\d+(?:\.\d+)?)/i;
 
+/** จำนวน 4 ระบบ / 2 ชุด / 10 เครื่อง — skip เฟส */
+const RE_PIECE = new RegExp(
+  String.raw`(?:จำนวน|ปริมาณ)?${SP}(${NUM})${SP}(ระบบ|ชุด|เครื่อง|คัน|หลัง|หน่วย|รายการ|ตัว|แปลง|จุด)(?!\s*เฟส)`,
+  'i'
+);
+
+/** ขนาด 10 กิโลวัตต์ / 10 kW — no \\b (Thai is non-word in JS) */
+const RE_KW = new RegExp(
+  String.raw`(${NUM})${SP}(?:กิโลวัตต์|กิโลวัต|กิโล\s*วัตต์|kw)`,
+  'i'
+);
+
 export const UNIT_RATE_LABELS: Record<UnitRateKind, string> = {
   baht_per_km: 'บาท/กม.',
   baht_per_m: 'บาท/ม.',
   baht_per_m2: 'บาท/ตร.ม.',
+  baht_per_piece: 'บาท/หน่วย',
+  baht_per_kw: 'บาท/กิโลวัตต์',
 };
 
 /** Preferred unit-rate kind by work category id. */
@@ -84,6 +106,13 @@ export function preferredUnitRateKind(categoryId: string): UnitRateKind | null {
       return 'baht_per_m';
     case 'building':
       return 'baht_per_m2';
+    case 'electrical':
+      return 'baht_per_kw';
+    case 'equipment':
+    case 'vehicle':
+    case 'medical':
+    case 'it_comms':
+      return 'baht_per_piece';
     default:
       return null;
   }
@@ -110,16 +139,23 @@ function inBounds(kind: UnitRateKind, qty: number): boolean {
   if (kind === 'baht_per_km') return qty >= 0.05 && qty <= 80;
   if (kind === 'baht_per_m') return qty >= 10 && qty <= 80000;
   if (kind === 'baht_per_m2') return qty >= 20 && qty <= 250000;
+  if (kind === 'baht_per_piece') return qty >= 2 && qty <= 5000;
+  if (kind === 'baht_per_kw') return qty >= 0.5 && qty <= 5000;
   return false;
 }
 
 function rateSane(kind: UnitRateKind, rate: number): boolean {
   if (!Number.isFinite(rate) || rate <= 0) return false;
-  // rough sanity — filter parse disasters
   if (kind === 'baht_per_km') return rate >= 50_000 && rate <= 80_000_000;
   if (kind === 'baht_per_m') return rate >= 200 && rate <= 5_000_000;
   if (kind === 'baht_per_m2') return rate >= 100 && rate <= 80_000;
+  if (kind === 'baht_per_piece') return rate >= 500 && rate <= 50_000_000;
+  if (kind === 'baht_per_kw') return rate >= 1_000 && rate <= 5_000_000;
   return false;
+}
+
+function pieceLabelTh(label: string): string {
+  return label || 'หน่วย';
 }
 
 export function parseProjectQuantity(title: string): ParsedProjectQuantity {
@@ -129,6 +165,9 @@ export function parseProjectQuantity(title: string): ParsedProjectQuantity {
     lengthKm: null,
     areaM2: null,
     thicknessM: null,
+    pieceCount: null,
+    pieceLabel: null,
+    capacityKw: null,
     primary: null,
     rates: {},
   };
@@ -176,6 +215,21 @@ export function parseProjectQuantity(title: string): ParsedProjectQuantity {
     areaM2 = widthM * lengthM;
   }
 
+  const pieceMatch = t.match(RE_PIECE);
+  let pieceCount = parseNum(pieceMatch?.[1]);
+  let pieceLabel = pieceMatch?.[2] ? pieceLabelTh(pieceMatch[2]) : null;
+  // ignore "3 เฟส" false friends already via (?!เฟส); also ignore lone "1 ระบบ"
+  if (pieceCount === 1) {
+    pieceCount = null;
+    pieceLabel = null;
+  }
+
+  const kwEach = parseNum(t.match(RE_KW)?.[1]);
+  let capacityKw: number | null = null;
+  if (kwEach) {
+    capacityKw = pieceCount ? kwEach * pieceCount : kwEach;
+  }
+
   const rates: ParsedProjectQuantity['rates'] = {};
   if (lengthKm && inBounds('baht_per_km', lengthKm)) {
     rates.baht_per_km = {
@@ -192,9 +246,25 @@ export function parseProjectQuantity(title: string): ParsedProjectQuantity {
       source: areaM ? 'พื้นที่ตร.ม.' : 'กว้าง×ยาว',
     };
   }
+  if (pieceCount && inBounds('baht_per_piece', pieceCount)) {
+    rates.baht_per_piece = {
+      qty: pieceCount,
+      source: `จำนวน${pieceLabel || 'หน่วย'}`,
+    };
+  }
+  if (capacityKw && inBounds('baht_per_kw', capacityKw)) {
+    rates.baht_per_kw = {
+      qty: capacityKw,
+      source: pieceCount && kwEach ? `${kwEach} กิโลวัตต์ × ${pieceCount}` : 'กำลังไฟฟ้า(กิโลวัตต์)',
+    };
+  }
 
   let primary: ParsedProjectQuantity['primary'] = null;
-  if (rates.baht_per_km) {
+  if (rates.baht_per_kw) {
+    primary = { unit: 'kw', qty: rates.baht_per_kw.qty, source: rates.baht_per_kw.source };
+  } else if (rates.baht_per_piece) {
+    primary = { unit: 'piece', qty: rates.baht_per_piece.qty, source: rates.baht_per_piece.source };
+  } else if (rates.baht_per_km) {
     primary = { unit: 'km', qty: rates.baht_per_km.qty, source: rates.baht_per_km.source };
   } else if (rates.baht_per_m2) {
     primary = { unit: 'm2', qty: rates.baht_per_m2.qty, source: rates.baht_per_m2.source };
@@ -208,6 +278,9 @@ export function parseProjectQuantity(title: string): ParsedProjectQuantity {
     lengthKm,
     areaM2,
     thicknessM,
+    pieceCount,
+    pieceLabel,
+    capacityKw,
     primary,
     rates,
   };
@@ -223,13 +296,15 @@ export function unitRateFromAward(
   return rateSane(kind, rate) ? rate : null;
 }
 
-export function formatUnitRate(n: number, kind: UnitRateKind): string {
+export function formatUnitRate(n: number, kind: UnitRateKind, pieceLabel?: string | null): string {
   if (!Number.isFinite(n) || n <= 0) return '—';
-  const label = UNIT_RATE_LABELS[kind];
-  return `${Math.round(n).toLocaleString('th-TH')} ${label}`;
+  if (kind === 'baht_per_piece' && pieceLabel) {
+    return `${Math.round(n).toLocaleString('th-TH')} บาท/${pieceLabel}`;
+  }
+  return `${Math.round(n).toLocaleString('th-TH')} ${UNIT_RATE_LABELS[kind]}`;
 }
 
-export function formatQuantity(qty: number, unit: QuantityUnit): string {
+export function formatQuantity(qty: number, unit: QuantityUnit, pieceLabel?: string | null): string {
   if (!Number.isFinite(qty) || qty <= 0) return '—';
   if (unit === 'km') {
     return `${qty.toLocaleString('th-TH', { maximumFractionDigits: 3 })} กม.`;
@@ -237,5 +312,17 @@ export function formatQuantity(qty: number, unit: QuantityUnit): string {
   if (unit === 'm2') {
     return `${Math.round(qty).toLocaleString('th-TH')} ตร.ม.`;
   }
+  if (unit === 'piece') {
+    return `${Math.round(qty).toLocaleString('th-TH')} ${pieceLabel || 'หน่วย'}`;
+  }
+  if (unit === 'kw') {
+    return `${qty.toLocaleString('th-TH', { maximumFractionDigits: 1 })} กิโลวัตต์`;
+  }
   return `${Math.round(qty).toLocaleString('th-TH')} ม.`;
+}
+
+/** Human label for a unit kind, optionally with piece noun (ระบบ/ชุด). */
+export function unitKindLabel(kind: UnitRateKind, pieceLabel?: string | null): string {
+  if (kind === 'baht_per_piece' && pieceLabel) return `บาท/${pieceLabel}`;
+  return UNIT_RATE_LABELS[kind];
 }

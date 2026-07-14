@@ -21,11 +21,13 @@ const ROOT = path.join(__dirname, '..');
 const CACHE_DIR = path.join(ROOT, 'data', 'contracts-cache');
 const OUT_DIR = path.join(ROOT, 'data', 'benchmarks');
 
-const UNIT_KINDS = ['baht_per_km', 'baht_per_m', 'baht_per_m2'];
+const UNIT_KINDS = ['baht_per_km', 'baht_per_m', 'baht_per_m2', 'baht_per_piece', 'baht_per_kw'];
 const UNIT_LABELS = {
   baht_per_km: 'บาท/กม.',
   baht_per_m: 'บาท/ม.',
   baht_per_m2: 'บาท/ตร.ม.',
+  baht_per_piece: 'บาท/หน่วย',
+  baht_per_kw: 'บาท/กิโลวัตต์',
 };
 
 const CATEGORY_DEFS = [
@@ -35,13 +37,17 @@ const CATEGORY_DEFS = [
   { id: 'water_supply', label: 'ประปา / บาดาล', re: /ประปา|บาดาล|ระบบน้ำ|ถังน้ำ|สถานีสูบ/i },
   { id: 'bridge', label: 'สะพาน / ท่อลอด', re: /สะพาน|ท่อลอด|สะพานลอย/i },
   {
+    id: 'electrical',
+    label: 'ไฟฟ้า / โซลาร์ / แสงสว่าง',
+    re: /โซลาร์|solar|แสงอาทิตย์|rooftop|ระบบผลิตไฟฟ้า|ไฟฟ้า|โคมไฟ|สายไฟฟ้า|หม้อแปลง|ไฟฟ้าส่องสว่าง|ไฟทาง/i,
+  },
+  {
     id: 'building',
     label: 'อาคาร / ก่อสร้างสิ่งปลูกสร้าง',
-    re: /อาคาร|เมรุ|ศาลา|ห้องน้ำ|ศูนย์พัฒนา|ก่อสร้าง.*บ้าน|ปรับปรุงอาคาร|หลังคา|พื้นอาคาร/i,
+    re: /อาคาร|เมรุ|ศาลา|ห้องน้ำ|ศูนย์พัฒนา|ก่อสร้าง.*บ้าน|ปรับปรุงอาคาร|ซ่อมหลังคา|มุงหลังคา|พื้นอาคาร/i,
   },
   { id: 'vehicle', label: 'ยานพาหนะ', re: /รถบรรทุก|รถยนต์|ยานพาหนะ|รถกระบะ|รถขยะ|รถดับเพลิง|จักรยานยนต์/i },
   { id: 'waste', label: 'จัดการขยะ / สิ่งปฏิกูล', re: /ขยะ|สิ่งปฏิกูล|กำจัดขยะ|มูลฝอย/i },
-  { id: 'electrical', label: 'ไฟฟ้า / แสงสว่าง', re: /ไฟฟ้า|โคมไฟ|สายไฟฟ้า|หม้อแปลง|ไฟฟ้าส่องสว่าง|ไฟทาง/i },
   {
     id: 'it_comms',
     label: 'คอมพิวเตอร์ / สื่อสาร',
@@ -251,6 +257,12 @@ console.log(
             : null,
           perM2: v.byUnit?.baht_per_m2
             ? { n: v.byUnit.baht_per_m2.n, median: v.byUnit.baht_per_m2.median }
+            : null,
+          perPiece: v.byUnit?.baht_per_piece
+            ? { n: v.byUnit.baht_per_piece.n, median: v.byUnit.baht_per_piece.median }
+            : null,
+          perKw: v.byUnit?.baht_per_kw
+            ? { n: v.byUnit.baht_per_kw.n, median: v.byUnit.baht_per_kw.median }
             : null,
         },
       ])

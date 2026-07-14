@@ -16,6 +16,14 @@ function primaryUnitCell(c: CategoryRow) {
   if (pref === 'baht_per_m' && c.perM) {
     return { label: `${Math.round(c.perM.median).toLocaleString('th-TH')} บาท/ม.`, n: c.perM.n };
   }
+  if (pref === 'baht_per_kw' && c.perKw) {
+    return { label: `${Math.round(c.perKw.median).toLocaleString('th-TH')} บาท/กิโลวัตต์`, n: c.perKw.n };
+  }
+  if (pref === 'baht_per_piece' && c.perPiece) {
+    return { label: `${Math.round(c.perPiece.median).toLocaleString('th-TH')} บาท/หน่วย`, n: c.perPiece.n };
+  }
+  if (c.perKw) return { label: `${Math.round(c.perKw.median).toLocaleString('th-TH')} บาท/กิโลวัตต์`, n: c.perKw.n };
+  if (c.perPiece) return { label: `${Math.round(c.perPiece.median).toLocaleString('th-TH')} บาท/หน่วย`, n: c.perPiece.n };
   if (c.perKm) return { label: `${Math.round(c.perKm.median).toLocaleString('th-TH')} บาท/กม.`, n: c.perKm.n };
   if (c.perM2) return { label: `${Math.round(c.perM2.median).toLocaleString('th-TH')} บาท/ตร.ม.`, n: c.perM2.n };
   if (c.perM) return { label: `${Math.round(c.perM.median).toLocaleString('th-TH')} บาท/ม.`, n: c.perM.n };
@@ -43,6 +51,8 @@ type CategoryRow = {
   perKm?: { n: number; median: number; p25: number; p75: number } | null;
   perM2?: { n: number; median: number; p25: number; p75: number } | null;
   perM?: { n: number; median: number; p25: number; p75: number } | null;
+  perPiece?: { n: number; median: number; p25: number; p75: number } | null;
+  perKw?: { n: number; median: number; p25: number; p75: number } | null;
 };
 
 type Selected = {

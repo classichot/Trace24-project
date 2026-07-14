@@ -184,13 +184,17 @@ export function buildPriceComparePayload(
   const catId = bm?.categoryId || project.workCategoryId || '';
   const winnerId = project.winner || '';
   const unitKind = (bm?.unitKind ||
-    (parsed.rates.baht_per_km
-      ? 'baht_per_km'
-      : parsed.rates.baht_per_m2
-        ? 'baht_per_m2'
-        : parsed.rates.baht_per_m
-          ? 'baht_per_m'
-          : null)) as UnitRateKind | null;
+    (parsed.rates.baht_per_kw
+      ? 'baht_per_kw'
+      : parsed.rates.baht_per_piece
+        ? 'baht_per_piece'
+        : parsed.rates.baht_per_km
+          ? 'baht_per_km'
+          : parsed.rates.baht_per_m2
+            ? 'baht_per_m2'
+            : parsed.rates.baht_per_m
+              ? 'baht_per_m'
+              : null)) as UnitRateKind | null;
 
   const peers = Object.entries(projects)
     .filter(([id, p]) => {
@@ -208,7 +212,15 @@ export function buildPriceComparePayload(
         const rate = unitRateFromAward(n, unitKind, pq.rates[unitKind]!.qty);
         if (rate) {
           unitRateLabel = `${Math.round(rate).toLocaleString('th-TH')} ${
-            unitKind === 'baht_per_km' ? 'บาท/กม.' : unitKind === 'baht_per_m2' ? 'บาท/ตร.ม.' : 'บาท/ม.'
+            unitKind === 'baht_per_km'
+              ? 'บาท/กม.'
+              : unitKind === 'baht_per_m2'
+                ? 'บาท/ตร.ม.'
+                : unitKind === 'baht_per_kw'
+                  ? 'บาท/กิโลวัตต์'
+                  : unitKind === 'baht_per_piece'
+                    ? `บาท/${pq.pieceLabel || 'หน่วย'}`
+                    : 'บาท/ม.'
           }`;
         }
       }

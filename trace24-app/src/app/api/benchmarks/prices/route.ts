@@ -56,6 +56,22 @@ export async function GET(req: Request) {
             p75: bucket.byUnit.baht_per_m.p75,
           }
         : null,
+      perPiece: bucket.byUnit?.baht_per_piece
+        ? {
+            n: bucket.byUnit.baht_per_piece.n,
+            median: bucket.byUnit.baht_per_piece.median,
+            p25: bucket.byUnit.baht_per_piece.p25,
+            p75: bucket.byUnit.baht_per_piece.p75,
+          }
+        : null,
+      perKw: bucket.byUnit?.baht_per_kw
+        ? {
+            n: bucket.byUnit.baht_per_kw.n,
+            median: bucket.byUnit.baht_per_kw.median,
+            p25: bucket.byUnit.baht_per_kw.p25,
+            p75: bucket.byUnit.baht_per_kw.p75,
+          }
+        : null,
     }))
     .sort((a, b) => b.n - a.n);
 
