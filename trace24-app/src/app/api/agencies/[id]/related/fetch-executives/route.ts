@@ -1,4 +1,5 @@
 import { getCatalogAgency } from '@/lib/agency-catalog';
+import { websiteForAgency } from '@/lib/agency-websites';
 import { isRealAgency, REAL_AGENCIES } from '@/lib/agencies';
 import { fetchAgencyExecutives } from '@/lib/pipeline/fetch-executives';
 import { getOrEmptyRelatedPack } from '@/lib/pipeline/related-party-store';
@@ -22,16 +23,7 @@ export async function POST(
 
   const agency =
     getCatalogAgency(id) || REAL_AGENCIES.find((a) => a.id === id) || null;
-  const knownWeb =
-    body.web ||
-    agency?.web ||
-    ({
-      'egp-5501408': 'papai.go.th',
-      phothale: 'phothale.go.th',
-      nakornnont: 'nakornnont.go.th',
-      nongyaeng: 'nongyaeng.go.th',
-    } as Record<string, string>)[id] ||
-    '';
+  const knownWeb = body.web || agency?.web || websiteForAgency(id) || '';
   const agencyName = agency?.th || id;
 
   const result = await fetchAgencyExecutives({

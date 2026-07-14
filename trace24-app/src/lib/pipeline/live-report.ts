@@ -182,7 +182,14 @@ export function enrichStubWithContracts(
   const provRanked = [...provCount.entries()].sort((a, b) => b[1] - a[1]);
   const distRanked = [...distCount.entries()].sort((a, b) => b[1] - a[1]);
   const primaryProv = stub.agency.prov || provRanked[0]?.[0] || '';
-  const primaryDist = stub.agency.dist || distRanked[0]?.[0] || '';
+  // Prefer catalog อำเภอ — contract เขต/อำเภอ is often the tambon name (e.g. "ป่าไผ่")
+  const contractDist = distRanked[0]?.[0] || '';
+  const primaryDist =
+    stub.agency.dist ||
+    (contractDist && contractDist !== stub.agency.th.replace(/^เทศบาล(ตำบล|เมือง|นคร)/, '').trim()
+      ? contractDist
+      : '') ||
+    '';
   const multiProv = provRanked.length > 1;
   const locFromContracts = multiProv
     ? `พบหลายจังหวัดในสัญญา: ${provRanked.map(([p, n]) => `${p} (${n})`).join(' · ')} — ชื่อหน่วยงานซ้ำได้`
@@ -209,8 +216,30 @@ export function enrichStubWithContracts(
     pct: `${Math.round((t.n / maxN) * 100)}%`,
   }));
 
-  const firstPid = Object.keys(projects).slice(0, 1)[0] || '';
-  const firstCid = Object.keys(contractors).slice(0, 1)[0] || '';
+  const parseAward = (s: unknown) => {
+    const n = Number(String(s || '').replace(/[^0-9.]/g, ''));
+    return Number.isFinite(n) ? n : 0;
+  };
+  const priorityOrder = Object.entries(projects)
+    .map(([id, raw]) => {
+      const p = raw as { winner?: string | null; award?: string; alerts?: unknown[] };
+      return {
+        id,
+        hasWinner: p.winner ? 1 : 0,
+        award: parseAward(p.award),
+        alerts: Array.isArray(p.alerts) ? p.alerts.length : 0,
+      };
+    })
+    .sort((a, b) => b.hasWinner - a.hasWinner || b.alerts - a.alerts || b.award - a.award)
+    .slice(0, 8)
+    .map((x) => x.id);
+
+  const firstPid = priorityOrder[0] || Object.keys(projects).slice(0, 1)[0] || '';
+  const firstCid =
+    (firstPid && (projects[firstPid] as { winner?: string | null })?.winner) ||
+    topContractors[0]?.id ||
+    Object.keys(contractors).slice(0, 1)[0] ||
+    '';
 
   const uiGraph = buildUiEntityGraph({
     agency: stub.agency,
@@ -218,6 +247,7 @@ export function enrichStubWithContracts(
     contractors,
     relatedMatches: (stub as { relatedParty?: { matches?: unknown[] } }).relatedParty?.matches as
       | undefined,
+    preferProjectIds: priorityOrder,
   });
 
   return {
@@ -229,12 +259,12 @@ export function enrichStubWithContracts(
       dataGapNote: Object.keys(projects).length
         ? multiProv
           ? `ชื่อ「${stub.agency.th}」พบสัญญาในหลายจังหวัด — แยกรหัสหน่วยงาน/พื้นที่ก่อนสรุปผล`
-          : 'ข้อมูลสัญญาจาก CKAN egp-contact — ผู้ชนะอาจไม่ครบหากคอลัมน์เพี้ยน'
+          : 'ข้อมูลสัญญาจากแคช egp-contact (คอลัมน์ผู้ชนะถูก normalize แล้ว)'
         : stub.meta.dataGapNote,
       catalogOnly: Object.keys(projects).length === 0,
       packageId,
       priorityNote: Object.keys(projects).length
-        ? `แสดง ${Math.min(8, Object.keys(projects).length)} จาก ${Object.keys(projects).length} โครงการ`
+        ? `เรียงโครงการที่มีผู้ชนะ/มูลค่า · ${Math.min(8, Object.keys(projects).length)} จาก ${Object.keys(projects).length} โครงการ`
         : 'ยังไม่มีโครงการในแคช',
       graphTitle: uiGraph.meta.graphTitle,
       graphNote: uiGraph.meta.graphNote,
@@ -258,7 +288,7 @@ export function enrichStubWithContracts(
     contractors,
     topContractors: topWithPct,
     alerts: [],
-    priorityOrder: Object.keys(projects).slice(0, 8),
+    priorityOrder,
     def: {
       project: firstPid,
       contractor: firstCid,

@@ -8,13 +8,9 @@ import { chatCompletion, parseJsonLoose } from '@/lib/llm/client';
 import { getLlmConfig } from '@/lib/llm/config';
 import type { AgencyExecutive } from './related-party';
 
-const KNOWN_WEB: Record<string, string> = {
-  phothale: 'phothale.go.th',
-  nakornnont: 'nakornnont.go.th',
-  nongyaeng: 'nongyaeng.go.th',
-  'egp-5501408': 'papai.go.th',
-  'egp-6501402': 'nongyaeng.go.th',
-};
+import { KNOWN_AGENCY_WEBSITES } from '@/lib/agency-websites';
+
+const KNOWN_WEB = KNOWN_AGENCY_WEBSITES;
 
 const UA = {
   'User-Agent': 'TRACE24/1.3 (public integrity research; +https://trace24-app.vercel.app)',

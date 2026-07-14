@@ -1,20 +1,27 @@
 import type { AgencyRecord } from '@/lib/agencies';
+import { websiteForAgency } from '@/lib/agency-websites';
 import { govSpendingPortalSearchUrl } from '@/lib/gov-apis/govspending';
 import { buildUiEntityGraph } from './ui-entity-graph';
 
 /** Minimal live dataset for catalog agencies without a cached report yet. */
 export function buildCatalogStubReport(agency: AgencyRecord) {
-  const keyword = agency.th;
+  const withWeb = {
+    ...agency,
+    web: agency.web || websiteForAgency(agency.id) || '',
+  };
+  const keyword = withWeb.th;
   const uiGraph = buildUiEntityGraph({
-    agency,
+    agency: withWeb,
     projects: {},
     contractors: {},
     relatedMatches: [],
   });
   return {
     agency: {
-      ...agency,
-      dataUrl: agency.web ? `https://www.${agency.web}/` : 'https://data.go.th/dataset/egpdepartment',
+      ...withWeb,
+      dataUrl: withWeb.web
+        ? `https://www.${withWeb.web.replace(/^www\./, '')}/`
+        : 'https://data.go.th/dataset/egpdepartment',
       egpKeyword: keyword,
     },
     meta: {

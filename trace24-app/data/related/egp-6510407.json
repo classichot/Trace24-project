@@ -1,0 +1,83 @@
+{
+  "agencyId": "egp-6510407",
+  "updatedAt": "2026-07-14T06:01:32.010Z",
+  "note": "เทศบาลตำบลป่าไผ่ จ.ลำพูน — stub ผู้ชนะจาก contracts-cache · ใส่กรรมการจาก DBD/บอจ.5 และทำเนียบจาก https://www.paphai.go.th/",
+  "executives": [],
+  "companies": [
+    {
+      "name": "เอ็มพี คอมพิวเตอร์",
+      "directors": [],
+      "sourceUrl": "https://datawarehouse.dbd.go.th/",
+      "fetchedAt": "2026-07-14T06:01:32.010Z"
+    },
+    {
+      "name": "เรวัต พาณิชย์",
+      "directors": [],
+      "sourceUrl": "https://datawarehouse.dbd.go.th/",
+      "fetchedAt": "2026-07-14T06:01:32.010Z"
+    },
+    {
+      "name": "นายชนาวุธ ทาปัญญา",
+      "directors": [],
+      "sourceUrl": "https://datawarehouse.dbd.go.th/",
+      "fetchedAt": "2026-07-14T06:01:32.010Z"
+    },
+    {
+      "name": "นางอ้อย ปันกอ",
+      "directors": [],
+      "sourceUrl": "https://datawarehouse.dbd.go.th/",
+      "fetchedAt": "2026-07-14T06:01:32.010Z"
+    },
+    {
+      "name": "ส.ครุภัณฑ์",
+      "directors": [],
+      "sourceUrl": "https://datawarehouse.dbd.go.th/",
+      "fetchedAt": "2026-07-14T06:01:32.010Z"
+    },
+    {
+      "tin": "0603553000036",
+      "name": "ห้างหุ้นส่วนจำกัด พลเจริญคอนกรีต",
+      "directors": [],
+      "sourceUrl": "https://datawarehouse.dbd.go.th/company/profile/1/0603553000036",
+      "fetchedAt": "2026-07-14T06:01:32.010Z"
+    },
+    {
+      "name": "ร้านสปอร์ตไลฟ์",
+      "directors": [],
+      "sourceUrl": "https://datawarehouse.dbd.go.th/",
+      "fetchedAt": "2026-07-14T06:01:32.010Z"
+    },
+    {
+      "name": "ร้านชัชวาลย์พานิชย์",
+      "directors": [],
+      "sourceUrl": "https://datawarehouse.dbd.go.th/",
+      "fetchedAt": "2026-07-14T06:01:32.010Z"
+    },
+    {
+      "name": "อู่ น.ลี้ (ช่างนี)",
+      "directors": [],
+      "sourceUrl": "https://datawarehouse.dbd.go.th/",
+      "fetchedAt": "2026-07-14T06:01:32.010Z"
+    },
+    {
+      "tin": "0513561001519",
+      "name": "ห้างหุ้นส่วนจำกัดอู่มานะกลการ (2536)",
+      "directors": [],
+      "sourceUrl": "https://datawarehouse.dbd.go.th/company/profile/1/0513561001519",
+      "fetchedAt": "2026-07-14T06:01:32.010Z"
+    },
+    {
+      "name": "เอ็มเอ็ม พรีซิซั่น",
+      "directors": [],
+      "sourceUrl": "https://datawarehouse.dbd.go.th/",
+      "fetchedAt": "2026-07-14T06:01:32.010Z"
+    },
+    {
+      "tin": "0515558000363",
+      "name": "บริษัท ช.โฮม จำกัด",
+      "directors": [],
+      "sourceUrl": "https://datawarehouse.dbd.go.th/company/profile/1/0515558000363",
+      "fetchedAt": "2026-07-14T06:01:32.010Z"
+    }
+  ]
+}

@@ -62,17 +62,37 @@ export function buildUiEntityGraph(input: {
   projects: Record<string, ProjectLike>;
   contractors: Record<string, ContractorLike>;
   relatedMatches?: RelatedMatch[];
+  preferProjectIds?: string[];
 }) {
-  const { agency, projects, contractors, relatedMatches = [] } = input;
+  const { agency, projects, contractors, relatedMatches = [], preferProjectIds } = input;
   const nodes: UiNode[] = [];
   const edges: UiEdge[] = [];
   const details: Record<string, UiDetail> = {};
 
-  const projectIds = Object.keys(projects).slice(0, 8);
-  const contractorIds = Object.entries(contractors)
-    .sort((a, b) => (b[1].contracts || 0) - (a[1].contracts || 0))
-    .slice(0, 8)
-    .map(([id]) => id);
+  const rankedProjectIds =
+    preferProjectIds?.filter((id) => projects[id]) ||
+    Object.entries(projects)
+      .sort((a, b) => {
+        const aw = a[1].winner || a[1].winnerId ? 1 : 0;
+        const bw = b[1].winner || b[1].winnerId ? 1 : 0;
+        return bw - aw;
+      })
+      .map(([id]) => id);
+  const projectIds = rankedProjectIds.slice(0, 8);
+
+  const linkedContractorIds = new Set<string>();
+  for (const pid of projectIds) {
+    const p = projects[pid];
+    if (p.winner && contractors[p.winner]) linkedContractorIds.add(p.winner);
+    if (p.winnerId && contractors[p.winnerId]) linkedContractorIds.add(p.winnerId);
+  }
+  const contractorIds = [
+    ...linkedContractorIds,
+    ...Object.entries(contractors)
+      .sort((a, b) => (b[1].contracts || 0) - (a[1].contracts || 0))
+      .map(([id]) => id)
+      .filter((id) => !linkedContractorIds.has(id)),
+  ].slice(0, 8);
 
   nodes.push({
     id: 'muni',

@@ -146,7 +146,8 @@ export function AdminScreen() {
   useEffect(() => {
     if (adminTab !== 'related') return;
     const known: Record<string, string> = {
-      'egp-5501408': 'papai.go.th',
+      'egp-5501408': 'paphaichiangmai.go.th',
+      'egp-6510407': 'paphai.go.th',
       phothale: 'phothale.go.th',
       nakornnont: 'nakornnont.go.th',
       nongyaeng: 'nongyaeng.go.th',

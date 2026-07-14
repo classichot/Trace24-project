@@ -1,0 +1,90 @@
+{
+  "agencyId": "egp-5501408",
+  "updatedAt": "2026-07-14T06:01:32.003Z",
+  "note": "เทศบาลตำบลป่าไผ่ จ.เชียงใหม่ — stub ผู้ชนะจาก contracts-cache · ใส่กรรมการจาก DBD/บอจ.5 และทำเนียบจาก https://www.paphaichiangmai.go.th/",
+  "executives": [],
+  "companies": [
+    {
+      "tin": "0503561008203",
+      "name": "ห้างหุ้นส่วนจำกัด เพิ่มพูนกรุ๊ป 999",
+      "directors": [],
+      "sourceUrl": "https://datawarehouse.dbd.go.th/company/profile/1/0503561008203",
+      "fetchedAt": "2026-07-14T06:01:32.002Z"
+    },
+    {
+      "tin": "0513546001635",
+      "name": "ห้างหุ้นส่วนจำกัด แม่วังก่อสร้าง",
+      "directors": [],
+      "sourceUrl": "https://datawarehouse.dbd.go.th/company/profile/1/0513546001635",
+      "fetchedAt": "2026-07-14T06:01:32.003Z"
+    },
+    {
+      "tin": "0505546003915",
+      "name": "บริษัท สุรีย์รัชตคาร์เซ็นเตอร์ จำกัด",
+      "directors": [],
+      "sourceUrl": "https://datawarehouse.dbd.go.th/company/profile/1/0505546003915",
+      "fetchedAt": "2026-07-14T06:01:32.003Z"
+    },
+    {
+      "tin": "0994000433859",
+      "name": "สหกรณ์โคนมเชียงใหม่ จำกัด",
+      "directors": [],
+      "sourceUrl": "https://datawarehouse.dbd.go.th/company/profile/1/0994000433859",
+      "fetchedAt": "2026-07-14T06:01:32.003Z"
+    },
+    {
+      "name": "นายไพรัตน์ พื้นผา",
+      "directors": [],
+      "sourceUrl": "https://datawarehouse.dbd.go.th/",
+      "fetchedAt": "2026-07-14T06:01:32.003Z"
+    },
+    {
+      "name": "ร้าน Design ๒๖๑๒ โดย นายฐาปะกรณ์ อินต๊ะ",
+      "directors": [],
+      "sourceUrl": "https://datawarehouse.dbd.go.th/",
+      "fetchedAt": "2026-07-14T06:01:32.003Z"
+    },
+    {
+      "tin": "0505558007201",
+      "name": "บริษัท แอดวานซ์ กรุ๊ป (999) จำกัด",
+      "directors": [],
+      "sourceUrl": "https://datawarehouse.dbd.go.th/company/profile/1/0505558007201",
+      "fetchedAt": "2026-07-14T06:01:32.003Z"
+    },
+    {
+      "tin": "0503542002386",
+      "name": "ห้างหุ้นส่วนจำกัด อินเตอร์ สเปเชียล โปรดักท์",
+      "directors": [],
+      "sourceUrl": "https://datawarehouse.dbd.go.th/company/profile/1/0503542002386",
+      "fetchedAt": "2026-07-14T06:01:32.003Z"
+    },
+    {
+      "tin": "0505556010051",
+      "name": "บริษัท เชียงใหม่เมืองสะอาด จำกัด",
+      "directors": [],
+      "sourceUrl": "https://datawarehouse.dbd.go.th/company/profile/1/0505556010051",
+      "fetchedAt": "2026-07-14T06:01:32.003Z"
+    },
+    {
+      "tin": "0505545003199",
+      "name": "บริษัท ธราวิทย์ คอนสตรัคชั่น จำกัด",
+      "directors": [],
+      "sourceUrl": "https://datawarehouse.dbd.go.th/company/profile/1/0505545003199",
+      "fetchedAt": "2026-07-14T06:01:32.003Z"
+    },
+    {
+      "tin": "0503552004055",
+      "name": "ห้างหุ้นส่วนจำกัด ปกรนันท์ธุรกิจ",
+      "directors": [],
+      "sourceUrl": "https://datawarehouse.dbd.go.th/company/profile/1/0503552004055",
+      "fetchedAt": "2026-07-14T06:01:32.003Z"
+    },
+    {
+      "tin": "0503566004214",
+      "name": "ห้างหุ้นส่วนจำกัด ทีทีเอส แอร์เซอร์วิส แอนด์ ซัพพลาย เชียงใหม่",
+      "directors": [],
+      "sourceUrl": "https://datawarehouse.dbd.go.th/company/profile/1/0503566004214",
+      "fetchedAt": "2026-07-14T06:01:32.003Z"
+    }
+  ]
+}
