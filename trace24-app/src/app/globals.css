@@ -42,6 +42,15 @@
   }
 }
 
+@keyframes trace24-shimmer {
+  0% {
+    background-position: 100% 0;
+  }
+  100% {
+    background-position: -100% 0;
+  }
+}
+
 .trace24-scan-spin {
   width: 18px;
   height: 18px;
@@ -52,10 +61,63 @@
   flex-shrink: 0;
 }
 
+.trace24-scan-spin--sm {
+  width: 14px;
+  height: 14px;
+  border-width: 1.5px;
+}
+
+.trace24-loading-hint {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.trace24-loading-hint__row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.trace24-loading-hint__label {
+  font-size: 13.5px;
+  color: #55554f;
+  line-height: 1.45;
+}
+
+.trace24-loading-hint__hint {
+  margin-top: 8px;
+  font-size: 12px;
+  color: #8b8b85;
+  animation: pulse 1.6s ease-in-out infinite;
+}
+
+.trace24-loading-hint--inline {
+  display: inline-flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+}
+
+.trace24-loading-hint--inline .trace24-loading-hint__label {
+  font-size: 13px;
+  color: #8b8b85;
+}
+
+.trace24-loading-hint--block {
+  padding: 8px 0 4px;
+}
+
+.trace24-btn-busy {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .trace24-scan-track {
   position: relative;
   height: 2px;
-  margin-top: 16px;
+  margin-top: 14px;
   overflow: hidden;
   background: #e8e8e4;
 }

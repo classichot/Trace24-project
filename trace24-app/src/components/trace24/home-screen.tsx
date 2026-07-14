@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { REAL_AGENCIES, type AgencyRecord } from '@/lib/agencies';
 import { D, useTrace24 } from '@/context/trace24-context';
-import { Footer, Logo } from './ui';
+import { Footer, Logo, LoadingHint } from './ui';
 
 type SearchHit = AgencyRecord & { cached?: boolean };
 
@@ -265,13 +265,11 @@ export function HomeScreen() {
                 background: '#fff',
                 border: '1px solid #111110',
                 borderTop: 'none',
-                padding: '12px 18px',
-                fontSize: 13,
-                color: '#8B8B85',
+                padding: '10px 18px',
                 zIndex: 20,
               }}
             >
-              กำลังค้นหา…
+              <LoadingHint label="กำลังค้นหาหน่วยงาน" variant="inline" />
             </div>
           )}
 

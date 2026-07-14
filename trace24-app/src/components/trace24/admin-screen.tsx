@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { isRealAgency } from '@/lib/agencies';
 import { useTrace24 } from '@/context/trace24-context';
 import { REVIEW_OPTIONS, sev } from '@/lib/utils';
-import { SeverityBadge, inputStyle, selectStyle, RiskDisclaimer } from './ui';
+import { SeverityBadge, inputStyle, selectStyle, RiskDisclaimer, LoadingHint } from './ui';
 import type { InvestigationPack, PipelineStatusResponse, HybridRagResult } from '@/lib/pipeline/types';
 
 type LlmReview = {
@@ -136,6 +136,28 @@ export function AdminScreen() {
   const [relatedCoverage, setRelatedCoverage] = useState('');
   const [relatedMsg, setRelatedMsg] = useState<string | null>(null);
   const [relatedBusy, setRelatedBusy] = useState(false);
+  const [relatedFetchBusy, setRelatedFetchBusy] = useState(false);
+  const [relatedDirectorsBusy, setRelatedDirectorsBusy] = useState(false);
+  const [relatedExecUrl, setRelatedExecUrl] = useState('');
+  const [relatedDbdPaste, setRelatedDbdPaste] = useState('');
+  const [relatedDbdTin, setRelatedDbdTin] = useState('');
+  const [relatedDbdName, setRelatedDbdName] = useState('');
+
+  useEffect(() => {
+    if (adminTab !== 'related') return;
+    const known: Record<string, string> = {
+      'egp-5501408': 'papai.go.th',
+      phothale: 'phothale.go.th',
+      nakornnont: 'nakornnont.go.th',
+      nongyaeng: 'nongyaeng.go.th',
+    };
+    const web = dataset.agency?.web || (scannedId ? known[scannedId] : '') || '';
+    if (!web) return;
+    setRelatedExecUrl((prev) => {
+      if (prev.trim()) return prev;
+      return web.includes('://') ? web : `https://www.${web.replace(/^www\./, '')}/`;
+    });
+  }, [adminTab, scannedId, dataset.agency?.web]);
 
   useEffect(() => {
     if (adminTab !== 'pipeline') return;
@@ -229,6 +251,75 @@ export function AdminScreen() {
       })
       .catch((e: Error) => setRelatedMsg(e.message))
       .finally(() => setRelatedBusy(false));
+  };
+
+  const fetchExecutivesFromWeb = () => {
+    if (!isRealAgency(scannedId)) return;
+    setRelatedFetchBusy(true);
+    setRelatedMsg(null);
+    const web = dataset.agency?.web || '';
+    fetch(`/api/agencies/${encodeURIComponent(scannedId)}/related/fetch-executives`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        url: relatedExecUrl.trim() || undefined,
+        web: web || undefined,
+        merge: true,
+      }),
+    })
+      .then(async (r) => {
+        const data = await r.json().catch(() => ({}));
+        if (!r.ok) throw new Error(data.error || data.note || `HTTP ${r.status}`);
+        return data;
+      })
+      .then((d) => {
+        if (d.draftPack) setRelatedPackJson(JSON.stringify(d.draftPack, null, 2));
+        const srcOk = (d.sources || []).filter((s: { ok: boolean }) => s.ok).length;
+        setRelatedMsg(
+          `${d.note || ''}${d.model ? ` · model ${d.model}` : ''} · หน้าที่ดึงได้ ${srcOk}/${(d.sources || []).length} — ตรวจแก้ JSON แล้วกดบันทึก`
+        );
+      })
+      .catch((e: Error) => setRelatedMsg(e.message))
+      .finally(() => setRelatedFetchBusy(false));
+  };
+
+  const fetchDirectorsFromDbd = (mode: 'winners' | 'paste' = 'winners') => {
+    if (!isRealAgency(scannedId)) return;
+    setRelatedDirectorsBusy(true);
+    setRelatedMsg(null);
+    const body =
+      mode === 'paste'
+        ? {
+            merge: true,
+            pasteText: relatedDbdPaste.trim(),
+            pasteTin: relatedDbdTin.trim() || undefined,
+            pasteName: relatedDbdName.trim() || undefined,
+          }
+        : { merge: true, limit: 10 };
+    fetch(`/api/agencies/${encodeURIComponent(scannedId)}/related/fetch-directors`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    })
+      .then(async (r) => {
+        const data = await r.json().catch(() => ({}));
+        if (!r.ok) throw new Error(data.error || data.note || `HTTP ${r.status}`);
+        return data;
+      })
+      .then((d) => {
+        if (d.draftPack) setRelatedPackJson(JSON.stringify(d.draftPack, null, 2));
+        const nCo = (d.companies || []).length;
+        const nDir = (d.companies || []).reduce(
+          (s: number, c: { directors?: unknown[] }) => s + (c.directors?.length || 0),
+          0
+        );
+        setRelatedMsg(
+          `${d.note || ''}${d.model ? ` · model ${d.model}` : ''} · draft ${nCo} บริษัท / ${nDir} รายชื่อ — ตรวจแก้แล้วกดบันทึก`
+        );
+        if (mode === 'paste' && d.ok) setRelatedDbdPaste('');
+      })
+      .catch((e: Error) => setRelatedMsg(e.message))
+      .finally(() => setRelatedDirectorsBusy(false));
   };
 
   const runRag = () => {
@@ -531,7 +622,23 @@ export function AdminScreen() {
             — นามสกุลตรงกันเป็นเพียง lead (ระดับ Medium) ไม่ใช่ข้อพิสูจน์
           </p>
           <RiskDisclaimer style={{ marginBottom: 16 }} />
-          {relatedBusy && <div style={{ fontSize: 13, color: '#8B8B85', marginBottom: 12 }}>กำลังโหลด…</div>}
+          {relatedBusy && !relatedFetchBusy && !relatedDirectorsBusy && (
+            <LoadingHint label="กำลังโหลดความเชื่อมโยง" style={{ marginBottom: 12 }} />
+          )}
+          {relatedFetchBusy && (
+            <LoadingHint
+              label="กำลังดึงทำเนียบจากเว็บ"
+              hint="ดึงหน้า HTML แล้วให้ AI สกัดชื่อ — อาจใช้เวลาหลายวินาที"
+              style={{ marginBottom: 12 }}
+            />
+          )}
+          {relatedDirectorsBusy && (
+            <LoadingHint
+              label="กำลังดึงกรรมการจาก DBD"
+              hint="รวบรวมผู้ชนะ · ลองเปิดโปรไฟล์ DBD · หรือสกัดจากข้อความที่วาง"
+              style={{ marginBottom: 12 }}
+            />
+          )}
           {relatedCoverage && (
             <div style={{ fontSize: 13.5, marginBottom: 14, lineHeight: 1.55 }}>{relatedCoverage}</div>
           )}
@@ -551,10 +658,119 @@ export function AdminScreen() {
             </div>
           )}
           <div style={{ fontSize: 12.5, color: '#8B8B85', marginBottom: 8 }}>
-            แก้ไข JSON แล้วกดบันทึก — ใช้เลขนิติบุคคล (tin) ให้ตรงกับผู้ชนะจากภาษีไปไหน · แหล่งอ้างอิง:{' '}
-            <a href="https://data.dbd.go.th/" target="_blank" rel="noreferrer" style={{ color: '#55554F' }}>
-              data.dbd.go.th
+            ดึงทำเนียบจากเว็บหน่วยงาน · ดึงกรรมการผู้ชนะจาก DBD (กึ่งอัตโนมัติ — ตรวจก่อนบันทึก) ·{' '}
+            <a href="https://datawarehouse.dbd.go.th/" target="_blank" rel="noreferrer" style={{ color: '#55554F' }}>
+              datawarehouse.dbd.go.th
             </a>
+          </div>
+          <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap', alignItems: 'center' }}>
+            <input
+              value={relatedExecUrl}
+              onChange={(e) => setRelatedExecUrl(e.target.value)}
+              placeholder="https://www.…go.th/ หน้าทำเนียบหรือหน้าแรก"
+              style={{ ...inputStyle, flex: '1 1 280px', minWidth: 200 }}
+            />
+            <div
+              onClick={relatedFetchBusy || relatedDirectorsBusy ? undefined : fetchExecutivesFromWeb}
+              className="trace24-btn-outline"
+              style={{
+                padding: '10px 16px',
+                fontSize: 13,
+                opacity: relatedFetchBusy || relatedDirectorsBusy || !isRealAgency(scannedId) ? 0.55 : 1,
+                cursor: relatedFetchBusy ? 'wait' : 'pointer',
+                userSelect: 'none',
+              }}
+            >
+              {relatedFetchBusy ? (
+                <span className="trace24-btn-busy">
+                  <span className="trace24-scan-spin trace24-scan-spin--sm" aria-hidden />
+                  กำลังดึง
+                </span>
+              ) : (
+                'ดึงทำเนียบจากเว็บ'
+              )}
+            </div>
+            <div
+              onClick={
+                relatedFetchBusy || relatedDirectorsBusy ? undefined : () => fetchDirectorsFromDbd('winners')
+              }
+              className="trace24-btn-outline"
+              style={{
+                padding: '10px 16px',
+                fontSize: 13,
+                opacity: relatedFetchBusy || relatedDirectorsBusy || !isRealAgency(scannedId) ? 0.55 : 1,
+                cursor: relatedDirectorsBusy ? 'wait' : 'pointer',
+                userSelect: 'none',
+              }}
+            >
+              {relatedDirectorsBusy ? (
+                <span className="trace24-btn-busy">
+                  <span className="trace24-scan-spin trace24-scan-spin--sm" aria-hidden />
+                  กำลังดึง DBD
+                </span>
+              ) : (
+                'ดึงกรรมการจาก DBD'
+              )}
+            </div>
+          </div>
+          <div
+            style={{
+              marginBottom: 14,
+              padding: '12px 14px',
+              background: '#F6F6F3',
+              border: '1px solid #E4E4E0',
+            }}
+          >
+            <div style={{ fontSize: 12.5, color: '#55554F', marginBottom: 8, lineHeight: 1.5 }}>
+              ถ้า DBD บล็อกเซิร์ฟเวอร์: เปิดลิงก์ใน JSON (`sourceUrl`) → คัดลอกส่วนกรรมการ/ผู้ถือหุ้นมาวางที่นี่ → กดสกัด
+            </div>
+            <div style={{ display: 'flex', gap: 8, marginBottom: 8, flexWrap: 'wrap' }}>
+              <input
+                value={relatedDbdTin}
+                onChange={(e) => setRelatedDbdTin(e.target.value)}
+                placeholder="เลขนิติบุคคล 13 หลัก (ถ้ามี)"
+                style={{ ...inputStyle, flex: '1 1 160px', minWidth: 140 }}
+              />
+              <input
+                value={relatedDbdName}
+                onChange={(e) => setRelatedDbdName(e.target.value)}
+                placeholder="ชื่อบริษัท (ถ้ามี)"
+                style={{ ...inputStyle, flex: '1 1 200px', minWidth: 160 }}
+              />
+            </div>
+            <textarea
+              value={relatedDbdPaste}
+              onChange={(e) => setRelatedDbdPaste(e.target.value)}
+              rows={4}
+              placeholder="วางข้อความจากหน้า DBD / บอจ.5 ที่นี่…"
+              style={{
+                ...inputStyle,
+                width: '100%',
+                fontSize: 12.5,
+                lineHeight: 1.45,
+                resize: 'vertical',
+                boxSizing: 'border-box',
+                marginBottom: 8,
+              }}
+            />
+            <div
+              onClick={
+                relatedDirectorsBusy || relatedDbdPaste.trim().length < 40
+                  ? undefined
+                  : () => fetchDirectorsFromDbd('paste')
+              }
+              className="trace24-btn-outline"
+              style={{
+                display: 'inline-block',
+                padding: '9px 14px',
+                fontSize: 12.5,
+                opacity: relatedDirectorsBusy || relatedDbdPaste.trim().length < 40 ? 0.5 : 1,
+                cursor: relatedDbdPaste.trim().length < 40 ? 'not-allowed' : 'pointer',
+                userSelect: 'none',
+              }}
+            >
+              สกัดกรรมการจากข้อความที่วาง
+            </div>
           </div>
           <textarea
             value={relatedPackJson}
@@ -864,7 +1080,9 @@ export function AdminScreen() {
           <p style={{ margin: '0 0 22px', fontSize: 13.5, color: '#55554F', maxWidth: 760, lineHeight: 1.6 }}>
             Source → Ingestion → Evidence → Extract/Normalise → DB/Graph → Detection → Risk → Alerts / Investigation Assistant
           </p>
-          {!pipelineStatus && <div style={{ fontSize: 13, color: '#8B8B85' }}>กำลังโหลดสถานะท่อข้อมูล…</div>}
+          {!pipelineStatus && (
+            <LoadingHint label="กำลังโหลดสถานะท่อข้อมูล" hint="อ่านสถาปัตยกรรมและสถานะเลเยอร์" />
+          )}
           {pipelineStatus && (
             <>
               <div style={{ fontSize: 12, color: '#8B8B85', marginBottom: 14 }}>
@@ -990,7 +1208,35 @@ export function AdminScreen() {
             สำนวนจากหลักฐานสาธารณะ · กราฟความสัมพันธ์ · ข้อเท็จจริง / สัญญาณ / ข้อสรุป · Hybrid Graph RAG
           </p>
           <RiskDisclaimer style={{ marginBottom: 20, maxWidth: 760 }} />
-          {packLoading && <div style={{ fontSize: 13, color: '#8B8B85' }}>กำลังสร้างสำนวน…</div>}
+          {packLoading && (
+            <LoadingHint
+              label="กำลังสร้างสำนวน"
+              hint="รวบรวมหลักฐาน · สัญญาณ · กราฟความสัมพันธ์"
+              style={{ marginBottom: 16, maxWidth: 480 }}
+            />
+          )}
+          {llmBusy && !packLoading && (
+            <LoadingHint
+              label={
+                llmBusy === 'review-signals'
+                  ? 'กำลังทบทวนสัญญาณด้วย AI'
+                  : llmBusy === 'propose-rules'
+                    ? 'กำลังร่างกฎด้วย AI'
+                    : llmBusy === 'refine-brief'
+                      ? 'กำลังปรับสรุปสำนวนด้วย AI'
+                      : 'กำลังประมวลผลด้วย AI'
+              }
+              hint="กฎความเสี่ยงยังมาจากระบบกฎเท่านั้น — AI ช่วยอ่านและจัดลำดับ"
+              style={{ marginBottom: 16, maxWidth: 520 }}
+            />
+          )}
+          {ragLoading && (
+            <LoadingHint
+              label="กำลังตอบคำถามจากหลักฐาน"
+              hint="Hybrid Graph RAG"
+              style={{ marginBottom: 16, maxWidth: 480 }}
+            />
+          )}
           {packError && <div style={{ fontSize: 13.5, color: 'var(--accent)' }}>{packError}</div>}
           {pack && (
             <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.2fr) minmax(0, 1fr)', gap: 36 }}>
@@ -1015,7 +1261,14 @@ export function AdminScreen() {
                     className="trace24-btn-dark"
                     style={{ padding: '11px 18px', fontSize: 13, flex: 'none' }}
                   >
-                    {ragLoading ? '…' : 'ถาม'}
+                    {ragLoading ? (
+                      <span className="trace24-btn-busy">
+                        <span className="trace24-scan-spin trace24-scan-spin--sm" aria-hidden />
+                        ถาม
+                      </span>
+                    ) : (
+                      'ถาม'
+                    )}
                   </div>
                 </div>
                 {ragResult && (
@@ -1086,7 +1339,14 @@ export function AdminScreen() {
                         pointerEvents: llmBusy ? 'none' : 'auto',
                       }}
                     >
-                      {llmBusy === action ? '…' : label}
+                      {llmBusy === action ? (
+                        <span className="trace24-btn-busy">
+                          <span className="trace24-scan-spin trace24-scan-spin--sm" aria-hidden />
+                          {label}
+                        </span>
+                      ) : (
+                        label
+                      )}
                     </div>
                   ))}
                 </div>
@@ -1375,7 +1635,14 @@ export function AdminScreen() {
               className="trace24-btn-dark"
               style={{ padding: '11px 16px', fontSize: 13, opacity: llmBusy ? 0.6 : 1 }}
             >
-              {llmBusy === 'propose-rules' ? 'กำลังร่าง…' : 'ร่างกฎจากหน่วยงานปัจจุบัน'}
+              {llmBusy === 'propose-rules' ? (
+                <span className="trace24-btn-busy">
+                  <span className="trace24-scan-spin trace24-scan-spin--sm" aria-hidden />
+                  กำลังร่าง
+                </span>
+              ) : (
+                'ร่างกฎจากหน่วยงานปัจจุบัน'
+              )}
             </div>
             {!isRealAgency(scannedId) && (
               <div style={{ fontSize: 12.5, color: 'var(--accent)', alignSelf: 'center' }}>
@@ -1385,7 +1652,7 @@ export function AdminScreen() {
           </div>
           {rulesMsg && <div style={{ fontSize: 12.5, color: '#55554F', marginBottom: 12 }}>{rulesMsg}</div>}
           {llmError && <div style={{ fontSize: 12.5, color: 'var(--accent)', marginBottom: 12 }}>{llmError}</div>}
-          {rulesLoading && <div style={{ fontSize: 13, color: '#8B8B85' }}>กำลังโหลดคิวดร่างกฎ…</div>}
+          {rulesLoading && <LoadingHint label="กำลังโหลดคิวดร่างกฎ" style={{ marginBottom: 12 }} />}
           <div style={{ borderTop: '1px solid #111110' }}>
             {ruleRows.length === 0 && !rulesLoading && (
               <div style={{ padding: '14px 0', fontSize: 13, color: '#8B8B85' }}>ยังไม่มีร่างกฎ — กด「ร่างกฎจากหน่วยงานปัจจุบัน」</div>

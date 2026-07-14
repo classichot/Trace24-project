@@ -2,6 +2,7 @@
 
 import { useMemo } from 'react';
 import { useTrace24 } from '@/context/trace24-context';
+import { LoadingHint } from './ui';
 
 export function ScanScreen() {
   const { muni, dataset, scanStep, datasetLoading, datasetError, go } = useTrace24();
@@ -48,22 +49,11 @@ export function ScanScreen() {
 
       <div style={{ marginTop: 40, borderTop: '1px solid #E4E4E0' }}>
         {datasetLoading && (
-          <div style={{ padding: '28px 0 8px' }} aria-live="polite" aria-busy="true">
-            <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-              <div className="trace24-scan-spin" aria-hidden />
-              <div style={{ fontSize: 14, color: '#55554F' }}>
-                กำลังดึงข้อมูลจริงจากแหล่งสาธารณะ
-                <span className="trace24-scan-dots" aria-hidden>
-                  <span>.</span>
-                  <span>.</span>
-                  <span>.</span>
-                </span>
-              </div>
-            </div>
-            <div className="trace24-scan-track" aria-hidden />
-            <div style={{ marginTop: 10, fontSize: 12, color: '#8B8B85', animation: 'pulse 1.6s ease-in-out infinite' }}>
-              เชื่อมต่อ e-GP / ภาษีไปไหน / แคชท้องถิ่น
-            </div>
+          <div style={{ padding: '28px 0 8px' }}>
+            <LoadingHint
+              label="กำลังดึงข้อมูลจริงจากแหล่งสาธารณะ"
+              hint="เชื่อมต่อ e-GP / ภาษีไปไหน / แคชท้องถิ่น"
+            />
           </div>
         )}
         {datasetError && (

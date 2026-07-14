@@ -89,6 +89,44 @@ export function RiskDisclaimer({ style }: { style?: CSSProperties }) {
   );
 }
 
+/** Animated busy indicator — use whenever data is fetching / generating. */
+export function LoadingHint({
+  label,
+  hint,
+  variant = 'block',
+  style,
+}: {
+  label: string;
+  hint?: string;
+  variant?: 'block' | 'inline';
+  style?: CSSProperties;
+}) {
+  const isInline = variant === 'inline';
+  return (
+    <div
+      className={`trace24-loading-hint ${isInline ? 'trace24-loading-hint--inline' : 'trace24-loading-hint--block'}`}
+      style={style}
+      role="status"
+      aria-live="polite"
+      aria-busy="true"
+    >
+      <div className="trace24-loading-hint__row">
+        <div className={`trace24-scan-spin${isInline ? ' trace24-scan-spin--sm' : ''}`} aria-hidden />
+        <div className="trace24-loading-hint__label">
+          {label}
+          <span className="trace24-scan-dots" aria-hidden>
+            <span>.</span>
+            <span>.</span>
+            <span>.</span>
+          </span>
+        </div>
+      </div>
+      {!isInline && <div className="trace24-scan-track" aria-hidden />}
+      {!isInline && hint ? <div className="trace24-loading-hint__hint">{hint}</div> : null}
+    </div>
+  );
+}
+
 export function PageShell({
   children,
   maxWidth = 1160,
