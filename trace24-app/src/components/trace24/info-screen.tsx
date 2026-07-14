@@ -45,7 +45,7 @@ const WORKFLOW_STEPS = [
   {
     n: '07',
     title: 'ประมวลกฎความเสี่ยงและเปรียบเทียบ',
-    desc: 'กฎที่อธิบายได้ 13 ข้อ และการเทียบกับกลุ่มหน่วยงานลักษณะเดียวกัน — AI ช่วยอ่านเอกสาร แต่ไม่ใช่ผู้ให้คะแนนความเสี่ยง',
+    desc: 'กฎที่อธิบายได้พร้อมมิติความเสี่ยง 5 ด้าน และการเทียบกับกลุ่มหน่วยงานลักษณะเดียวกัน — AI ช่วยอ่านเอกสาร แต่ไม่ใช่ผู้ให้คะแนนความเสี่ยง',
   },
 ];
 
@@ -76,6 +76,65 @@ const RISK_RULES = [
     id: 'R19',
     text: 'ผู้รับจ้างหลายรายจดทะเบียนที่อยู่เดียวกันชนะรวมเกิน 5 สัญญาในหน่วยงานเดียวกัน',
     cat: 'ที่อยู่ร่วม',
+  },
+  {
+    id: 'R20',
+    text: 'ชนะงานอบรม/ประชาสัมพันธ์/จัดงานซ้ำ (โครงการวัดผลยาก — สร้างงบก้อนอ่อน)',
+    cat: 'โครงการอ่อน',
+  },
+  {
+    id: 'R21',
+    text: 'ชื่อโครงการคล้ายกันข้ามปีงบ (proxy งานซ้ำซ้อนของบ)',
+    cat: 'โครงการซ้ำ',
+  },
+  {
+    id: 'R22',
+    text: 'อ้างเร่งด่วน/ฉุกเฉิน/ผู้ขายรายเดียว หรือข้อยกเว้นซ้ำ',
+    cat: 'เหตุพิเศษ',
+  },
+  {
+    id: 'R23',
+    text: 'มูลค่างานสูงเทียบทุนจดทะเบียนต่ำ (ศักยภาพไม่สมส่วน — จาก DataForThai)',
+    cat: 'ศักยภาพ',
+  },
+  {
+    id: 'R24',
+    text: 'ผู้ชนะรายใหญ่สลับอันดับข้ามปีงบ (proxy เวียนกันชนะ)',
+    cat: 'เวียนชนะ',
+  },
+  {
+    id: 'R25',
+    text: 'ผู้ชนะรายเดียวได้หลายสัญญาในเดือนประกาศเดียวกัน',
+    cat: 'กระจุกรายเดือน',
+  },
+];
+
+/** 5 มิติความเสี่ยงตามแผนที่ฮั้ว — ใช้จัดกลุ่ม ไม่ใช่ข้อกล่าวหา */
+const RISK_SCORE_DIMS = [
+  {
+    id: 'Project Manipulation',
+    text: 'สร้าง/ซ้ำโครงการ · งบอ่อน · แบ่งสัญญา · เหตุพิเศษ',
+    rules: 'R6 R7 R14 R17 R20 R21 R22 R25',
+  },
+  {
+    id: 'TOR Lock',
+    text: 'ล็อกสเปก/คุณสมบัติ (ต้องการข้อความ TOR + catalog สินค้า)',
+    rules: 'R8 R9 · รอ TOR',
+  },
+  {
+    id: 'Bid Collusion',
+    text: 'เวียนชนะ · ราคาประกอบ · เครือข่ายผู้เสนอ (ต้องการรายชื่อผู้แพ้/metadata)',
+    rules: 'R1 R2 R15 R16 R24 · รอ bidder list',
+  },
+  {
+    id: 'Conflict of Interest',
+    text: 'กรรมการ/ที่อยู่/ผู้บริหารเชื่อมโยง · บริษัทใหม่ · ทุนไม่สมส่วน',
+    rules: 'R5 R13 R18 R19 R23',
+  },
+  {
+    id: 'Contract Execution',
+    text: 'Change order · ตรวจรับ · ค่าปรับ (ต้องการข้อมูลหลังสัญญา)',
+    rules: 'รอ change-order / inspection',
   },
 ];
 
@@ -322,7 +381,38 @@ function MethodPage() {
         ))}
       </div>
 
-      <h2 style={{ fontSize: 16, fontWeight: 600, margin: '48px 0 0' }}>กฎความเสี่ยง 13 ข้อ</h2>
+      <h2 style={{ fontSize: 16, fontWeight: 600, margin: '48px 0 0' }}>
+        5 มิติความเสี่ยง (Risk Score Dimensions)
+      </h2>
+      <p style={{ margin: '10px 0 0', fontSize: 13.5, color: '#55554F', lineHeight: 1.55 }}>
+        จากแผนที่รูปแบบฮั้ว — ใช้จัดกลุ่มสัญญาณ ไม่ใช่ข้อกล่าวหา · Red flag เดี่ยวไม่ใช่หลักฐานทุจริต
+      </p>
+      <div style={{ marginTop: 16, borderTop: '1px solid #111110' }}>
+        {RISK_SCORE_DIMS.map((dim) => (
+          <div
+            key={dim.id}
+            style={{
+              display: 'grid',
+              gridTemplateColumns: '1fr 160px',
+              gap: 16,
+              padding: '12px 0',
+              borderBottom: '1px solid #EEEEEA',
+              fontSize: 13.5,
+              lineHeight: 1.5,
+            }}
+          >
+            <div>
+              <div style={{ fontWeight: 600 }}>{dim.id}</div>
+              <div style={{ color: '#55554F', marginTop: 2 }}>{dim.text}</div>
+            </div>
+            <div style={{ fontSize: 11.5, color: '#8B8B85', letterSpacing: '.02em' }}>{dim.rules}</div>
+          </div>
+        ))}
+      </div>
+
+      <h2 style={{ fontSize: 16, fontWeight: 600, margin: '48px 0 0' }}>
+        กฎความเสี่ยง {RISK_RULES.length} ข้อ
+      </h2>
       <div style={{ marginTop: 16, borderTop: '1px solid #111110' }}>
         {RISK_RULES.map((rule) => (
           <div

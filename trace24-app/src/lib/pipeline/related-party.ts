@@ -48,6 +48,8 @@ export type RelatedCompanyRecord = {
   registeredAtQuote?: string;
   registeredAtConfidence?: CompanyAgeConfidence;
   registeredAtNote?: string;
+  /** ทุนจดทะเบียน (บาท) จาก DataForThai / DBD */
+  registeredCapital?: number | null;
 };
 
 /** Persisted pack under data/related/{agencyId}.json */
@@ -138,6 +140,7 @@ type ContractorMutable = {
   registeredAtSourceUrl?: string;
   registeredAtConfidence?: string;
   registeredAtNote?: string;
+  registeredCapital?: number | null;
   [k: string]: unknown;
 };
 
@@ -189,6 +192,29 @@ function attachCompanyAgeRisks(contractors: Record<string, ContractorMutable>) {
         text,
         sevKey: sev,
       });
+    }
+  }
+}
+
+/** R23 — มูลค่างานสูงเทียบทุนจดทะเบียนต่ำ (ศักยภาพไม่สมส่วน) */
+function attachCapacityRisks(contractors: Record<string, ContractorMutable>) {
+  for (const co of Object.values(contractors)) {
+    const capital = typeof co.registeredCapital === 'number' ? co.registeredCapital : 0;
+    if (!(capital > 0)) continue;
+    const totalN =
+      typeof co.totalN === 'number'
+        ? co.totalN
+        : Number(String(co.total || '').replace(/[^\d.]/g, '')) || 0;
+    const contracts = co.contracts || 0;
+    if (totalN < 1_000_000 && contracts < 3) continue;
+    const ratio = totalN / capital;
+    // มูลค่าสัญญาในหน่วยงานนี้สูงกว่าทุนจดทะเบียนมาก
+    if (ratio < 8 && !(capital <= 1_000_000 && totalN >= 3_000_000)) continue;
+    const sev = ratio >= 20 || (capital <= 100_000 && totalN >= 2_000_000) ? 'High' : 'Medium';
+    const text = `ทุนจดทะเบียน ~${capital.toLocaleString('th-TH')} บาท แต่ชนะงานในหน่วยงานนี้ ~${totalN.toLocaleString('th-TH')} บาท (≈${ratio.toFixed(1)} เท่าของทุน) · ${contracts} สัญญา — รอยืนยันศักยภาพจริง`;
+    co.risks = co.risks || [];
+    if (!co.risks.some((r) => r.tag?.includes('R23'))) {
+      co.risks.push({ tag: 'R23 · ศักยภาพ', text, sevKey: sev });
     }
   }
 }
@@ -506,6 +532,9 @@ export function applyRelatedPartyToReport(
         co.registeredAtConfidence = company.registeredAtConfidence;
         co.registeredAtNote = company.registeredAtNote;
       }
+      if (typeof company.registeredCapital === 'number' && company.registeredCapital > 0) {
+        co.registeredCapital = company.registeredCapital;
+      }
       const existing = new Set((co.directors || []).map((d) => normalizePersonName(d.name)));
       const added = (company.directors || [])
         .filter((d) => !existing.has(normalizePersonName(d.name)))
@@ -525,6 +554,7 @@ export function applyRelatedPartyToReport(
       co.directors = [...(co.directors || []), ...added];
     }
     attachCompanyAgeRisks(contractors);
+    attachCapacityRisks(contractors);
   }
 
   const executives = [

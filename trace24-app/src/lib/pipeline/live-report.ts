@@ -462,7 +462,7 @@ export function enrichStubWithContracts(
     }
   }
 
-  // R2 / R4 / R7 / R9–R12 / R14–R18 — catalog rules from cache fields
+  // R2 / R4 / R7 / R9–R12 / R14–R18 / R20–R25 — catalog rules from cache fields
   const catalogHits = detectCatalogRules(
     Object.entries(projects).map(([id, raw]) => {
       const p = raw as {

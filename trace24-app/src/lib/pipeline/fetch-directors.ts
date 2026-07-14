@@ -441,6 +441,7 @@ export function mergeCompanyDrafts(
       registeredAtQuote: co.registeredAtQuote || prev.registeredAtQuote,
       registeredAtConfidence: co.registeredAtConfidence || prev.registeredAtConfidence,
       registeredAtNote: co.registeredAtNote || prev.registeredAtNote,
+      registeredCapital: co.registeredCapital ?? prev.registeredCapital,
     };
   }
   return out;

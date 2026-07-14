@@ -1,6 +1,7 @@
 /**
- * Catalog rules R2, R4, R7, R9–R12, R14–R18 — runnable from contracts-cache fields.
- * (No bidder lists / full TOR text / DBD reg date → proxies where noted.)
+ * Catalog rules R2, R4, R7, R9–R12, R14–R18, R20–R25 — from contracts-cache fields.
+ * Mapped from TRACE24 collusion playbook (detection proxies, not accusations).
+ * Needs bidder lists / TOR / change orders for deeper Bid Collusion & Execution layers.
  */
 import { titleStem, tokenSimilarity } from '@/lib/title-similarity';
 
@@ -130,7 +131,13 @@ function pushCoRisk(
   list.push(risk);
 }
 
-/** Apply R2/R4/R7/R9–R12/R14–R18 from available contract fields. */
+const SOFT_PROJECT_RE =
+  /อบรม|ฝึกอบรม|ประชาสัมพันธ์|จัดงาน|จัดกิจกรรม|ศึกษาดูงาน|ดูงาน|รณรงค์|จ้างที่ปรึกษา|สัมมนา|ของที่ระลึก|ของแจก/i;
+
+const URGENT_SOLE_RE =
+  /เร่งด่วน|ฉุกเฉิน|จำเป็นเร่งด่วน|กรณีจำเป็น|ผู้ขายรายเดียว|ขายรายเดียว|ลิขสิทธิ์|ความลับ|ความมั่นคง/i;
+
+/** Apply catalog risk proxies from available contract fields. */
 export function detectCatalogRules(
   projects: CatalogProject[],
   contractors: CatalogContractor[]
@@ -650,6 +657,241 @@ export function detectCatalogRules(
           sevKey: sev,
         });
       }
+    }
+  }
+
+  // —— R20: โครงการวัดผลยาก / สร้างงบก้อนอ่อน (อบรม·PR·จัดงาน) ——
+  {
+    const soft = projects.filter((p) => SOFT_PROJECT_RE.test(p.name || ''));
+    if (soft.length >= 3) {
+      const byWinner = new Map<string, CatalogProject[]>();
+      for (const p of soft) {
+        if (!p.winner) continue;
+        if (!byWinner.has(p.winner)) byWinner.set(p.winner, []);
+        byWinner.get(p.winner)!.push(p);
+      }
+      for (const [winnerId, list] of byWinner) {
+        if (list.length < 3) continue;
+        const co = contractors.find((c) => c.id === winnerId);
+        const total = list.reduce((s, p) => s + (p.awardN || 0), 0);
+        const sev = list.length >= 5 ? 'High' : 'Medium';
+        const alert: CatalogAlert = {
+          tag: 'R20 · โครงการอ่อน',
+          title: `ชนะงานอบรม/PR/จัดงานซ้ำ ${list.length} สัญญา (วัดผลยาก)`,
+          sevKey: sev,
+          conf: `soft=${list.length}`,
+          facts: [
+            ['ผู้ชนะ', co?.name || winnerId],
+            ['จำนวนสัญญาประเภทอ่อน', String(list.length)],
+            ['มูลค่ารวม', formatBaht(total)],
+            ['ตัวอย่างชื่อ', list.slice(0, 2).map((p) => p.name).join(' · ')],
+          ],
+          explain:
+            'โครงการอบรม ประชาสัมพันธ์ จัดงาน หรือที่ปรึกษาวัดผลยาก — เป็นช่องทางสร้างงบก้อนใหม่ได้ง่าย (proxy จากชื่อโครงการ)',
+          innocent: 'หน่วยงานท้องถิ่นมีภารกิจประชาสัมพันธ์และอบรมจริง — ต้องดูปริมาณเทียบขนาดประชากร/ปี',
+          evidence: ['contracts-cache · soft-project title keywords · R20'],
+        };
+        for (const p of list) pushAlert(projectAlerts, p.id, alert);
+        pushCoRisk(contractorRisks, winnerId, {
+          tag: 'R20 · โครงการอ่อน',
+          text: `อบรม/PR/จัดงาน ${list.length} สัญญา · ~${formatBaht(total)}`,
+          sevKey: sev,
+        });
+      }
+    }
+  }
+
+  // —— R21: ชื่อโครงการคล้ายข้ามปีงบ (ซ้ำซ้อนของบ) ——
+  {
+    const byStem = new Map<string, CatalogProject[]>();
+    for (const p of projects) {
+      const stem = titleStem(p.name || '');
+      if (stem.length < 8) continue;
+      if (!byStem.has(stem)) byStem.set(stem, []);
+      byStem.get(stem)!.push(p);
+    }
+    for (const [stem, list] of byStem) {
+      const fys = [...new Set(list.map((p) => fyKey(p.fy)).filter(Boolean))];
+      if (fys.length < 2 || list.length < 2) continue;
+      // require at least one pair with high token similarity across different FY
+      let cross = false;
+      for (let i = 0; i < list.length && !cross; i++) {
+        for (let j = i + 1; j < list.length; j++) {
+          if (fyKey(list[i].fy) === fyKey(list[j].fy)) continue;
+          if (tokenSimilarity(list[i].name || '', list[j].name || '') >= 0.75) {
+            cross = true;
+            break;
+          }
+        }
+      }
+      if (!cross) continue;
+      const winners = [...new Set(list.map((p) => p.winner).filter(Boolean))];
+      const alert: CatalogAlert = {
+        tag: 'R21 · โครงการซ้ำข้ามปี',
+        title: `ชื่อโครงการคล้ายกันข้าม ${fys.length} ปีงบ`,
+        sevKey: list.length >= 3 ? 'High' : 'Medium',
+        conf: `stem · fys=${fys.join(',')}`,
+        facts: [
+          ['ปีงบ', fys.sort().join(', ')],
+          ['จำนวนสัญญาในกลุ่ม', String(list.length)],
+          ['ผู้ชนะที่เกี่ยวข้อง', String(winners.length)],
+          ['แกนชื่อ', stem.slice(0, 80)],
+        ],
+        explain:
+          'โครงการชื่อคล้ายถูกของบข้ามปี — proxy ของงานซ้ำซ้อน (ถนน/ระบบ/อุปกรณ์) ที่เปลี่ยนชื่อเล็กน้อย',
+        innocent: 'งานบำรุงรายปีหรือเฟสถัดไปอาจใช้ชื่อคล้ายได้ตามแผน',
+        evidence: ['contracts-cache · cross-FY title similarity · R21'],
+      };
+      for (const p of list) pushAlert(projectAlerts, p.id, alert);
+      for (const w of winners) {
+        if (!w) continue;
+        pushCoRisk(contractorRisks, w, {
+          tag: 'R21 · โครงการซ้ำข้ามปี',
+          text: `เกี่ยวข้องกับกลุ่มชื่อคล้ายข้ามปีงบ ${fys.sort().join(', ')} (${list.length} สัญญา)`,
+          sevKey: list.length >= 3 ? 'High' : 'Medium',
+        });
+      }
+    }
+  }
+
+  // —— R22: อ้างเร่งด่วน / ผู้ขายรายเดียว / ข้อยกเว้น ——
+  {
+    const flagged = projects.filter(
+      (p) => URGENT_SOLE_RE.test(p.name || '') || URGENT_SOLE_RE.test(p.method || '')
+    );
+    const byWinner = new Map<string, CatalogProject[]>();
+    for (const p of flagged) {
+      if (!p.winner) continue;
+      if (!byWinner.has(p.winner)) byWinner.set(p.winner, []);
+      byWinner.get(p.winner)!.push(p);
+    }
+    for (const [winnerId, list] of byWinner) {
+      if (list.length < 2) continue;
+      const co = contractors.find((c) => c.id === winnerId);
+      const sev = list.length >= 4 ? 'High' : 'Medium';
+      const alert: CatalogAlert = {
+        tag: 'R22 · เหตุพิเศษ',
+        title: `ใช้อ้างเร่งด่วน/ข้อยกเว้นซ้ำ ${list.length} สัญญา`,
+        sevKey: sev,
+        conf: `n=${list.length}`,
+        facts: [
+          ['ผู้ชนะ', co?.name || winnerId],
+          ['จำนวนสัญญา', String(list.length)],
+          ['มูลค่ารวม', formatBaht(list.reduce((s, p) => s + (p.awardN || 0), 0))],
+        ],
+        explain:
+          'การอ้างเร่งด่วน ฉุกเฉิน ผู้ขายรายเดียว หรือข้อยกเว้นซ้ำ ๆ เป็นช่องทางลดการแข่งขัน (proxy จากชื่อ/วิธี)',
+        innocent: 'ภัยพิบัติหรืองานซ่อมฉุกเฉินจริงอาจใช้เหตุพิเศษได้ตามระเบียบ',
+        evidence: ['contracts-cache · urgent/sole keywords · R22'],
+      };
+      for (const p of list) pushAlert(projectAlerts, p.id, alert);
+      pushCoRisk(contractorRisks, winnerId, {
+        tag: 'R22 · เหตุพิเศษ',
+        text: `เร่งด่วน/ข้อยกเว้น ${list.length} สัญญา`,
+        sevKey: sev,
+      });
+    }
+  }
+
+  // —— R24: เวียนกันชนะระหว่างผู้รับจ้างรายใหญ่ (rotation proxy) ——
+  {
+    const fys = [
+      ...new Set(projects.map((p) => fyKey(p.fy)).filter((y) => /^\d{4}$/.test(y))),
+    ].sort();
+    if (fys.length >= 3) {
+      const topByFy = new Map<string, string[]>();
+      for (const fy of fys) {
+        const tally = new Map<string, number>();
+        for (const p of projects) {
+          if (fyKey(p.fy) !== fy || !p.winner) continue;
+          tally.set(p.winner, (tally.get(p.winner) || 0) + (p.awardN || 0));
+        }
+        const ranked = [...tally.entries()].sort((a, b) => b[1] - a[1]).slice(0, 3).map(([id]) => id);
+        if (ranked.length) topByFy.set(fy, ranked);
+      }
+      let swaps = 0;
+      const involved = new Set<string>();
+      for (let i = 0; i < fys.length - 1; i++) {
+        const a = topByFy.get(fys[i]) || [];
+        const b = topByFy.get(fys[i + 1]) || [];
+        if (!a[0] || !b[0] || a[0] === b[0]) continue;
+        if (b.includes(a[0]) && a.includes(b[0])) {
+          swaps += 1;
+          involved.add(a[0]);
+          involved.add(b[0]);
+        }
+      }
+      if (swaps >= 2 && involved.size >= 2) {
+        for (const winnerId of involved) {
+          const co = contractors.find((c) => c.id === winnerId);
+          const theirs = projects.filter((p) => p.winner === winnerId);
+          const alert: CatalogAlert = {
+            tag: 'R24 · เวียนชนะ',
+            title: `รูปแบบเวียนกันชนะระหว่างผู้รับจ้างรายใหญ่ (${swaps} ปีคู่)`,
+            sevKey: swaps >= 3 ? 'High' : 'Medium',
+            conf: `swaps=${swaps}`,
+            facts: [
+              ['ผู้เกี่ยวข้อง', co?.name || winnerId],
+              ['จำนวนปีคู่ที่สลับอันดับ 1', String(swaps)],
+              ['สัญญาของผู้รับจ้างนี้', String(theirs.length)],
+            ],
+            explain:
+              'ผู้ชนะอันดับ 1 สลับกันระหว่างกลุ่มเดิมข้ามปีงบ — proxy อ่อนของ bid rotation / แบ่งงาน (ยังไม่มีรายชื่อผู้แพ้ยืนยัน)',
+            innocent: 'ผู้รับเหมาท้องถิ่นน้อยรายอาจสลับงานตามความพร้อมโดยธรรมชาติ',
+            evidence: ['contracts-cache · FY top-winner swap · R24'],
+          };
+          for (const p of theirs) pushAlert(projectAlerts, p.id, alert);
+          pushCoRisk(contractorRisks, winnerId, {
+            tag: 'R24 · เวียนชนะ',
+            text: `สลับอันดับผู้ชนะรายใหญ่ข้ามปีงบ ${swaps} ครั้ง (proxy เวียนงาน)`,
+            sevKey: swaps >= 3 ? 'High' : 'Medium',
+          });
+        }
+      }
+    }
+  }
+
+  // —— R25: ผู้ชนะรายเดียวได้หลายสัญญาในเดือนประกาศเดียวกัน ——
+  {
+    const byWinnerMonth = new Map<string, CatalogProject[]>();
+    for (const p of projects) {
+      if (!p.winner) continue;
+      const month = announceMonth(p.announced);
+      const year = announceYear(p.announced);
+      if (month == null || !year) continue;
+      const key = `${p.winner}::${year}-${month}`;
+      if (!byWinnerMonth.has(key)) byWinnerMonth.set(key, []);
+      byWinnerMonth.get(key)!.push(p);
+    }
+    for (const [key, list] of byWinnerMonth) {
+      if (list.length < 3) continue;
+      const winnerId = key.split('::')[0]!;
+      const ym = key.split('::')[1] || '';
+      const co = contractors.find((c) => c.id === winnerId);
+      const total = list.reduce((s, p) => s + (p.awardN || 0), 0);
+      const sev = list.length >= 5 ? 'High' : 'Medium';
+      const alert: CatalogAlert = {
+        tag: 'R25 · กระจุกรายเดือน',
+        title: `ได้ ${list.length} สัญญาในเดือนประกาศเดียวกัน (${ym})`,
+        sevKey: sev,
+        conf: `n=${list.length} · ${ym}`,
+        facts: [
+          ['ผู้ชนะ', co?.name || winnerId],
+          ['เดือนประกาศ', ym],
+          ['จำนวนสัญญา', String(list.length)],
+          ['มูลค่ารวม', formatBaht(total)],
+        ],
+        explain:
+          'ผู้รับจ้างรายเดียวได้หลายสัญญาในเดือนเดียวกัน — proxy ของเร่งผูกพันงบ / แบ่งซื้อในช่วงสั้น',
+        innocent: 'แผนงานตามฤดูกาลหรือชุดโครงการที่เปิดพร้อมกันอาจกระจุกเดือนเดียวได้',
+        evidence: ['contracts-cache · announce month cluster · R25'],
+      };
+      for (const p of list) pushAlert(projectAlerts, p.id, alert);
+      pushCoRisk(contractorRisks, winnerId, {
+        tag: 'R25 · กระจุกรายเดือน',
+        text: `${list.length} สัญญาเดือน ${ym} · ~${formatBaht(total)}`,
+        sevKey: sev,
+      });
     }
   }
 

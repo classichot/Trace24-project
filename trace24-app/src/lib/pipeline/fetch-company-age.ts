@@ -284,6 +284,16 @@ export function parseThaiRegistrationDate(text: string): {
   };
 }
 
+/** Parse ทุนจดทะเบียน from DataForThai text → baht number. */
+export function parseRegisteredCapital(text: string): number | null {
+  const m = text
+    .replace(/\s+/g, ' ')
+    .match(/ทุนจดทะเบียน\s*[:|]?\s*([\d,]+(?:\.\d+)?)\s*บาท/i);
+  if (!m) return null;
+  const n = Number(String(m[1]).replace(/,/g, ''));
+  return Number.isFinite(n) && n > 0 ? n : null;
+}
+
 /** Parse ที่ตั้ง/แผนที่ from DataForThai company page text. */
 export function extractAddressHint(text: string): string | undefined {
   const compact = text.replace(/\s+/g, ' ');
@@ -306,7 +316,11 @@ async function tryParseDataForThaiPage(
   url: string,
   tin: string,
   sources: FetchCompanyAgeResult['sources']
-): Promise<{ extract: AgeExtract | null; address?: string } | null> {
+): Promise<{
+  extract: AgeExtract | null;
+  address?: string;
+  registeredCapital?: number | null;
+} | null> {
   const page = await fetchPage(url);
   sources.push({
     url,
@@ -319,10 +333,11 @@ async function tryParseDataForThaiPage(
   if (!page.ok || !page.html) return null;
   const text = htmlToText(page.html);
   if (tin && !text.includes(tin)) return null;
-  if (!/จดทะเบียน|ที่ตั้ง|แผนที่/i.test(text)) return null;
+  if (!/จดทะเบียน|ที่ตั้ง|แผนที่|ทุนจดทะเบียน/i.test(text)) return null;
   const parsed = parseThaiRegistrationDate(text);
   const address = extractAddressHint(text);
-  if (!parsed && !address) return null;
+  const registeredCapital = parseRegisteredCapital(text);
+  if (!parsed && !address && !registeredCapital) return null;
   return {
     extract: parsed
       ? {
@@ -336,6 +351,7 @@ async function tryParseDataForThaiPage(
         }
       : null,
     address,
+    registeredCapital,
   };
 }
 
@@ -345,6 +361,7 @@ async function fetchFromDataForThai(
 ): Promise<{
   extract: AgeExtract | null;
   address?: string;
+  registeredCapital?: number | null;
   sources: FetchCompanyAgeResult['sources'];
 }> {
   const sources: FetchCompanyAgeResult['sources'] = [];
@@ -352,7 +369,14 @@ async function fetchFromDataForThai(
 
   if (/^\d{13}$/.test(tin)) {
     const direct = await tryParseDataForThaiPage(dataforthaiUrl(tin), tin, sources);
-    if (direct?.extract || direct?.address) return { extract: direct.extract, address: direct.address, sources };
+    if (direct?.extract || direct?.address || direct?.registeredCapital) {
+      return {
+        extract: direct.extract,
+        address: direct.address,
+        registeredCapital: direct.registeredCapital,
+        sources,
+      };
+    }
   }
 
   const q = tin
@@ -364,8 +388,13 @@ async function fetchFromDataForThai(
     if (!/dataforthai\.com\/company\//i.test(h.url)) continue;
     const url = h.url.replace(/\?.*$/, '');
     const hit = await tryParseDataForThaiPage(url, tin, sources);
-    if (hit?.extract || hit?.address) {
-      return { extract: hit.extract, address: hit.address, sources };
+    if (hit?.extract || hit?.address || hit?.registeredCapital) {
+      return {
+        extract: hit.extract,
+        address: hit.address,
+        registeredCapital: hit.registeredCapital,
+        sources,
+      };
     }
   }
 
@@ -510,7 +539,7 @@ ${corpus.slice(0, 14000)}
 function toCompanyRecord(
   w: WinnerCandidate,
   extract: AgeExtract | null,
-  extra?: { address?: string; sourceUrl?: string }
+  extra?: { address?: string; sourceUrl?: string; registeredCapital?: number | null }
 ): RelatedCompanyRecord {
   const sourceUrl = extract?.sourceUrl || extra?.sourceUrl;
   const fromDft = /dataforthai\.com/i.test(sourceUrl || '');
@@ -519,6 +548,7 @@ function toCompanyRecord(
     name: w.name,
     directors: [],
     address: extra?.address,
+    registeredCapital: extra?.registeredCapital ?? undefined,
     sourceUrl: sourceUrl || undefined,
     fetchedAt: new Date().toISOString(),
   };
@@ -578,7 +608,7 @@ export async function fetchCompanyAgesForAgency(opts: {
     // 1) DataForThai — primary (วันที่จดทะเบียน + ที่อยู่)
     const dft = await fetchFromDataForThai(w);
     sources.push(...dft.sources);
-    if (dft.extract?.registeredAt || dft.address) {
+    if (dft.extract?.registeredAt || dft.address || dft.registeredCapital) {
       if (dft.extract?.registeredAt) {
         fromDft += 1;
         found += 1;
@@ -587,6 +617,7 @@ export async function fetchCompanyAgesForAgency(opts: {
       companies.push(
         toCompanyRecord(w, dft.extract, {
           address: dft.address,
+          registeredCapital: dft.registeredCapital,
           sourceUrl: dft.extract?.sourceUrl || (w.tin ? dataforthaiUrl(w.tin) : undefined),
         })
       );
