@@ -1,6 +1,12 @@
 {
-  "generatedAt": "2026-07-14T17:06:56.848Z",
+  "generatedAt": "2026-07-14T17:32:52.508Z",
   "rowsUsed": 1214044,
+  "rowsWithUnitRate": 32364,
+  "unitHits": {
+    "baht_per_km": 28224,
+    "baht_per_m": 29227,
+    "baht_per_m2": 24054
+  },
   "categories": {
     "water_supply": {
       "label": "ประปา / บาดาล",
@@ -8,7 +14,30 @@
       "median": 64123,
       "p25": 15000,
       "p75": 269883,
-      "provinces": 76
+      "provinces": 76,
+      "byUnit": {
+        "baht_per_km": {
+          "n": 685,
+          "median": 245980,
+          "p25": 132000,
+          "p75": 466899,
+          "unitLabel": "บาท/กม."
+        },
+        "baht_per_m": {
+          "n": 417,
+          "median": 427,
+          "p25": 279,
+          "p75": 724,
+          "unitLabel": "บาท/ม."
+        },
+        "baht_per_m2": {
+          "n": 41,
+          "median": 217,
+          "p25": 166,
+          "p75": 575,
+          "unitLabel": "บาท/ตร.ม."
+        }
+      }
     },
     "waste": {
       "label": "จัดการขยะ / สิ่งปฏิกูล",
@@ -16,7 +45,30 @@
       "median": 40800,
       "p25": 8220,
       "p75": 145000,
-      "provinces": 76
+      "provinces": 76,
+      "byUnit": {
+        "baht_per_km": {
+          "n": 36,
+          "median": 481388,
+          "p25": 168000,
+          "p75": 1317500,
+          "unitLabel": "บาท/กม."
+        },
+        "baht_per_m": {
+          "n": 39,
+          "median": 950,
+          "p25": 557,
+          "p75": 3200,
+          "unitLabel": "บาท/ม."
+        },
+        "baht_per_m2": {
+          "n": 16,
+          "median": 179,
+          "p25": 128,
+          "p75": 414,
+          "unitLabel": "บาท/ตร.ม."
+        }
+      }
     },
     "other": {
       "label": "งานจัดซื้อจัดจ้างอื่น",
@@ -24,7 +76,30 @@
       "median": 16728,
       "p25": 6480,
       "p75": 61500,
-      "provinces": 76
+      "provinces": 76,
+      "byUnit": {
+        "baht_per_km": {
+          "n": 4325,
+          "median": 320732,
+          "p25": 162500,
+          "p75": 850085,
+          "unitLabel": "บาท/กม."
+        },
+        "baht_per_m": {
+          "n": 3502,
+          "median": 683,
+          "p25": 341,
+          "p75": 1920,
+          "unitLabel": "บาท/ม."
+        },
+        "baht_per_m2": {
+          "n": 1914,
+          "median": 268,
+          "p25": 143,
+          "p75": 498,
+          "unitLabel": "บาท/ตร.ม."
+        }
+      }
     },
     "road_asphalt": {
       "label": "ถนนลาดยาง / แอสฟัลต์",
@@ -32,7 +107,30 @@
       "median": 490000,
       "p25": 304000,
       "p75": 1195000,
-      "provinces": 76
+      "provinces": 76,
+      "byUnit": {
+        "baht_per_km": {
+          "n": 2268,
+          "median": 2000000,
+          "p25": 1482399,
+          "p75": 3073973,
+          "unitLabel": "บาท/กม."
+        },
+        "baht_per_m": {
+          "n": 2213,
+          "median": 2067,
+          "p25": 1562,
+          "p75": 3189,
+          "unitLabel": "บาท/ม."
+        },
+        "baht_per_m2": {
+          "n": 2180,
+          "median": 451,
+          "p25": 374,
+          "p75": 590,
+          "unitLabel": "บาท/ตร.ม."
+        }
+      }
     },
     "road_concrete": {
       "label": "ถนนคอนกรีต / คสล.",
@@ -40,7 +138,30 @@
       "median": 376000,
       "p25": 200000,
       "p75": 493500,
-      "provinces": 76
+      "provinces": 76,
+      "byUnit": {
+        "baht_per_km": {
+          "n": 17929,
+          "median": 2400000,
+          "p25": 1915625,
+          "p75": 2956204,
+          "unitLabel": "บาท/กม."
+        },
+        "baht_per_m": {
+          "n": 19417,
+          "median": 2423,
+          "p25": 1941,
+          "p75": 3024,
+          "unitLabel": "บาท/ม."
+        },
+        "baht_per_m2": {
+          "n": 17837,
+          "median": 600,
+          "p25": 525,
+          "p75": 682,
+          "unitLabel": "บาท/ตร.ม."
+        }
+      }
     },
     "building": {
       "label": "อาคาร / ก่อสร้างสิ่งปลูกสร้าง",
@@ -48,7 +169,30 @@
       "median": 22968,
       "p25": 10800,
       "p75": 126415,
-      "provinces": 77
+      "provinces": 77,
+      "byUnit": {
+        "baht_per_km": {
+          "n": 1766,
+          "median": 1200985,
+          "p25": 414687,
+          "p75": 2599813,
+          "unitLabel": "บาท/กม."
+        },
+        "baht_per_m": {
+          "n": 2387,
+          "median": 2331,
+          "p25": 729,
+          "p75": 10050,
+          "unitLabel": "บาท/ม."
+        },
+        "baht_per_m2": {
+          "n": 1672,
+          "median": 514,
+          "p25": 284,
+          "p75": 1106,
+          "unitLabel": "บาท/ตร.ม."
+        }
+      }
     },
     "electrical": {
       "label": "ไฟฟ้า / แสงสว่าง",
@@ -56,7 +200,30 @@
       "median": 22500,
       "p25": 7500,
       "p75": 124000,
-      "provinces": 76
+      "provinces": 76,
+      "byUnit": {
+        "baht_per_km": {
+          "n": 114,
+          "median": 1936714,
+          "p25": 517500,
+          "p75": 2675889,
+          "unitLabel": "บาท/กม."
+        },
+        "baht_per_m": {
+          "n": 116,
+          "median": 2132,
+          "p25": 624,
+          "p75": 2798,
+          "unitLabel": "บาท/ม."
+        },
+        "baht_per_m2": {
+          "n": 20,
+          "median": 740,
+          "p25": 588,
+          "p75": 920,
+          "unitLabel": "บาท/ตร.ม."
+        }
+      }
     },
     "it_comms": {
       "label": "คอมพิวเตอร์ / สื่อสาร",
@@ -64,7 +231,16 @@
       "median": 14980,
       "p25": 5700,
       "p75": 24000,
-      "provinces": 76
+      "provinces": 76,
+      "byUnit": {
+        "baht_per_m": {
+          "n": 8,
+          "median": 350,
+          "p25": 268,
+          "p75": 895,
+          "unitLabel": "บาท/ม."
+        }
+      }
     },
     "medical": {
       "label": "การแพทย์ / เวชภัณฑ์",
@@ -72,7 +248,30 @@
       "median": 40780,
       "p25": 14490,
       "p75": 79920,
-      "provinces": 76
+      "provinces": 76,
+      "byUnit": {
+        "baht_per_km": {
+          "n": 72,
+          "median": 846744,
+          "p25": 181954,
+          "p75": 1874586,
+          "unitLabel": "บาท/กม."
+        },
+        "baht_per_m": {
+          "n": 58,
+          "median": 1622,
+          "p25": 834,
+          "p75": 2743,
+          "unitLabel": "บาท/ม."
+        },
+        "baht_per_m2": {
+          "n": 46,
+          "median": 421,
+          "p25": 231,
+          "p75": 582,
+          "unitLabel": "บาท/ตร.ม."
+        }
+      }
     },
     "equipment": {
       "label": "ครุภัณฑ์ทั่วไป",
@@ -80,7 +279,30 @@
       "median": 14700,
       "p25": 5900,
       "p75": 26400,
-      "provinces": 76
+      "provinces": 76,
+      "byUnit": {
+        "baht_per_km": {
+          "n": 46,
+          "median": 677126,
+          "p25": 140000,
+          "p75": 1734677,
+          "unitLabel": "บาท/กม."
+        },
+        "baht_per_m": {
+          "n": 36,
+          "median": 1808,
+          "p25": 1104,
+          "p75": 5884,
+          "unitLabel": "บาท/ม."
+        },
+        "baht_per_m2": {
+          "n": 20,
+          "median": 398,
+          "p25": 331,
+          "p75": 570,
+          "unitLabel": "บาท/ตร.ม."
+        }
+      }
     },
     "vehicle": {
       "label": "ยานพาหนะ",
@@ -88,7 +310,23 @@
       "median": 11259,
       "p25": 5500,
       "p75": 23420,
-      "provinces": 76
+      "provinces": 76,
+      "byUnit": {
+        "baht_per_m": {
+          "n": 9,
+          "median": 29115,
+          "p25": 13460,
+          "p75": 39377,
+          "unitLabel": "บาท/ม."
+        },
+        "baht_per_m2": {
+          "n": 6,
+          "median": 4410,
+          "p25": 3033,
+          "p75": 4487,
+          "unitLabel": "บาท/ตร.ม."
+        }
+      }
     },
     "drainage": {
       "label": "ระบายน้ำ / ท่อ / บ่อพัก",
@@ -96,7 +334,30 @@
       "median": 189000,
       "p25": 54000,
       "p75": 405000,
-      "provinces": 76
+      "provinces": 76,
+      "byUnit": {
+        "baht_per_km": {
+          "n": 861,
+          "median": 1800000,
+          "p25": 484500,
+          "p75": 2978947,
+          "unitLabel": "บาท/กม."
+        },
+        "baht_per_m": {
+          "n": 871,
+          "median": 2281,
+          "p25": 1133,
+          "p75": 3378,
+          "unitLabel": "บาท/ม."
+        },
+        "baht_per_m2": {
+          "n": 233,
+          "median": 571,
+          "p25": 147,
+          "p75": 1835,
+          "unitLabel": "บาท/ตร.ม."
+        }
+      }
     },
     "bridge": {
       "label": "สะพาน / ท่อลอด",
@@ -104,7 +365,30 @@
       "median": 190900,
       "p25": 58425,
       "p75": 438821,
-      "provinces": 76
+      "provinces": 76,
+      "byUnit": {
+        "baht_per_km": {
+          "n": 115,
+          "median": 547826,
+          "p25": 222758,
+          "p75": 1944947,
+          "unitLabel": "บาท/กม."
+        },
+        "baht_per_m": {
+          "n": 154,
+          "median": 2691,
+          "p25": 610,
+          "p75": 9157,
+          "unitLabel": "บาท/ม."
+        },
+        "baht_per_m2": {
+          "n": 69,
+          "median": 567,
+          "p25": 277,
+          "p75": 3040,
+          "unitLabel": "บาท/ตร.ม."
+        }
+      }
     }
   }
 }

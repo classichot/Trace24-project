@@ -10,6 +10,7 @@ import { ContractorScreen } from './contractor-screen';
 import { GraphScreen } from './graph-screen';
 import { AdminScreen } from './admin-screen';
 import { InfoScreen } from './info-screen';
+import { PricesScreen } from './prices-screen';
 
 export function Trace24App() {
   const { page } = useTrace24();
@@ -24,6 +25,7 @@ export function Trace24App() {
       {page === 'contractor' && <ContractorScreen />}
       {page === 'graph' && <GraphScreen />}
       {page === 'admin' && <AdminScreen />}
+      {page === 'prices' && <PricesScreen />}
       {(page === 'method' ||
         page === 'sources' ||
         page === 'corrections' ||

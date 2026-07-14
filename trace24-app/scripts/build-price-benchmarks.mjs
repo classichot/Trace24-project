@@ -4,18 +4,29 @@
  *   npm run build-price-benchmarks
  *
  * Output: data/benchmarks/price-by-category.json.gz
- * NOTE: These are statistical market medians — NOT official CGD ราคากลาง.
+ * Includes whole-contract medians AND unit rates (บาท/กม., บาท/ม., บาท/ตร.ม.)
+ * when titles encode length/area.
+ *
+ * NOTE: Statistical market medians — NOT official CGD ราคากลาง.
  */
 import fs from 'fs';
 import path from 'path';
 import zlib from 'zlib';
 import { fileURLToPath } from 'url';
 import { looksLikeWinnerName } from './lib/egp-contact-row.mjs';
+import { parseProjectQuantity, unitRateFromAward } from './lib/parse-project-quantity.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.join(__dirname, '..');
 const CACHE_DIR = path.join(ROOT, 'data', 'contracts-cache');
 const OUT_DIR = path.join(ROOT, 'data', 'benchmarks');
+
+const UNIT_KINDS = ['baht_per_km', 'baht_per_m', 'baht_per_m2'];
+const UNIT_LABELS = {
+  baht_per_km: 'บาท/กม.',
+  baht_per_m: 'บาท/ม.',
+  baht_per_m2: 'บาท/ตร.ม.',
+};
 
 const CATEGORY_DEFS = [
   { id: 'road_concrete', label: 'ถนนคอนกรีต / คสล.', re: /คสล|คอนกรีตเสริมเหล็ก|ถนนคอนกรีต|ผิวจราจร.*คอนกรีต|คอนกรีตถนน/i },
@@ -75,26 +86,45 @@ function bucket(label, awards) {
   };
 }
 
-const byCat = new Map(); // id -> { label, awards: number[], byProv: Map }
+function emptySlot() {
+  return {
+    awards: [],
+    byProv: new Map(),
+    byUnit: Object.fromEntries(UNIT_KINDS.map((k) => [k, { rates: [], byProv: new Map() }])),
+  };
+}
+
+const byCat = new Map();
 const labelOf = Object.fromEntries(CATEGORY_DEFS.map((d) => [d.id, d.label]));
 labelOf.other = 'งานจัดซื้อจัดจ้างอื่น';
 
-function push(catId, prov, award) {
-  if (!byCat.has(catId)) byCat.set(catId, { awards: [], byProv: new Map() });
+function push(catId, prov, award, unitRates) {
+  if (!byCat.has(catId)) byCat.set(catId, emptySlot());
   const slot = byCat.get(catId);
   slot.awards.push(award);
   if (prov) {
     if (!slot.byProv.has(prov)) slot.byProv.set(prov, []);
     slot.byProv.get(prov).push(award);
   }
+  for (const [kind, rate] of Object.entries(unitRates || {})) {
+    if (!slot.byUnit[kind]) continue;
+    slot.byUnit[kind].rates.push(rate);
+    if (prov) {
+      if (!slot.byUnit[kind].byProv.has(prov)) slot.byUnit[kind].byProv.set(prov, []);
+      slot.byUnit[kind].byProv.get(prov).push(rate);
+    }
+  }
 }
 
-console.log('=== TRACE24 build price benchmarks ===');
+console.log('=== TRACE24 build price benchmarks (contract + unit rates) ===');
 const files = fs.readdirSync(CACHE_DIR).filter((f) => f.endsWith('.json.gz') && !f.startsWith('.'));
 console.log(`files: ${files.length}`);
 
 let rows = 0;
 let used = 0;
+let withUnit = 0;
+const unitHits = Object.fromEntries(UNIT_KINDS.map((k) => [k, 0]));
+
 for (let i = 0; i < files.length; i++) {
   const file = files[i];
   try {
@@ -107,17 +137,27 @@ for (let i = 0; i < files.length; i++) {
       if (winner && !looksLikeWinnerName(winner)) continue;
       const award = parseMoney(r['ราคาตกลงซื้อ/จ้าง'] || r['งบประมาณ(บาท)']);
       if (!award || award < 1000) continue;
-      // skip extreme outliers for stats stability
       if (award > 5e9) continue;
       const cat = categorize(name);
       const rowProv = String(r['จังหวัด'] || prov || '').trim();
-      push(cat.id, rowProv, award);
+      const parsed = parseProjectQuantity(name);
+      const unitRates = {};
+      for (const kind of UNIT_KINDS) {
+        const q = parsed.rates?.[kind]?.qty;
+        if (!q) continue;
+        const rate = unitRateFromAward(award, kind, q);
+        if (!rate) continue;
+        unitRates[kind] = Math.round(rate);
+        unitHits[kind]++;
+      }
+      if (Object.keys(unitRates).length) withUnit++;
+      push(cat.id, rowProv, award, unitRates);
       used++;
     }
   } catch {
     /* skip */
   }
-  if ((i + 1) % 1000 === 0) console.log(`  scanned ${i + 1}/${files.length} · used ${used}`);
+  if ((i + 1) % 1000 === 0) console.log(`  scanned ${i + 1}/${files.length} · used ${used} · withUnit ${withUnit}`);
 }
 
 const categories = {};
@@ -129,34 +169,94 @@ for (const [id, slot] of byCat) {
     const pb = bucket(labelOf[id] || id, awards);
     if (pb && pb.n >= 5) byProvince[prov] = pb;
   }
-  categories[id] = { ...b, byProvince };
+  const byUnit = {};
+  for (const kind of UNIT_KINDS) {
+    const u = slot.byUnit[kind];
+    const ub = bucket(`${labelOf[id] || id} · ${UNIT_LABELS[kind]}`, u.rates);
+    if (!ub || ub.n < 5) continue;
+    const uByProv = {};
+    for (const [prov, rates] of u.byProv) {
+      const pb = bucket(`${labelOf[id] || id} · ${UNIT_LABELS[kind]}`, rates);
+      if (pb && pb.n >= 5) uByProv[prov] = pb;
+    }
+    byUnit[kind] = {
+      ...ub,
+      unitLabel: UNIT_LABELS[kind],
+      byProvince: uByProv,
+    };
+  }
+  categories[id] = { ...b, byProvince, byUnit };
 }
 
 const payload = {
   generatedAt: new Date().toISOString(),
   source: 'contracts-cache egp-contact-2568',
-  note: 'ค่ากลางตลาดเชิงสถิติจากราคาตกลงในแคช — ไม่ใช่ราคากลางราชการของกรมบัญชีกลาง',
+  note:
+    'ค่ากลางตลาดเชิงสถิติจากราคาตกลงในแคช — รวมอัตราต่อหน่วย (บาท/กม. ฯลฯ) เมื่อดึงปริมาณจากชื่องานได้ — ไม่ใช่ราคากลางราชการของกรมบัญชีกลาง',
   rowsScanned: rows,
   rowsUsed: used,
+  rowsWithUnitRate: withUnit,
+  unitHits,
   categories,
 };
 
 fs.mkdirSync(OUT_DIR, { recursive: true });
 const gzPath = path.join(OUT_DIR, 'price-by-category.json.gz');
 fs.writeFileSync(gzPath, zlib.gzipSync(JSON.stringify(payload), { level: 6 }));
-fs.writeFileSync(path.join(OUT_DIR, 'price-by-category.summary.json'), JSON.stringify({
-  generatedAt: payload.generatedAt,
-  rowsUsed: used,
-  categories: Object.fromEntries(
-    Object.entries(categories).map(([k, v]) => [
-      k,
-      { label: v.label, n: v.n, median: v.median, p25: v.p25, p75: v.p75, provinces: Object.keys(v.byProvince || {}).length },
-    ])
-  ),
-}, null, 2));
+fs.writeFileSync(
+  path.join(OUT_DIR, 'price-by-category.summary.json'),
+  JSON.stringify(
+    {
+      generatedAt: payload.generatedAt,
+      rowsUsed: used,
+      rowsWithUnitRate: withUnit,
+      unitHits,
+      categories: Object.fromEntries(
+        Object.entries(categories).map(([k, v]) => [
+          k,
+          {
+            label: v.label,
+            n: v.n,
+            median: v.median,
+            p25: v.p25,
+            p75: v.p75,
+            provinces: Object.keys(v.byProvince || {}).length,
+            byUnit: Object.fromEntries(
+              Object.entries(v.byUnit || {}).map(([uk, uv]) => [
+                uk,
+                { n: uv.n, median: uv.median, p25: uv.p25, p75: uv.p75, unitLabel: uv.unitLabel },
+              ])
+            ),
+          },
+        ])
+      ),
+    },
+    null,
+    2
+  )
+);
 
 console.log('wrote', gzPath);
-console.log(JSON.stringify(Object.fromEntries(
-  Object.entries(categories).map(([k, v]) => [k, { n: v.n, median: v.median }])
-), null, 2));
+console.log('withUnit', withUnit, unitHits);
+console.log(
+  JSON.stringify(
+    Object.fromEntries(
+      Object.entries(categories).map(([k, v]) => [
+        k,
+        {
+          n: v.n,
+          median: v.median,
+          perKm: v.byUnit?.baht_per_km
+            ? { n: v.byUnit.baht_per_km.n, median: v.byUnit.baht_per_km.median }
+            : null,
+          perM2: v.byUnit?.baht_per_m2
+            ? { n: v.byUnit.baht_per_m2.n, median: v.byUnit.baht_per_m2.median }
+            : null,
+        },
+      ])
+    ),
+    null,
+    2
+  )
+);
 console.log('Done.');

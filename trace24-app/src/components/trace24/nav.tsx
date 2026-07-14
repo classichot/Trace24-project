@@ -23,6 +23,11 @@ export function Nav() {
       go: () => go('graph'),
     },
     {
+      label: 'ค่ากลางราคา',
+      active: false,
+      go: () => go('prices'),
+    },
+    {
       label: 'ตัวช่วยทำคดี',
       active: page === 'admin',
       go: () => {

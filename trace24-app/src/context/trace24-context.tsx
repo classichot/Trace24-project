@@ -36,6 +36,7 @@ export type Page =
   | 'contractor'
   | 'graph'
   | 'admin'
+  | 'prices'
   | 'method'
   | 'sources'
   | 'corrections'

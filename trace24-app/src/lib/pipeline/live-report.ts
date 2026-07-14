@@ -7,6 +7,11 @@ import {
 } from './announce-enrich';
 import { buildCatalogStubReport } from './catalog-stub';
 import {
+  parseProjectQuantity,
+  unitRateFromAward,
+  type UnitRateKind,
+} from '@/lib/parse-project-quantity';
+import {
   categorizeWork,
   formatBenchmarkBaht,
   pctLabel,
@@ -175,14 +180,31 @@ export function enrichStubWithContracts(
     };
   }
 
-  // Market price benchmarks (cache medians) — not official ราคากลาง
+  // Market price benchmarks (cache medians + unit rates) — not official ราคากลาง
   const peerByCat: Partial<Record<WorkCategoryId, number[]>> = {};
-  for (const p of Object.values(projects) as { workCategoryId?: WorkCategoryId; awardN?: number }[]) {
+  const peerUnitByCat: Partial<
+    Record<WorkCategoryId, Partial<Record<UnitRateKind, number[]>>>
+  > = {};
+  for (const p of Object.values(projects) as {
+    workCategoryId?: WorkCategoryId;
+    awardN?: number;
+    name?: string;
+  }[]) {
     const id = p.workCategoryId || 'other';
     const n = p.awardN || 0;
     if (!n) continue;
     if (!peerByCat[id]) peerByCat[id] = [];
     peerByCat[id]!.push(n);
+    const parsed = parseProjectQuantity(p.name || '');
+    for (const kind of Object.keys(parsed.rates) as UnitRateKind[]) {
+      const qty = parsed.rates[kind]?.qty;
+      if (!qty) continue;
+      const rate = unitRateFromAward(n, kind, qty);
+      if (!rate) continue;
+      if (!peerUnitByCat[id]) peerUnitByCat[id] = {};
+      if (!peerUnitByCat[id]![kind]) peerUnitByCat[id]![kind] = [];
+      peerUnitByCat[id]![kind]!.push(rate);
+    }
   }
   const province = String(stub.agency.prov || '').trim();
   for (const p of Object.values(projects) as {
@@ -210,9 +232,13 @@ export function enrichStubWithContracts(
       award: p.awardN || 0,
       province,
       agencyPeerAwardsByCategory: peerByCat,
+      agencyPeerUnitRatesByCategory: peerUnitByCat,
     });
     if (!bm) continue;
-    p.ref = formatBenchmarkBaht(bm.median);
+    p.ref =
+      bm.compareMode === 'unit' && bm.unitLabel
+        ? `ค่ากลาง ${Math.round(bm.median).toLocaleString('th-TH')} ${bm.unitLabel}`
+        : formatBenchmarkBaht(bm.median);
     p.pct = pctLabel(bm);
     p.cat = bm.categoryLabel;
     p.priceBenchmark = bm;
@@ -221,24 +247,46 @@ export function enrichStubWithContracts(
       p.sevKey = p.sevKey === 'High' ? 'High' : priceSev;
       p.ind = (p.ind || 0) + 1;
       p.alerts = p.alerts || [];
+      const unitFacts: string[][] =
+        bm.compareMode === 'unit'
+          ? [
+              ['ปริมาณจากชื่องาน', bm.quantityLabel || '—'],
+              ['อัตราราคาโครงการ', bm.unitRateLabel || '—'],
+              [`ค่ากลางตลาด (${bm.unitLabel})`, `${Math.round(bm.median).toLocaleString('th-TH')} ${bm.unitLabel}`],
+              [
+                `ช่วง P25–P75 (${bm.unitLabel})`,
+                `${Math.round(bm.p25).toLocaleString('th-TH')} – ${Math.round(bm.p75).toLocaleString('th-TH')} ${bm.unitLabel}`,
+              ],
+            ]
+          : [
+              ['ราคาที่ตกลง', formatBenchmarkBaht(bm.award)],
+              ['ค่ากลางตลาด (median)', formatBenchmarkBaht(bm.median)],
+              ['ช่วง P25–P75', `${formatBenchmarkBaht(bm.p25)} – ${formatBenchmarkBaht(bm.p75)}`],
+            ];
       p.alerts.push({
-        tag: 'R-PRICE · ตลาด',
+        tag: bm.compareMode === 'unit' ? 'R-PRICE · ต่อหน่วย' : 'R-PRICE · ตลาด',
         title:
-          bm.vsMedianPct > 0
-            ? `ราคาที่ตกลงสูงกว่าค่ากลางกลุ่ม「${bm.categoryLabel}」${pctLabel(bm)}`
-            : `ราคาที่ตกลงต่ำกว่าค่ากลางกลุ่ม「${bm.categoryLabel}」${pctLabel(bm)}`,
+          bm.compareMode === 'unit'
+            ? bm.vsMedianPct > 0
+              ? `อัตรา${bm.unitLabel} สูงกว่าค่ากลาง「${bm.categoryLabel}」${pctLabel(bm)}`
+              : `อัตรา${bm.unitLabel} ต่ำกว่าค่ากลาง「${bm.categoryLabel}」${pctLabel(bm)}`
+            : bm.vsMedianPct > 0
+              ? `ราคาที่ตกลงสูงกว่าค่ากลางกลุ่ม「${bm.categoryLabel}」${pctLabel(bm)}`
+              : `ราคาที่ตกลงต่ำกว่าค่ากลางกลุ่ม「${bm.categoryLabel}」${pctLabel(bm)}`,
         sevKey: priceSev,
-        conf: `n=${bm.n} · ${bm.scope}`,
+        conf: `n=${bm.n} · ${bm.scope}${bm.compareMode === 'unit' ? ' · unit' : ''}`,
         facts: [
-          ['ราคาที่ตกลง', formatBenchmarkBaht(bm.award)],
-          ['ค่ากลางตลาด (median)', formatBenchmarkBaht(bm.median)],
-          ['ช่วง P25–P75', `${formatBenchmarkBaht(bm.p25)} – ${formatBenchmarkBaht(bm.p75)}`],
-          ['ขอบเขตเปรียบเทียบ', bm.scope === 'province' ? `จังหวัด${province}` : bm.scope === 'national' ? 'ทั้งประเทศ' : 'ในหน่วยงาน'],
+          ...unitFacts,
+          [
+            'ขอบเขตเปรียบเทียบ',
+            bm.scope === 'province' ? `จังหวัด${province}` : bm.scope === 'national' ? 'ทั้งประเทศ' : 'ในหน่วยงาน',
+          ],
+          ['ราคาทั้งสัญญา', formatBenchmarkBaht(bm.award)],
         ],
         explain: bm.note,
         innocent:
-          'ความต่างจากค่ากลางอาจมาจากขนาดงาน ปริมาณ สเปก หรือทำเล — ต้องเทียบกับ TOR/ปริมาณงาน ไม่ใช่ข้อกล่าวหา',
-        evidence: ['contracts-cache · price-by-category benchmarks'],
+          'ความต่างจากค่ากลางอาจมาจากความกว้าง/ความหนา สเปก ทำเล หรือปริมาณจริงใน TOR — ไม่ใช่ข้อกล่าวหา',
+        evidence: ['contracts-cache · price-by-category benchmarks · title quantity parse'],
       });
     }
   }

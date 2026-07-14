@@ -1,8 +1,33 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import { useTrace24 } from '@/context/trace24-context';
 import { REVIEW_OPTIONS, sev } from '@/lib/utils';
-import { RiskDisclaimer, SeverityBadge, selectStyle } from './ui';
+import { LoadingHint, RiskDisclaimer, SeverityBadge, selectStyle } from './ui';
+
+type PriceCompareAi = {
+  model?: string;
+  headline: string;
+  marketPosition: string;
+  unitRateAnalysis?: string;
+  categoryFit: string;
+  peerNotes: string;
+  caveats: string[];
+  documentsToRequest: string[];
+  nextSteps: string[];
+  disclaimer: string;
+  evidence?: {
+    peerCount?: number;
+    peers?: { id: string; name: string; award: string; pct: string }[];
+    benchmark?: {
+      compareMode?: string;
+      unitLabel?: string;
+      unitRateLabel?: string;
+      quantityLabel?: string;
+      median?: number;
+    };
+  };
+};
 
 type ProjectAlert = {
   tag: string;
@@ -42,6 +67,11 @@ type ProjectLike = {
     p75?: number;
     vsMedianPct?: number;
     note?: string;
+    compareMode?: 'contract' | 'unit';
+    unitLabel?: string;
+    unitRateLabel?: string;
+    quantityLabel?: string;
+    unitRate?: number;
   };
 };
 
@@ -51,14 +81,27 @@ export function ProjectScreen() {
     selProjectId,
     projectReview,
     setProjectReview,
+    scannedId,
     go,
   } = useTrace24();
 
+  const [aiBusy, setAiBusy] = useState(false);
+  const [aiError, setAiError] = useState<string | null>(null);
+  const [aiCompare, setAiCompare] = useState<PriceCompareAi | null>(null);
+
   const projects = dataset.projects as unknown as Record<string, ProjectLike>;
-  const pr0 =
-    projects[selProjectId] ??
-    projects[dataset.def?.project || ''] ??
-    Object.values(projects)[0];
+  const projectKey =
+    (selProjectId && projects[selProjectId] ? selProjectId : null) ||
+    (dataset.def?.project && projects[dataset.def.project] ? dataset.def.project : null) ||
+    Object.keys(projects)[0] ||
+    '';
+  const pr0 = projectKey ? projects[projectKey] : undefined;
+
+  useEffect(() => {
+    setAiCompare(null);
+    setAiError(null);
+    setAiBusy(false);
+  }, [projectKey, scannedId]);
 
   if (!pr0) {
     return (
@@ -89,10 +132,29 @@ export function ProjectScreen() {
   >;
   const winnerId = pr0.winner || '';
   const winnerC = winnerId ? contractors[winnerId] : undefined;
-  const reviewValue = projectReview[selProjectId] || 'ใหม่';
+  const reviewValue = projectReview[projectKey] || projectReview[selProjectId] || 'ใหม่';
   const alerts = Array.isArray(pr0.alerts) ? pr0.alerts : [];
   const timeline = (Array.isArray(pr0.timeline) ? pr0.timeline : []) as [string, string, string][];
   const related = (Array.isArray(pr0.related) ? pr0.related : []) as [string, string, string][];
+
+  const runAiCompare = () => {
+    if (!scannedId || !projectKey) return;
+    setAiBusy(true);
+    setAiError(null);
+    fetch(`/api/agencies/${scannedId}/price-compare`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ projectId: projectKey }),
+    })
+      .then(async (r) => {
+        const data = await r.json().catch(() => ({}));
+        if (!r.ok) throw new Error(data.hint || data.error || `HTTP ${r.status}`);
+        return data as PriceCompareAi;
+      })
+      .then((data) => setAiCompare(data))
+      .catch((e: Error) => setAiError(e.message || 'วิเคราะห์ไม่สำเร็จ'))
+      .finally(() => setAiBusy(false));
+  };
 
   return (
     <div
@@ -148,16 +210,28 @@ export function ProjectScreen() {
       >
         {[
           ['งบประมาณ', pr0.budget || '—'],
-          ['ค่ากลางตลาด', pr0.ref || '—'],
-          ['ราคาที่ตกลง', pr0.award || '—'],
+          [
+            pr0.priceBenchmark?.compareMode === 'unit'
+              ? `ค่ากลาง (${pr0.priceBenchmark.unitLabel || 'ต่อหน่วย'})`
+              : 'ค่ากลางตลาด',
+            pr0.ref || '—',
+          ],
+          [
+            pr0.priceBenchmark?.compareMode === 'unit' ? 'อัตราราคาโครงการ' : 'ราคาที่ตกลง',
+            pr0.priceBenchmark?.compareMode === 'unit'
+              ? pr0.priceBenchmark.unitRateLabel || pr0.award || '—'
+              : pr0.award || '—',
+          ],
         ].map(([label, value]) => (
           <div key={label as string} style={{ padding: '20px 20px 20px 0', borderRight: '1px solid #EEEEEA', marginRight: 20 }}>
             <div style={{ fontSize: 11, color: '#8B8B85' }}>{label}</div>
-            <div style={{ fontSize: 24, fontWeight: 500, marginTop: 8 }}>{value}</div>
+            <div style={{ fontSize: 22, fontWeight: 500, marginTop: 8, lineHeight: 1.25 }}>{value}</div>
           </div>
         ))}
         <div style={{ padding: '20px 0' }}>
-          <div style={{ fontSize: 11, color: '#8B8B85' }}>เทียบค่ากลางตลาด</div>
+          <div style={{ fontSize: 11, color: '#8B8B85' }}>
+            {pr0.priceBenchmark?.compareMode === 'unit' ? 'เทียบอัตราต่อหน่วย' : 'เทียบค่ากลางตลาด'}
+          </div>
           <div
             style={{
               fontSize: 24,
@@ -173,7 +247,9 @@ export function ProjectScreen() {
           </div>
           <div style={{ fontSize: 11.5, color: '#8B8B85', marginTop: 3, lineHeight: 1.45 }}>
             {pr0.priceBenchmark
-              ? `${pr0.priceBenchmark.categoryLabel || 'กลุ่มงาน'} · n=${pr0.priceBenchmark.n || 0} · ${
+              ? `${pr0.priceBenchmark.categoryLabel || 'กลุ่มงาน'}${
+                  pr0.priceBenchmark.quantityLabel ? ` · ${pr0.priceBenchmark.quantityLabel}` : ''
+                } · n=${pr0.priceBenchmark.n || 0} · ${
                   pr0.priceBenchmark.scope === 'province'
                     ? 'ระดับจังหวัด'
                     : pr0.priceBenchmark.scope === 'national'
@@ -197,13 +273,145 @@ export function ProjectScreen() {
           }}
         >
           {pr0.priceBenchmark.note}
-          {pr0.priceBenchmark.p25 != null && pr0.priceBenchmark.p75 != null
+          {pr0.priceBenchmark.compareMode === 'unit' &&
+          pr0.priceBenchmark.p25 != null &&
+          pr0.priceBenchmark.p75 != null
             ? ` · ช่วง P25–P75 ประมาณ ${Number(pr0.priceBenchmark.p25).toLocaleString('th-TH')} – ${Number(
                 pr0.priceBenchmark.p75
-              ).toLocaleString('th-TH')} บาท`
+              ).toLocaleString('th-TH')} ${pr0.priceBenchmark.unitLabel || ''}`
+            : pr0.priceBenchmark.p25 != null && pr0.priceBenchmark.p75 != null
+              ? ` · ช่วง P25–P75 ประมาณ ${Number(pr0.priceBenchmark.p25).toLocaleString('th-TH')} – ${Number(
+                  pr0.priceBenchmark.p75
+                ).toLocaleString('th-TH')} บาท`
+              : ''}
+          {pr0.priceBenchmark.compareMode === 'unit' && pr0.award
+            ? ` · ราคารวมสัญญา ${pr0.award}`
             : ''}
         </div>
       )}
+
+      <div
+        style={{
+          marginTop: 28,
+          borderTop: '1px solid #111110',
+          paddingTop: 22,
+        }}
+      >
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 16, flexWrap: 'wrap' }}>
+          <div>
+            <div style={{ fontSize: 11, letterSpacing: '.08em', color: '#8B8B85', fontWeight: 500 }}>
+              AI · เปรียบเทียบราคาเชิงรายละเอียด
+            </div>
+            <h2 style={{ fontSize: 16, fontWeight: 600, margin: '6px 0 0' }}>
+              อ่านปริมาณจากชื่องาน เทียบบาท/กม. · บาท/ตร.ม. และงานคล้าย
+            </h2>
+          </div>
+          <button
+            type="button"
+            onClick={runAiCompare}
+            disabled={aiBusy || !scannedId}
+            style={{
+              fontSize: 13,
+              padding: '10px 16px',
+              border: '1px solid #111110',
+              background: aiBusy ? '#EEEEEA' : '#111110',
+              color: aiBusy ? '#55554F' : '#FBFBF9',
+              cursor: aiBusy || !scannedId ? 'default' : 'pointer',
+              fontFamily: 'inherit',
+            }}
+          >
+            {aiBusy ? 'กำลังวิเคราะห์…' : aiCompare ? 'วิเคราะห์อีกครั้ง' : 'ให้ AI วิเคราะห์'}
+          </button>
+        </div>
+        <div style={{ fontSize: 12.5, color: '#8B8B85', marginTop: 8, lineHeight: 1.5, maxWidth: 720 }}>
+          เช่น ถนนคอนกรีต — ดึงความยาวแล้วเทียบค่าสร้างต่อกิโลเมตร ไม่ใช่แค่ราคารวมสัญญา · ไม่ใช่ราคากลางราชการ
+        </div>
+        {aiBusy && <LoadingHint label="AI กำลังอ่านสัญญาและค่ากลางตลาด" style={{ marginTop: 16 }} />}
+        {aiError && (
+          <div style={{ marginTop: 14, fontSize: 13.5, color: 'var(--accent)', lineHeight: 1.5 }}>{aiError}</div>
+        )}
+        {aiCompare && (
+          <div style={{ marginTop: 18, display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: 32 }}>
+            <div>
+              <div style={{ fontSize: 18, fontWeight: 500, lineHeight: 1.4 }}>{aiCompare.headline}</div>
+              <div style={{ marginTop: 16, fontSize: 14, color: '#33332E', lineHeight: 1.65 }}>
+                {aiCompare.marketPosition}
+              </div>
+              {!!aiCompare.unitRateAnalysis && (
+                <div style={{ marginTop: 14 }}>
+                  <div style={{ fontSize: 11, color: '#8B8B85' }}>วิเคราะห์อัตราต่อหน่วย</div>
+                  <div style={{ fontSize: 13.5, color: '#33332E', marginTop: 4, lineHeight: 1.6 }}>
+                    {aiCompare.unitRateAnalysis}
+                  </div>
+                </div>
+              )}
+              {!!aiCompare.categoryFit && (
+                <div style={{ marginTop: 14 }}>
+                  <div style={{ fontSize: 11, color: '#8B8B85' }}>ความเหมาะของหมวดงาน</div>
+                  <div style={{ fontSize: 13.5, color: '#55554F', marginTop: 4, lineHeight: 1.55 }}>
+                    {aiCompare.categoryFit}
+                  </div>
+                </div>
+              )}
+              {!!aiCompare.peerNotes && (
+                <div style={{ marginTop: 14 }}>
+                  <div style={{ fontSize: 11, color: '#8B8B85' }}>เทียบงานคล้ายในหน่วยงาน</div>
+                  <div style={{ fontSize: 13.5, color: '#55554F', marginTop: 4, lineHeight: 1.55 }}>
+                    {aiCompare.peerNotes}
+                  </div>
+                </div>
+              )}
+              {(aiCompare.evidence?.peers || []).length > 0 && (
+                <div style={{ marginTop: 16, borderTop: '1px solid #EEEEEA', paddingTop: 12 }}>
+                  <div style={{ fontSize: 11, color: '#8B8B85', marginBottom: 8 }}>
+                    Peer ที่ใช้เป็นหลักฐาน ({aiCompare.evidence?.peerCount || 0})
+                  </div>
+                  {(aiCompare.evidence?.peers || []).slice(0, 5).map((p) => (
+                    <div
+                      key={p.id}
+                      style={{
+                        display: 'grid',
+                        gridTemplateColumns: '1fr 120px 70px',
+                        gap: 10,
+                        fontSize: 12.5,
+                        padding: '7px 0',
+                        borderBottom: '1px solid #F0F0EC',
+                        color: '#55554F',
+                      }}
+                    >
+                      <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</div>
+                      <div>{p.award}</div>
+                      <div>{p.pct}</div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+            <div>
+              {[
+                ['ข้อแม้', aiCompare.caveats],
+                ['เอกสารที่ควรขอ', aiCompare.documentsToRequest],
+                ['ขั้นตอนถัดไป', aiCompare.nextSteps],
+              ].map(([label, items]) => (
+                <div key={label as string} style={{ marginBottom: 18 }}>
+                  <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 8 }}>{label as string}</div>
+                  <ul style={{ margin: 0, paddingLeft: 18, fontSize: 13, color: '#55554F', lineHeight: 1.55 }}>
+                    {((items as string[]) || []).map((t, i) => (
+                      <li key={i} style={{ marginBottom: 4 }}>
+                        {t}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
+              <div style={{ fontSize: 11.5, color: '#8B8B85', lineHeight: 1.55, borderTop: '1px solid #EEEEEA', paddingTop: 12 }}>
+                {aiCompare.disclaimer}
+                {aiCompare.model ? ` · โมเดล ${aiCompare.model}` : ''}
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: 56, marginTop: 40, alignItems: 'start' }}>
         <div>
@@ -423,7 +631,7 @@ export function ProjectScreen() {
             <h2 style={{ fontSize: 13.5, fontWeight: 600, margin: 0 }}>การตรวจสอบโดยเจ้าหน้าที่</h2>
             <select
               value={reviewValue}
-              onChange={(e) => setProjectReview(selProjectId, e.target.value)}
+              onChange={(e) => setProjectReview(projectKey, e.target.value)}
               style={{ ...selectStyle, width: '100%', marginTop: 12 }}
             >
               {REVIEW_OPTIONS.map((o) => (

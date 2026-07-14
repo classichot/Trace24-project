@@ -1,27 +1,26 @@
 /**
  * Market price benchmarks from contracts-cache (NOT official CGD ราคากลาง).
- * Categories are inferred from project titles; stats are median / P25–P75 of award prices.
+ * Supports whole-contract medians and unit rates (บาท/กม., บาท/ม., บาท/ตร.ม.).
  */
 import 'server-only';
 
 import fs from 'fs';
 import path from 'path';
 import zlib from 'zlib';
+import {
+  formatQuantity,
+  formatUnitRate,
+  parseProjectQuantity,
+  preferredUnitRateKind,
+  unitRateFromAward,
+  UNIT_RATE_LABELS,
+  type ParsedProjectQuantity,
+  type UnitRateKind,
+} from '@/lib/parse-project-quantity';
+import { categorizeWork, type WorkCategoryId } from '@/lib/work-categories';
 
-export type WorkCategoryId =
-  | 'road_concrete'
-  | 'road_asphalt'
-  | 'drainage'
-  | 'water_supply'
-  | 'building'
-  | 'bridge'
-  | 'vehicle'
-  | 'equipment'
-  | 'waste'
-  | 'electrical'
-  | 'it_comms'
-  | 'medical'
-  | 'other';
+export type { WorkCategoryId };
+export { categorizeWork };
 
 export type BenchmarkBucket = {
   label: string;
@@ -29,13 +28,21 @@ export type BenchmarkBucket = {
   median: number;
   p25: number;
   p75: number;
+  unitLabel?: string;
+  byProvince?: Record<string, BenchmarkBucket>;
 };
 
 export type PriceBenchmarkFile = {
   generatedAt: string;
   source: string;
   note: string;
-  categories: Record<string, BenchmarkBucket & { byProvince?: Record<string, BenchmarkBucket> }>;
+  categories: Record<
+    string,
+    BenchmarkBucket & {
+      byProvince?: Record<string, BenchmarkBucket>;
+      byUnit?: Partial<Record<UnitRateKind, BenchmarkBucket>>;
+    }
+  >;
 };
 
 export type ProjectPriceBenchmark = {
@@ -52,38 +59,21 @@ export type ProjectPriceBenchmark = {
   /** ((award - median) / median) * 100 */
   vsMedianPct: number;
   note: string;
+  /** contract = เทียบทั้งสัญญา · unit = เทียบอัตราต่อหน่วย */
+  compareMode: 'contract' | 'unit';
+  unitKind?: UnitRateKind;
+  unitLabel?: string;
+  quantity?: number;
+  quantityLabel?: string;
+  unitRate?: number;
+  unitRateLabel?: string;
+  parsed?: {
+    widthM: number | null;
+    lengthM: number | null;
+    lengthKm: number | null;
+    areaM2: number | null;
+  };
 };
-
-const CATEGORY_DEFS: { id: WorkCategoryId; label: string; re: RegExp }[] = [
-  { id: 'road_concrete', label: 'ถนนคอนกรีต / คสล.', re: /คสล|คอนกรีตเสริมเหล็ก|ถนนคอนกรีต|ผิวจราจร.*คอนกรีต|คอนกรีตถนน/i },
-  { id: 'road_asphalt', label: 'ถนนลาดยาง / แอสฟัลต์', re: /ลาดยาง|แอสฟัลต์|asphalt|overlay|เสริมผิว/i },
-  { id: 'drainage', label: 'ระบายน้ำ / ท่อ / บ่อพัก', re: /ระบายน้ำ|ท่อระบาย|บ่อพัก|รางน้ำ|คูคลอง|ท่อเหลี่ยม/i },
-  { id: 'water_supply', label: 'ประปา / บาดาล', re: /ประปา|บาดาล|ระบบน้ำ|ถังน้ำ|สถานีสูบ/i },
-  { id: 'bridge', label: 'สะพาน / ท่อลอด', re: /สะพาน|ท่อลอด|สะพานลอย/i },
-  {
-    id: 'building',
-    label: 'อาคาร / ก่อสร้างสิ่งปลูกสร้าง',
-    re: /อาคาร|เมรุ|ศาลา|ห้องน้ำ|ศูนย์พัฒนา|ก่อสร้าง.*บ้าน|ปรับปรุงอาคาร|หลังคา|พื้นอาคาร/i,
-  },
-  { id: 'vehicle', label: 'ยานพาหนะ', re: /รถบรรทุก|รถยนต์|ยานพาหนะ|รถกระบะ|รถขยะ|รถดับเพลิง|จักรยานยนต์/i },
-  { id: 'waste', label: 'จัดการขยะ / สิ่งปฏิกูล', re: /ขยะ|สิ่งปฏิกูล|กำจัดขยะ|มูลฝอย/i },
-  { id: 'electrical', label: 'ไฟฟ้า / แสงสว่าง', re: /ไฟฟ้า|โคมไฟ|สายไฟฟ้า|หม้อแปลง|ไฟฟ้าส่องสว่าง|ไฟทาง/i },
-  {
-    id: 'it_comms',
-    label: 'คอมพิวเตอร์ / สื่อสาร',
-    re: /คอมพิวเตอร์|โน้ตบุ๊ก|เซิร์ฟเวอร์|อินเทอร์เน็ต|กล้องวงจรปิด|cctv|ซอฟต์แวร์/i,
-  },
-  { id: 'medical', label: 'การแพทย์ / เวชภัณฑ์', re: /เวชภัณฑ์|เครื่องมือแพทย์|ยา |วัคซีน|ทันตกรรม|ห้องผ่าตัด/i },
-  { id: 'equipment', label: 'ครุภัณฑ์ทั่วไป', re: /ครุภัณฑ์|เครื่องปรับอากาศ|เครื่องถ่ายเอกสาร|เฟอร์นิเจอร์|โต๊ะ|ตู้/i },
-];
-
-export function categorizeWork(projectName: string): { id: WorkCategoryId; label: string } {
-  const name = String(projectName || '');
-  for (const def of CATEGORY_DEFS) {
-    if (def.re.test(name)) return { id: def.id, label: def.label };
-  }
-  return { id: 'other', label: 'งานจัดซื้อจัดจ้างอื่น' };
-}
 
 export function parseMoneyLoose(s: unknown): number {
   const n = Number(String(s ?? '').replace(/[^0-9.]/g, ''));
@@ -118,16 +108,21 @@ export function formatBenchmarkBaht(n: number) {
   return n.toLocaleString('th-TH', { maximumFractionDigits: 0 }) + ' บาท';
 }
 
-/** Compare one award against a benchmark bucket. */
-export function compareToBucket(
-  award: number,
+function compareValues(
+  value: number,
   category: { id: WorkCategoryId; label: string },
   bucket: BenchmarkBucket,
-  scope: ProjectPriceBenchmark['scope']
+  scope: ProjectPriceBenchmark['scope'],
+  extras: Partial<ProjectPriceBenchmark>
 ): ProjectPriceBenchmark | null {
-  if (!award || !bucket?.median) return null;
-  const ratio = award / bucket.median;
-  const vsMedianPct = ((award - bucket.median) / bucket.median) * 100;
+  if (!value || !bucket?.median) return null;
+  const ratio = value / bucket.median;
+  const vsMedianPct = ((value - bucket.median) / bucket.median) * 100;
+  const compareMode = extras.compareMode || 'contract';
+  const unitNote =
+    compareMode === 'unit' && extras.unitLabel
+      ? `อัตรา ${extras.unitRateLabel || formatUnitRate(value, extras.unitKind!)} เทียบค่ากลาง ${formatUnitRate(bucket.median, extras.unitKind!)}`
+      : '';
   return {
     categoryId: category.id,
     categoryLabel: category.label,
@@ -136,16 +131,32 @@ export function compareToBucket(
     median: bucket.median,
     p25: bucket.p25,
     p75: bucket.p75,
-    award,
+    award: extras.award || value,
     ratio,
     vsMedianPct,
+    compareMode,
     note:
-      scope === 'national'
-        ? `ค่ากลางตลาดจากแคชสัญญาทั่วประเทศ · กลุ่ม「${category.label}」n=${bucket.n} — ไม่ใช่ราคากลางราชการ`
-        : scope === 'province'
-          ? `ค่ากลางตลาดในจังหวัด · กลุ่ม「${category.label}」n=${bucket.n} — ไม่ใช่ราคากลางราชการ`
-          : `ค่ากลางในหน่วยงานนี้ · กลุ่ม「${category.label}」n=${bucket.n} — ไม่ใช่ราคากลางราชการ`,
+      compareMode === 'unit'
+        ? `${unitNote} · กลุ่ม「${category.label}」n=${bucket.n} · ${
+            scope === 'province' ? 'ระดับจังหวัด' : scope === 'national' ? 'ทั้งประเทศ' : 'ในหน่วยงาน'
+          } — ไม่ใช่ราคากลางราชการ`
+        : scope === 'national'
+          ? `ค่ากลางตลาดจากแคชสัญญาทั่วประเทศ · กลุ่ม「${category.label}」n=${bucket.n} — ไม่ใช่ราคากลางราชการ`
+          : scope === 'province'
+            ? `ค่ากลางตลาดในจังหวัด · กลุ่ม「${category.label}」n=${bucket.n} — ไม่ใช่ราคากลางราชการ`
+            : `ค่ากลางในหน่วยงานนี้ · กลุ่ม「${category.label}」n=${bucket.n} — ไม่ใช่ราคากลางราชการ`,
+    ...extras,
   };
+}
+
+/** Compare one award against a benchmark bucket (whole contract). */
+export function compareToBucket(
+  award: number,
+  category: { id: WorkCategoryId; label: string },
+  bucket: BenchmarkBucket,
+  scope: ProjectPriceBenchmark['scope']
+): ProjectPriceBenchmark | null {
+  return compareValues(award, category, bucket, scope, { compareMode: 'contract', award });
 }
 
 export function severityFromVsMedian(vsMedianPct: number): 'High' | 'Medium' | 'Low' {
@@ -181,34 +192,117 @@ export function loadNationalPriceBenchmarks(): PriceBenchmarkFile | null {
   return cachedNational || null;
 }
 
+function pickUnitBucket(
+  catEntry: PriceBenchmarkFile['categories'][string] | undefined,
+  kind: UnitRateKind,
+  province?: string
+): { bucket: BenchmarkBucket; scope: ProjectPriceBenchmark['scope'] } | null {
+  const u = catEntry?.byUnit?.[kind];
+  if (!u) return null;
+  if (province && u.byProvince?.[province] && u.byProvince[province].n >= 5) {
+    return { bucket: u.byProvince[province], scope: 'province' };
+  }
+  if (u.n >= 5) return { bucket: u, scope: 'national' };
+  return null;
+}
+
+function unitKindsToTry(categoryId: string, parsed: ParsedProjectQuantity): UnitRateKind[] {
+  const preferred = preferredUnitRateKind(categoryId);
+  const available = (Object.keys(parsed.rates) as UnitRateKind[]).filter((k) => parsed.rates[k]);
+  const ordered: UnitRateKind[] = [];
+  if (preferred && available.includes(preferred)) ordered.push(preferred);
+  // for roads, also try m2 as strong secondary
+  for (const k of ['baht_per_m2', 'baht_per_km', 'baht_per_m'] as UnitRateKind[]) {
+    if (!ordered.includes(k) && available.includes(k)) ordered.push(k);
+  }
+  return ordered;
+}
+
+function quantityLabelFor(kind: UnitRateKind, qty: number): string {
+  if (kind === 'baht_per_km') return formatQuantity(qty, 'km');
+  if (kind === 'baht_per_m2') return formatQuantity(qty, 'm2');
+  return formatQuantity(qty, 'm');
+}
+
 /**
- * Pick best available benchmark: province → national → agency peers.
+ * Prefer unit-rate compare when title has quantity; else whole-contract median.
+ * Order: province unit → national unit → province contract → national contract → agency peers.
  */
 export function resolveProjectBenchmark(opts: {
   projectName: string;
   award: number;
   province?: string;
   agencyPeerAwardsByCategory?: Partial<Record<WorkCategoryId, number[]>>;
+  agencyPeerUnitRatesByCategory?: Partial<Record<WorkCategoryId, Partial<Record<UnitRateKind, number[]>>>>;
 }): ProjectPriceBenchmark | null {
   if (!opts.award || opts.award <= 0) return null;
   const cat = categorizeWork(opts.projectName);
   const national = loadNationalPriceBenchmarks();
+  const parsed = parseProjectQuantity(opts.projectName);
+  const parsedMeta = {
+    widthM: parsed.widthM,
+    lengthM: parsed.lengthM,
+    lengthKm: parsed.lengthKm,
+    areaM2: parsed.areaM2,
+  };
 
+  for (const kind of unitKindsToTry(cat.id, parsed)) {
+    const qty = parsed.rates[kind]?.qty;
+    if (!qty) continue;
+    const unitRate = unitRateFromAward(opts.award, kind, qty);
+    if (!unitRate) continue;
+
+    const nationalHit = pickUnitBucket(national?.categories?.[cat.id], kind, opts.province);
+    if (nationalHit) {
+      return compareValues(unitRate, cat, nationalHit.bucket, nationalHit.scope, {
+        compareMode: 'unit',
+        award: opts.award,
+        unitKind: kind,
+        unitLabel: UNIT_RATE_LABELS[kind],
+        quantity: qty,
+        quantityLabel: quantityLabelFor(kind, qty),
+        unitRate,
+        unitRateLabel: formatUnitRate(unitRate, kind),
+        parsed: parsedMeta,
+      });
+    }
+
+    const peerRates = opts.agencyPeerUnitRatesByCategory?.[cat.id]?.[kind] || [];
+    const agencyBucket = bucketFromAwards(`${cat.label} · ${UNIT_RATE_LABELS[kind]}`, peerRates);
+    if (agencyBucket) {
+      return compareValues(unitRate, cat, agencyBucket, 'agency', {
+        compareMode: 'unit',
+        award: opts.award,
+        unitKind: kind,
+        unitLabel: UNIT_RATE_LABELS[kind],
+        quantity: qty,
+        quantityLabel: quantityLabelFor(kind, qty),
+        unitRate,
+        unitRateLabel: formatUnitRate(unitRate, kind),
+        parsed: parsedMeta,
+      });
+    }
+  }
+
+  // Fallback: whole-contract medians
   if (national?.categories?.[cat.id] && opts.province) {
     const prov = national.categories[cat.id].byProvince?.[opts.province];
     if (prov && prov.n >= 5) {
       const hit = compareToBucket(opts.award, cat, prov, 'province');
-      if (hit) return hit;
+      if (hit) return { ...hit, parsed: parsedMeta };
     }
   }
   if (national?.categories?.[cat.id] && national.categories[cat.id].n >= 5) {
     const hit = compareToBucket(opts.award, cat, national.categories[cat.id], 'national');
-    if (hit) return hit;
+    if (hit) return { ...hit, parsed: parsedMeta };
   }
 
   const peers = opts.agencyPeerAwardsByCategory?.[cat.id] || [];
   const agencyBucket = bucketFromAwards(cat.label, peers);
-  if (agencyBucket) return compareToBucket(opts.award, cat, agencyBucket, 'agency');
+  if (agencyBucket) {
+    const hit = compareToBucket(opts.award, cat, agencyBucket, 'agency');
+    if (hit) return { ...hit, parsed: parsedMeta };
+  }
 
   return null;
 }

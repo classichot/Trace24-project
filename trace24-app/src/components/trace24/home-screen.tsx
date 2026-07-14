@@ -93,6 +93,7 @@ export function HomeScreen() {
       >
         <Logo size={16} />
         <div style={{ display: 'flex', gap: 26, fontSize: 13, color: '#55554F' }}>
+          <span onClick={() => go('prices')} className="trace24-hover-text" style={{ cursor: 'pointer' }}>ค่ากลางราคางาน</span>
           <span onClick={() => go('method')} className="trace24-hover-text" style={{ cursor: 'pointer' }}>ระเบียบวิธี</span>
           <span onClick={() => go('sources')} className="trace24-hover-text" style={{ cursor: 'pointer' }}>แหล่งข้อมูล</span>
           <span onClick={() => go('corrections')} className="trace24-hover-text" style={{ cursor: 'pointer' }}>ขอแก้ไขข้อมูล</span>
