@@ -127,29 +127,29 @@ export async function searchDataGoTh(query: string, rows = 10) {
   };
 }
 
+import { normalizeEgpContactRow, looksLikeThaiDate } from './egp-contact-normalize';
+
 function mapRow(row: Record<string, unknown>): GovSpendingContract {
-  const projectMoney = row['งบประมาณ(บาท)'];
-  const price = row['ราคาตกลงซื้อ/จ้าง'] ?? row['งบสัญญา(บาท)'];
-  let winner = String(row['ชื่อผู้ชนะ'] ?? '').trim();
-  if (/^\d{1,2}\s*(ม\.ค\.|ก\.พ\.|มี\.ค\.|เม\.ย\.|พ\.ค\.|มิ\.ย\.|ก\.ค\.|ส\.ค\.|ก\.ย\.|ต\.ค\.|พ\.ย\.|ธ\.ค\.)/.test(winner)) {
-    winner = '';
-  }
+  const n = normalizeEgpContactRow(row);
+  let winner = n['ชื่อผู้ชนะ'];
+  if (looksLikeThaiDate(winner)) winner = '';
+  const price = n['ราคาตกลงซื้อ/จ้าง'] || n['งบสัญญา(บาท)'];
   return {
-    project_id: String(row['รหัสโครงการ'] ?? ''),
-    project_name: String(row['ชื่อโครงการ'] ?? ''),
-    project_money: projectMoney != null ? String(projectMoney) : '',
-    project_type_name: String(row['กลุ่มวิธีจัดซื้อฯ'] || row['วิธีจัดซื้อฯ'] || ''),
-    dept_name: String(row['ชื่อหน่วยงาน'] ?? ''),
-    province: String(row['จังหวัด'] ?? ''),
-    district: String(row['เขต/อำเภอ'] ?? ''),
-    _fy: String(row['ปีงบประมาณ'] ?? ''),
+    project_id: n['รหัสโครงการ'] || '',
+    project_name: n['ชื่อโครงการ'] || '',
+    project_money: n['งบประมาณ(บาท)'] || '',
+    project_type_name: n['กลุ่มวิธีจัดซื้อฯ'] || n['วิธีจัดซื้อฯ'] || '',
+    dept_name: n['ชื่อหน่วยงาน'] || '',
+    province: n['จังหวัด'] || '',
+    district: n['เขต/อำเภอ'] || '',
+    _fy: n['ปีงบประมาณ'] || '',
     _source: 'data.go.th/govspending-ckan',
     contract: [
       {
         winner,
-        winner_tin: String(row['เลขนิติบุคคล'] ?? '').trim(),
-        price_agree: price != null ? String(price) : '',
-        contract_date: String(row['วันที่ลงนามสัญญา'] || row['วันที่ประกาศ'] || ''),
+        winner_tin: n['เลขนิติบุคคล'] || '',
+        price_agree: price || '',
+        contract_date: n['วันที่ลงนามสัญญา'] || n['วันที่ประกาศ'] || '',
       },
     ],
   };

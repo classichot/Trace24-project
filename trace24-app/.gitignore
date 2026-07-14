@@ -50,6 +50,7 @@ next-env.d.ts
 !/data/contracts-cache/agencies-to-sync.json
 !/data/contracts-cache/sync-last-run.json
 !/data/contracts-cache/build-all-last-run.json
+!/data/contracts-cache/repair-winners-last-run.json
 
 # bulk CSV mirror (~5GB) — never commit
 /data/contracts-mirror/

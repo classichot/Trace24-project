@@ -153,6 +153,11 @@ export function buildUiEntityGraph(input: {
       link: 'contractor',
       target: cid,
     };
+    // If no project→winner edge exists for this company, still link to agency
+    const linked = edges.some((e) => e[0] === cid || e[1] === cid);
+    if (!linked) {
+      edges.push(['muni', cid, 'ผู้รับจ้าง', false]);
+    }
   });
 
   // Related-party person / executive links when available

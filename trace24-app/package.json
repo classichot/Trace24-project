@@ -13,7 +13,8 @@
     "build-agency-catalog": "node scripts/build-agency-catalog.mjs",
     "cache-agency-contracts": "node scripts/cache-agency-contracts.mjs",
     "sync-contracts-cache": "node scripts/sync-contracts-cache.mjs",
-    "build-all-contracts-caches": "node scripts/build-all-contracts-caches.mjs"
+    "build-all-contracts-caches": "node scripts/build-all-contracts-caches.mjs",
+    "repair-contracts-winners": "node scripts/repair-contracts-cache-winners.mjs"
   },
   "dependencies": {
     "next": "16.2.10",

@@ -21,6 +21,7 @@ import { createWriteStream, createReadStream } from 'fs';
 import { pipeline } from 'stream/promises';
 import { Readable } from 'stream';
 import { fileURLToPath } from 'url';
+import { normalizeEgpContactRow } from './lib/egp-contact-row.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.join(__dirname, '..');
@@ -136,23 +137,7 @@ async function downloadToFile(url, dest, label) {
 }
 
 function compactRow(row) {
-  return {
-    รหัสโครงการ: row['รหัสโครงการ'] ?? '',
-    ชื่อโครงการ: row['ชื่อโครงการ'] ?? '',
-    'งบประมาณ(บาท)': row['งบประมาณ(บาท)'] ?? '',
-    'กลุ่มวิธีจัดซื้อฯ': row['กลุ่มวิธีจัดซื้อฯ'] ?? '',
-    วิธีจัดซื้อฯ: row['วิธีจัดซื้อฯ'] ?? '',
-    ชื่อหน่วยงาน: row['ชื่อหน่วยงาน'] ?? '',
-    จังหวัด: row['จังหวัด'] ?? '',
-    'เขต/อำเภอ': row['เขต/อำเภอ'] ?? '',
-    ปีงบประมาณ: row['ปีงบประมาณ'] ?? '',
-    ชื่อผู้ชนะ: row['ชื่อผู้ชนะ'] ?? '',
-    เลขนิติบุคคล: row['เลขนิติบุคคล'] ?? '',
-    'ราคาตกลงซื้อ/จ้าง': row['ราคาตกลงซื้อ/จ้าง'] ?? '',
-    'งบสัญญา(บาท)': row['งบสัญญา(บาท)'] ?? '',
-    วันที่ลงนามสัญญา: row['วันที่ลงนามสัญญา'] ?? '',
-    วันที่ประกาศ: row['วันที่ประกาศ'] ?? '',
-  };
+  return normalizeEgpContactRow(row);
 }
 
 console.log('=== TRACE24 bulk contracts-cache builder (disk-backed) ===');

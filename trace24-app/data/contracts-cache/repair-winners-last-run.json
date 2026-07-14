@@ -1,0 +1,98 @@
+{
+  "ranAt": "2026-07-14T05:48:31.538Z",
+  "repaired": 9033,
+  "skipped": 1,
+  "failed": 76,
+  "sample": [
+    {
+      "agencyId": "egp-001116800",
+      "ok": true,
+      "rows": 300,
+      "winners": 300
+    },
+    {
+      "agencyId": "egp-001098400",
+      "ok": true,
+      "rows": 300,
+      "winners": 299
+    },
+    {
+      "agencyId": "egp-001157700",
+      "ok": true,
+      "rows": 242,
+      "winners": 242
+    },
+    {
+      "agencyId": "egp-000228400",
+      "ok": true,
+      "rows": 128,
+      "winners": 128
+    },
+    {
+      "agencyId": "egp-001154200",
+      "ok": true,
+      "rows": 200,
+      "winners": 199
+    },
+    {
+      "agencyId": "egp-001184000",
+      "ok": true,
+      "rows": 300,
+      "winners": 299
+    },
+    {
+      "agencyId": "egp-001181400",
+      "ok": true,
+      "rows": 131,
+      "winners": 131
+    },
+    {
+      "agencyId": "egp-001183900",
+      "ok": true,
+      "rows": 202,
+      "winners": 201
+    },
+    {
+      "agencyId": "egp-001189600",
+      "ok": true,
+      "rows": 165,
+      "winners": 164
+    },
+    {
+      "agencyId": "egp-001184100",
+      "ok": true,
+      "rows": 280,
+      "winners": 278
+    },
+    {
+      "agencyId": "egp-001194500",
+      "ok": true,
+      "rows": 300,
+      "winners": 297
+    },
+    {
+      "agencyId": "egp-001240000",
+      "ok": true,
+      "rows": 300,
+      "winners": 300
+    },
+    {
+      "agencyId": "egp-001198700",
+      "ok": true,
+      "rows": 300,
+      "winners": 300
+    },
+    {
+      "agencyId": "egp-001239700",
+      "ok": true,
+      "rows": 300,
+      "winners": 300
+    },
+    {
+      "agencyId": "egp-001239900",
+      "ok": true,
+      "rows": 300,
+      "winners": 300
+    }
+  ]
+}
