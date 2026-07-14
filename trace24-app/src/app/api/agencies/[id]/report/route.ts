@@ -28,8 +28,20 @@ export async function GET(
 
   const file = path.join(/*turbopackIgnore: true*/ process.cwd(), 'data', 'real', `${id}.json`);
   if (fs.existsSync(file)) {
-    const raw = JSON.parse(fs.readFileSync(file, 'utf8'));
-    return Response.json(withRelatedPartyOverlay(raw));
+    const raw = JSON.parse(fs.readFileSync(file, 'utf8')) as {
+      projects?: Record<string, unknown>;
+      priorityOrder?: string[];
+      stats?: { label: string; value: string }[];
+    };
+    const projectCount = Object.keys(raw.projects || {}).length;
+    const priorityCount = Array.isArray(raw.priorityOrder) ? raw.priorityOrder.length : 0;
+    const projectStat = (raw.stats || []).find((s) => s.label === 'โครงการ');
+    const statsSayZero = projectStat ? /^0+$/.test(String(projectStat.value).replace(/\D/g, '') || '0') : false;
+    // Stale curated snapshots (e.g. nongyaeng) can hold projects but empty priorityOrder/stats → blank dashboard
+    const usable = !(projectCount > 0 && (priorityCount === 0 || statsSayZero));
+    if (usable) {
+      return Response.json(withRelatedPartyOverlay(raw as PipelineReportLike));
+    }
   }
 
   const agency =
