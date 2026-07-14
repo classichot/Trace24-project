@@ -45,98 +45,156 @@ const WORKFLOW_STEPS = [
   {
     n: '07',
     title: 'ประมวลกฎความเสี่ยงและเปรียบเทียบ',
-    desc: 'กฎที่อธิบายได้พร้อมมิติความเสี่ยง 5 ด้าน และการเทียบกับกลุ่มหน่วยงานลักษณะเดียวกัน — AI ช่วยอ่านเอกสาร แต่ไม่ใช่ผู้ให้คะแนนความเสี่ยง',
+    desc: `รันกฎ R1–R25 จัดกลุ่มใน 5 มิติ (บิดเบือนโครงการ · ล็อก TOR · ฮั้วประมูล · ผลประโยชน์ทับซ้อน · ทำสัญญา/ตรวจรับ) เทียบราคาตลาดและกลุ่มหน่วยงาน — AI ช่วยอ่านเอกสาร แต่ไม่ให้คะแนนทุจริต`,
   },
 ];
 
-const RISK_RULES = [
-  { id: 'R1', text: 'ผู้ชนะรายเดิมซ้ำ / ชนะเกิน 5 สัญญาต่อปีจากหน่วยงานเดียว', cat: 'การแข่งขัน' },
-  { id: 'R2', text: 'ความกระจุกตัวของผู้รับจ้างสูง / ผู้เสนอราคาน้อยราย', cat: 'การแข่งขัน' },
-  { id: 'R3', text: 'ใช้วิธีเฉพาะเจาะจงซ้ำผิดปกติ', cat: 'กระบวนการ' },
-  { id: 'R4', text: 'ราคาที่ตกลงใกล้ราคากลางมาก', cat: 'ราคา' },
-  { id: 'R5', text: 'กรรมการหรือที่อยู่จดทะเบียนร่วมระหว่างผู้รับจ้าง', cat: 'ความสัมพันธ์' },
-  { id: 'R6', text: 'อาจมีการแบ่งซื้อแบ่งจ้าง / ซอยสัญญา (ผู้ชนะเดียว · ชื่อคล้าย)', cat: 'กระบวนการ' },
-  { id: 'R7', text: 'โครงการกระจุกตัวใต้เกณฑ์วงเงินจัดซื้อ', cat: 'กระบวนการ' },
-  { id: 'R8', text: 'คำบรรยายโครงการซ้ำหรือคล้ายกันผิดปกติ', cat: 'กระบวนการ' },
-  { id: 'R9', text: 'ชื่อ/คำบรรยายโครงการซ้ำแบบแม่แบบ (proxy TOR)', cat: 'กระบวนการ' },
-  { id: 'R10', text: 'ราคาสูงกว่า P75 / ค่ากลางกลุ่มเปรียบเทียบตลาด', cat: 'ราคา' },
-  { id: 'R11', text: 'เอกสารหรือฟิลด์ที่ต้องเปิดเผยยังไม่ครบ', cat: 'การเปิดเผยข้อมูล' },
-  { id: 'R12', text: 'ตัวเลขหรือวันที่ในระเบียนขัดแย้งกัน', cat: 'คุณภาพข้อมูล' },
-  { id: 'R13', text: 'ผู้บริหารหน่วยงานเชื่อมโยงกับกรรมการหรือผู้ถือหุ้นของผู้ชนะการประมูล', cat: 'ความสัมพันธ์' },
-  { id: 'R14', text: 'วิธีคัดเลือก/เฉพาะเจาะจงกระจุกผู้ชนะรายเดียวในปีงบ', cat: 'วิธีจัดซื้อ' },
-  { id: 'R15', text: 'ผู้ชนะรายเดียวถือครองสัดส่วนมูลค่าสูงต่อปีงบ (≥40%)', cat: 'มูลค่า' },
-  { id: 'R16', text: 'ชนะงานหมวดเดียวกันซ้ำข้ามหลายปีงบ', cat: 'ผู้ชนะซ้ำ' },
-  { id: 'R17', text: 'สัญญาประกาศกระจุกช่วงปลายปีงบ (ส.ค.–ก.ย.)', cat: 'ปลายปีงบ' },
+type RiskDimId = 'PM' | 'TOR' | 'BID' | 'COI' | 'EXE' | 'DATA';
+
+const RISK_RULES: {
+  id: string;
+  text: string;
+  cat: string;
+  dim: RiskDimId;
+  needs?: string;
+}[] = [
+  { id: 'R1', text: 'ผู้ชนะรายเดิมซ้ำ / ชนะเกิน 5 สัญญาต่อปีจากหน่วยงานเดียว', cat: 'การแข่งขัน', dim: 'BID' },
+  { id: 'R2', text: 'ความกระจุกตัวของผู้รับจ้างสูง / ผู้เสนอราคาน้อยราย', cat: 'การแข่งขัน', dim: 'BID' },
+  { id: 'R3', text: 'ใช้วิธีเฉพาะเจาะจงซ้ำผิดปกติ', cat: 'กระบวนการ', dim: 'PM' },
+  { id: 'R4', text: 'ราคาที่ตกลงใกล้เพดานงบประมาณมาก (proxy ราคากลาง)', cat: 'ราคา', dim: 'BID' },
+  { id: 'R5', text: 'กรรมการหรือที่อยู่จดทะเบียนร่วมระหว่างผู้รับจ้าง', cat: 'ความสัมพันธ์', dim: 'COI' },
+  { id: 'R6', text: 'อาจมีการแบ่งซื้อแบ่งจ้าง / ซอยสัญญา (ผู้ชนะเดียว · ชื่อคล้าย)', cat: 'กระบวนการ', dim: 'PM' },
+  { id: 'R7', text: 'โครงการกระจุกตัวใต้เกณฑ์วงเงินจัดซื้อ', cat: 'กระบวนการ', dim: 'PM' },
+  { id: 'R8', text: 'คำบรรยายโครงการซ้ำหรือคล้ายกันผิดปกติ', cat: 'กระบวนการ', dim: 'TOR' },
+  { id: 'R9', text: 'ชื่อ/คำบรรยายโครงการซ้ำแบบแม่แบบ (proxy TOR)', cat: 'กระบวนการ', dim: 'TOR' },
+  { id: 'R10', text: 'ราคาสูงกว่า P75 / ค่ากลางกลุ่มเปรียบเทียบตลาด', cat: 'ราคา', dim: 'BID' },
+  { id: 'R11', text: 'เอกสารหรือฟิลด์ที่ต้องเปิดเผยยังไม่ครบ', cat: 'การเปิดเผยข้อมูล', dim: 'DATA' },
+  { id: 'R12', text: 'ตัวเลขหรือวันที่ในระเบียนขัดแย้งกัน', cat: 'คุณภาพข้อมูล', dim: 'DATA' },
+  { id: 'R13', text: 'ผู้บริหารหน่วยงานเชื่อมโยงกับกรรมการหรือผู้ถือหุ้นของผู้ชนะ', cat: 'ความสัมพันธ์', dim: 'COI' },
+  { id: 'R14', text: 'วิธีคัดเลือก/เฉพาะเจาะจงกระจุกผู้ชนะรายเดียวในปีงบ', cat: 'วิธีจัดซื้อ', dim: 'PM' },
+  { id: 'R15', text: 'ผู้ชนะรายเดียวถือครองสัดส่วนมูลค่าสูงต่อปีงบ (≥40%)', cat: 'มูลค่า', dim: 'BID' },
+  { id: 'R16', text: 'ชนะงานหมวดเดียวกันซ้ำข้ามหลายปีงบ', cat: 'ผู้ชนะซ้ำ', dim: 'BID' },
+  { id: 'R17', text: 'สัญญาประกาศกระจุกช่วงปลายปีงบ (ส.ค.–ก.ย.)', cat: 'ปลายปีงบ', dim: 'PM' },
   {
     id: 'R18',
-    text: 'บริษัทใหม่/ก่อตั้งไม่นานแล้วยอดชนะสูง — จากวันจดทะเบียนเว็บ/ข่าว หรือปีแรกที่ปรากฏในแคช',
+    text: 'บริษัทใหม่/ก่อตั้งไม่นานแล้วยอดชนะสูง (DataForThai หรือปีแรกในแคช)',
     cat: 'ผู้รับจ้างใหม่',
+    dim: 'COI',
+    needs: 'วันจดทะเบียน',
   },
   {
     id: 'R19',
-    text: 'ผู้รับจ้างหลายรายจดทะเบียนที่อยู่เดียวกันชนะรวมเกิน 5 สัญญาในหน่วยงานเดียวกัน',
+    text: 'ผู้รับจ้างหลายรายจดทะเบียนที่อยู่เดียวกันชนะรวมเกิน 5 สัญญา',
     cat: 'ที่อยู่ร่วม',
+    dim: 'COI',
+    needs: 'ที่อยู่ DataForThai',
   },
   {
     id: 'R20',
-    text: 'ชนะงานอบรม/ประชาสัมพันธ์/จัดงานซ้ำ (โครงการวัดผลยาก — สร้างงบก้อนอ่อน)',
+    text: 'ชนะงานอบรม/ประชาสัมพันธ์/จัดงานซ้ำ (โครงการวัดผลยาก)',
     cat: 'โครงการอ่อน',
+    dim: 'PM',
   },
   {
     id: 'R21',
     text: 'ชื่อโครงการคล้ายกันข้ามปีงบ (proxy งานซ้ำซ้อนของบ)',
     cat: 'โครงการซ้ำ',
+    dim: 'PM',
   },
   {
     id: 'R22',
     text: 'อ้างเร่งด่วน/ฉุกเฉิน/ผู้ขายรายเดียว หรือข้อยกเว้นซ้ำ',
     cat: 'เหตุพิเศษ',
+    dim: 'PM',
   },
   {
     id: 'R23',
-    text: 'มูลค่างานสูงเทียบทุนจดทะเบียนต่ำ (ศักยภาพไม่สมส่วน — จาก DataForThai)',
+    text: 'มูลค่างานสูงเทียบทุนจดทะเบียนต่ำ (ศักยภาพไม่สมส่วน)',
     cat: 'ศักยภาพ',
+    dim: 'COI',
+    needs: 'ทุน DataForThai',
   },
   {
     id: 'R24',
     text: 'ผู้ชนะรายใหญ่สลับอันดับข้ามปีงบ (proxy เวียนกันชนะ)',
     cat: 'เวียนชนะ',
+    dim: 'BID',
   },
   {
     id: 'R25',
     text: 'ผู้ชนะรายเดียวได้หลายสัญญาในเดือนประกาศเดียวกัน',
     cat: 'กระจุกรายเดือน',
+    dim: 'PM',
+  },
+  {
+    id: 'R-PRICE',
+    text: 'ราคา/อัตราต่อหน่วยสูงกว่าค่ากลางตลาด peer ที่คล้ายกัน',
+    cat: 'ราคาตลาด',
+    dim: 'BID',
+  },
+  {
+    id: 'STAT-BENFORD',
+    text: 'การกระจายตัวเลขนำหน้าของราคาผิดปกติ (Benford)',
+    cat: 'สถิติ',
+    dim: 'DATA',
   },
 ];
 
 /** 5 มิติความเสี่ยงตามแผนที่ฮั้ว — ใช้จัดกลุ่ม ไม่ใช่ข้อกล่าวหา */
-const RISK_SCORE_DIMS = [
+const RISK_SCORE_DIMS: {
+  id: RiskDimId;
+  th: string;
+  en: string;
+  text: string;
+  deferred?: string;
+}[] = [
   {
-    id: 'Project Manipulation',
-    text: 'สร้าง/ซ้ำโครงการ · งบอ่อน · แบ่งสัญญา · เหตุพิเศษ',
-    rules: 'R6 R7 R14 R17 R20 R21 R22 R25',
+    id: 'PM',
+    th: 'บิดเบือนโครงการและงบ',
+    en: 'Project Manipulation',
+    text: 'สร้างงบก้อนอ่อน · แบ่งซื้อแบ่งจ้าง · เหตุพิเศษ · ปลายปีงบ · โครงการซ้ำข้ามปี',
   },
   {
-    id: 'TOR Lock',
-    text: 'ล็อกสเปก/คุณสมบัติ (ต้องการข้อความ TOR + catalog สินค้า)',
-    rules: 'R8 R9 · รอ TOR',
+    id: 'TOR',
+    th: 'ล็อก TOR / คุณสมบัติ',
+    en: 'TOR Lock',
+    text: 'ชื่อ/คำบรรยายแบบแม่แบบ — proxy จนกว่าจะมีข้อความ TOR เต็ม',
+    deferred: 'รอข้อความ TOR + catalog สินค้า เพื่อล็อกยี่ห้อ/ประสบการณ์/MAL',
   },
   {
-    id: 'Bid Collusion',
-    text: 'เวียนชนะ · ราคาประกอบ · เครือข่ายผู้เสนอ (ต้องการรายชื่อผู้แพ้/metadata)',
-    rules: 'R1 R2 R15 R16 R24 · รอ bidder list',
+    id: 'BID',
+    th: 'ฮั้วและการแข่งขันแคบ',
+    en: 'Bid Collusion',
+    text: 'กระจุกผู้ชนะ · เวียนชนะ · ราคาชิดเพดาน · เทียบตลาด',
+    deferred: 'รอรายชื่อผู้แพ้ · metadata ไฟล์ · IP เพื่อ cover bidding',
   },
   {
-    id: 'Conflict of Interest',
-    text: 'กรรมการ/ที่อยู่/ผู้บริหารเชื่อมโยง · บริษัทใหม่ · ทุนไม่สมส่วน',
-    rules: 'R5 R13 R18 R19 R23',
+    id: 'COI',
+    th: 'ผลประโยชน์ทับซ้อน',
+    en: 'Conflict of Interest',
+    text: 'กรรมการ/ที่อยู่ร่วม · เชื่อมผู้บริหาร · บริษัทใหม่ · ทุนไม่สมส่วน',
   },
   {
-    id: 'Contract Execution',
-    text: 'Change order · ตรวจรับ · ค่าปรับ (ต้องการข้อมูลหลังสัญญา)',
-    rules: 'รอ change-order / inspection',
+    id: 'EXE',
+    th: 'หลังสัญญาและตรวจรับ',
+    en: 'Contract Execution',
+    text: 'ยังเป็นช่องว่างหลักของระบบ',
+    deferred: 'รอ change order · ค่าปรับ · ตรวจรับ · ภาพสถานที่',
   },
 ];
+
+const RISK_DIM_DATA: {
+  id: RiskDimId;
+  th: string;
+  en: string;
+  text: string;
+  deferred?: string;
+} = {
+  id: 'DATA',
+  th: 'คุณภาพและการเปิดเผยข้อมูล',
+  en: 'Data Quality',
+  text: 'ฟิลด์ไม่ครบ · วันที่ขัดแย้ง · สถิติราคาผิดปกติ',
+};
 
 const CAPABILITIES = [
   {
@@ -166,7 +224,7 @@ const CAPABILITIES = [
   {
     title: 'กฎสัญญาณเตือน',
     sub: 'Rule / Red-Flag Engine',
-    desc: 'รูปแบบเตือนภัยการทุจริตและจัดซื้อที่รู้จัก — แบ่งซื้อแบ่งจ้าง ผู้เสนอราคารายเดียว ระยะประกาศสั้นผิดปกติ แก้ไขสัญญาซ้ำ',
+    desc: `R1–R25 + R-PRICE / Benford จัดใน 5 มิติตามแผนที่ฮั้ว — แบ่งซื้อแบ่งจ้าง กระจุกมูลค่า ปลายปีงบ ที่อยู่ร่วม บริษัทใหม่ ทุนไม่สมส่วน เวียนชนะ โครงการอ่อน — ไม่รวมเป็นคะแนนทุจริตเดียว`,
     tier: 'P0' as const,
     status: 'มีในต้นแบบ',
     statusColor: '#111110',
@@ -357,6 +415,11 @@ function MethodPage() {
         เพื่อชี้รายการที่สมควรได้รับการตรวจสอบเพิ่มเติมโดยมนุษย์
         ทุกขั้นตอนด้านล่างเปิดเผยต่อสาธารณะ
       </p>
+      <p style={{ margin: '14px 0 0', fontSize: 13.5, color: '#55554F', lineHeight: 1.65 }}>
+        ชุดกฎความเสี่ยงอ้างอิงแผนที่รูปแบบฮั้ว/ทุจริตจัดซื้อจัดจ้าง (ระดับสร้างโครงการ → TOR →
+        วิธีจัดซื้อ → ฮั้วผู้เสนอราคา → พิจารณาผล → หลังสัญญา) — ใช้เพื่อตรวจจับและออกแบบระบบ
+        ไม่ใช่ข้อกล่าวหาว่าทุกหน่วยงานใช้วิธีเหล่านี้ · สัญญาณเดี่ยวไม่ใช่หลักฐานทุจริต
+      </p>
 
       <h2 style={{ fontSize: 16, fontWeight: 600, margin: '48px 0 0' }}>ขั้นตอนการทำงาน</h2>
       <div style={{ marginTop: 16, borderTop: '1px solid #111110' }}>
@@ -382,59 +445,84 @@ function MethodPage() {
       </div>
 
       <h2 style={{ fontSize: 16, fontWeight: 600, margin: '48px 0 0' }}>
-        5 มิติความเสี่ยง (Risk Score Dimensions)
+        5 มิติความเสี่ยง + คุณภาพข้อมูล
       </h2>
       <p style={{ margin: '10px 0 0', fontSize: 13.5, color: '#55554F', lineHeight: 1.55 }}>
-        จากแผนที่รูปแบบฮั้ว — ใช้จัดกลุ่มสัญญาณ ไม่ใช่ข้อกล่าวหา · Red flag เดี่ยวไม่ใช่หลักฐานทุจริต
+        จัดกลุ่มสัญญาณตามโครงสร้างการสมยอม — ไม่รวมเป็นคะแนนทุจริตเดียว · หลายสัญญาณร่วมกันจึงควรนำไปสอบสวน
       </p>
       <div style={{ marginTop: 16, borderTop: '1px solid #111110' }}>
-        {RISK_SCORE_DIMS.map((dim) => (
-          <div
-            key={dim.id}
-            style={{
-              display: 'grid',
-              gridTemplateColumns: '1fr 160px',
-              gap: 16,
-              padding: '12px 0',
-              borderBottom: '1px solid #EEEEEA',
-              fontSize: 13.5,
-              lineHeight: 1.5,
-            }}
-          >
-            <div>
-              <div style={{ fontWeight: 600 }}>{dim.id}</div>
-              <div style={{ color: '#55554F', marginTop: 2 }}>{dim.text}</div>
+        {[...RISK_SCORE_DIMS, RISK_DIM_DATA].map((dim) => {
+          const rules = RISK_RULES.filter((r) => r.dim === dim.id);
+          const deferred = dim.deferred;
+          return (
+            <div
+              key={dim.id}
+              style={{
+                padding: '16px 0',
+                borderBottom: '1px solid #EEEEEA',
+              }}
+            >
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  gap: 16,
+                  alignItems: 'baseline',
+                  flexWrap: 'wrap',
+                }}
+              >
+                <div>
+                  <div style={{ fontSize: 14.5, fontWeight: 600 }}>{dim.th}</div>
+                  <div style={{ fontSize: 11.5, color: '#8B8B85', marginTop: 2 }}>{dim.en}</div>
+                </div>
+                <div style={{ fontSize: 11.5, color: '#8B8B85' }}>
+                  {rules.length ? `${rules.length} กฎ` : 'ยังไม่มีกฎอัตโนมัติ'}
+                </div>
+              </div>
+              <div style={{ fontSize: 13.5, color: '#55554F', marginTop: 6, lineHeight: 1.55 }}>
+                {dim.text}
+              </div>
+              {deferred ? (
+                <div style={{ fontSize: 12.5, color: '#8B8B85', marginTop: 6, lineHeight: 1.5 }}>
+                  ช่องว่าง: {deferred}
+                </div>
+              ) : null}
+              {rules.length > 0 ? (
+                <div style={{ marginTop: 12, borderTop: '1px solid #F0F0EC' }}>
+                  {rules.map((rule) => (
+                    <div
+                      key={rule.id}
+                      style={{
+                        display: 'grid',
+                        gridTemplateColumns: '72px 1fr',
+                        gap: 12,
+                        padding: '9px 0',
+                        borderBottom: '1px solid #F6F6F3',
+                        alignItems: 'baseline',
+                      }}
+                    >
+                      <div style={{ fontSize: 11.5, color: '#8B8B85', letterSpacing: '.02em' }}>
+                        {rule.id}
+                      </div>
+                      <div>
+                        <div style={{ fontSize: 13, lineHeight: 1.45 }}>{rule.text}</div>
+                        <div style={{ fontSize: 11, color: '#8B8B85', marginTop: 2 }}>
+                          {rule.cat}
+                          {rule.needs ? ` · ต้องการ: ${rule.needs}` : ''}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
             </div>
-            <div style={{ fontSize: 11.5, color: '#8B8B85', letterSpacing: '.02em' }}>{dim.rules}</div>
-          </div>
-        ))}
-      </div>
-
-      <h2 style={{ fontSize: 16, fontWeight: 600, margin: '48px 0 0' }}>
-        กฎความเสี่ยง {RISK_RULES.length} ข้อ
-      </h2>
-      <div style={{ marginTop: 16, borderTop: '1px solid #111110' }}>
-        {RISK_RULES.map((rule) => (
-          <div
-            key={rule.id}
-            style={{
-              display: 'grid',
-              gridTemplateColumns: '44px 1fr 130px',
-              gap: 14,
-              padding: '11px 0',
-              borderBottom: '1px solid #EEEEEA',
-              alignItems: 'baseline',
-            }}
-          >
-            <div style={{ fontSize: 12, color: '#8B8B85' }}>{rule.id}</div>
-            <div style={{ fontSize: 13.5 }}>{rule.text}</div>
-            <div style={{ fontSize: 11.5, color: '#8B8B85', textAlign: 'right' }}>{rule.cat}</div>
-          </div>
-        ))}
+          );
+        })}
       </div>
       <div style={{ fontSize: 12.5, color: '#8B8B85', marginTop: 14, lineHeight: 1.6 }}>
-        ทุกสัญญาณแสดงค่าที่สังเกตได้ คำอธิบาย ระดับ ความเชื่อมั่น คำอธิบายโดยสุจริตที่เป็นไปได้
-        และเอกสารหลักฐาน — แต่ละหมวดแยกจากกัน ไม่รวมเป็นคะแนนเดียว
+        รวม {RISK_RULES.length} สัญญาณในทะเบียนระเบียบวิธี — ทุกสัญญาณแสดงค่าที่สังเกตได้ คำอธิบาย
+        ระดับ ความเชื่อมั่น คำอธิบายโดยสุจริต และหลักฐาน · R18/R19/R23 แน่นขึ้นเมื่อดึงวันจดทะเบียน
+        ที่อยู่ และทุนจาก DataForThai ในแท็บความเชื่อมโยง
       </div>
 
       <h2 style={{ fontSize: 16, fontWeight: 600, margin: '48px 0 0' }}>เครื่องมือวิเคราะห์หลัก</h2>
