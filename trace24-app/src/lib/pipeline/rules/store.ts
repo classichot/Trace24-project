@@ -2,33 +2,66 @@ import fs from 'fs';
 import path from 'path';
 import type { ProposedRule, RuleStoreFile, SignalFeedback, SignalFeedbackLabel } from './types';
 
-const ROOT = path.join(process.cwd(), 'data', 'rules');
-const STORE = path.join(ROOT, 'store.json');
+function isServerless() {
+  return Boolean(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME);
+}
+
+/** Committed seed (read-only on Vercel). */
+function committedRoot() {
+  return path.join(/*turbopackIgnore: true*/ process.cwd(), 'data', 'rules');
+}
+
+/**
+ * Writable location for proposals/feedback.
+ * Vercel/Lambda only allow writes under /tmp — cwd (/var/task) is read-only.
+ */
+function writableRoot() {
+  if (isServerless()) return path.join('/tmp', 'trace24-rules');
+  return committedRoot();
+}
+
+function storeFile(root: string) {
+  return path.join(root, 'store.json');
+}
 
 function emptyStore(): RuleStoreFile {
   return { version: 1, updatedAt: new Date().toISOString(), proposals: [], feedback: [] };
 }
 
-export function ensureRuleStore(): RuleStoreFile {
-  fs.mkdirSync(ROOT, { recursive: true });
-  if (!fs.existsSync(STORE)) {
-    const s = emptyStore();
-    fs.writeFileSync(STORE, JSON.stringify(s, null, 2), 'utf8');
-    return s;
-  }
+function readStoreFile(file: string): RuleStoreFile | null {
   try {
-    return JSON.parse(fs.readFileSync(STORE, 'utf8')) as RuleStoreFile;
+    if (!fs.existsSync(file)) return null;
+    return JSON.parse(fs.readFileSync(file, 'utf8')) as RuleStoreFile;
   } catch {
-    const s = emptyStore();
-    fs.writeFileSync(STORE, JSON.stringify(s, null, 2), 'utf8');
-    return s;
+    return null;
   }
 }
 
+export function ensureRuleStore(): RuleStoreFile {
+  // Instance-local writes first (after propose/approve on this warm lambda)
+  const fromWritable = readStoreFile(storeFile(writableRoot()));
+  if (fromWritable) return fromWritable;
+
+  // Committed seed in the deployment bundle
+  const fromCommitted = readStoreFile(storeFile(committedRoot()));
+  if (fromCommitted) return fromCommitted;
+
+  const s = emptyStore();
+  try {
+    const root = writableRoot();
+    fs.mkdirSync(root, { recursive: true });
+    fs.writeFileSync(storeFile(root), JSON.stringify(s, null, 2), 'utf8');
+  } catch {
+    /* read-only filesystem — keep empty in memory for this request */
+  }
+  return s;
+}
+
 function saveStore(store: RuleStoreFile) {
-  fs.mkdirSync(ROOT, { recursive: true });
   store.updatedAt = new Date().toISOString();
-  fs.writeFileSync(STORE, JSON.stringify(store, null, 2), 'utf8');
+  const root = writableRoot();
+  fs.mkdirSync(root, { recursive: true });
+  fs.writeFileSync(storeFile(root), JSON.stringify(store, null, 2), 'utf8');
 }
 
 export function listProposals(status?: ProposedRule['status']) {
