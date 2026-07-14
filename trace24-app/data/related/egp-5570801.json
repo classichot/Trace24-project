@@ -1,0 +1,83 @@
+{
+  "agencyId": "egp-5570801",
+  "executives": [
+    {
+      "name": "นางเกศสุดา สังขกร",
+      "title": "นายกเทศมนตรีตำบลเวียงเชียงแสน",
+      "sourceUrl": "https://www.wiangchiangsaen.go.th/personnel.php?id=12"
+    },
+    {
+      "name": "นายวิชาญ ทันใจ",
+      "title": "ประธานสภาเทศบาล",
+      "sourceUrl": "https://www.wiangchiangsaen.go.th/personnel.php?id=13"
+    },
+    {
+      "name": "นายธานินทร์ พยุยงค์",
+      "title": "รองประธานสภาเทศบาล",
+      "sourceUrl": "https://www.wiangchiangsaen.go.th/personnel.php?id=13"
+    },
+    {
+      "name": "นางมะลิวัลย์ หินเขียว",
+      "title": "หัวหน้าสำนักปลัดเทศบาล",
+      "sourceUrl": "https://www.wiangchiangsaen.go.th/personnel.php?id=11"
+    },
+    {
+      "name": "นางมะลิวัลย์ หินเขียว",
+      "title": "ผู้อำนวยการกองคลัง",
+      "sourceUrl": "https://www.wiangchiangsaen.go.th/personnel.php?id=11"
+    },
+    {
+      "name": "นายวิทยา รัตนกาญจนากุล",
+      "title": "ผู้อำนวยการกองคลัง",
+      "sourceUrl": "https://www.wiangchiangsaen.go.th/personnel.php?id=11"
+    },
+    {
+      "name": "นายวิทยา รัตนกาญจนากุล",
+      "title": "ผู้อำนวยการกองช่าง",
+      "sourceUrl": "https://www.wiangchiangsaen.go.th/personnel.php?id=11"
+    },
+    {
+      "name": "นายประดิษฐ์ สงบ",
+      "title": "ผู้อำนวยการกองช่าง",
+      "sourceUrl": "https://www.wiangchiangsaen.go.th/personnel.php?id=11"
+    },
+    {
+      "name": "นางจันทร์เทพ บัวอินทร์",
+      "title": "ผู้อำนวยการกองการศึกษา",
+      "sourceUrl": "https://www.wiangchiangsaen.go.th/personnel.php?id=11"
+    },
+    {
+      "name": "นายตฤณพัชร์ ตู่มาละ",
+      "title": "รองนายกเทศมนตรี",
+      "sourceUrl": "https://www.wiangchiangsaen.go.th/personnel.php?id=12"
+    },
+    {
+      "name": "นางสาวจิราภรณ์ แก้วดำ",
+      "title": "เลขานุการนายกเทศมนตรี",
+      "sourceUrl": "https://www.wiangchiangsaen.go.th/personnel.php?id=12"
+    },
+    {
+      "name": "นายโสภณ สังขกร",
+      "title": "ที่ปรึกษานายกเทศมนตรี",
+      "sourceUrl": "https://www.wiangchiangsaen.go.th/personnel.php?id=12"
+    },
+    {
+      "name": "นางสาวเปรมใจ เครือวงค์",
+      "title": "หัวหน้าสำนักปลัดเทศบาล",
+      "sourceUrl": "https://www.wiangchiangsaen.go.th/personnel.php?id=3"
+    },
+    {
+      "name": "นางสาวเปรมใจ เครือวงค์",
+      "title": "หัวหน้าฝ่ายอำนวยการ",
+      "sourceUrl": "https://www.wiangchiangsaen.go.th/personnel.php?id=3"
+    },
+    {
+      "name": "นางกิตติยา ทิพยโสตถิ",
+      "title": "หัวหน้าฝ่ายอำนวยการ",
+      "sourceUrl": "https://www.wiangchiangsaen.go.th/personnel.php?id=3"
+    }
+  ],
+  "companies": [],
+  "updatedAt": "2026-07-14T16:56:13.041Z",
+  "note": "auto · seed-executives-from-websites · wiangchiangsaen.go.th"
+}

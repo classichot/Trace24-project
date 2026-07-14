@@ -324,8 +324,8 @@ export async function fetchGovSpendingContracts(
     const cached =
       (opts.agencyId ? loadContractsCache(opts.agencyId) : null) ||
       loadContractsCacheByKeyword(keyword);
-    if (cached?.rows?.length) {
-      const contracts = cached.rows
+    if (cached) {
+      const contracts = (cached.rows || [])
         .map(mapRow)
         .filter((c) => c.project_name && deptMatches(c.dept_name, keyword))
         .slice(0, limit);
@@ -338,6 +338,17 @@ export async function fetchGovSpendingContracts(
           fetchNotes: notes,
         };
       }
+      // Explicit empty cache: do NOT fall through to live CKAN (403 on Vercel)
+      notes.push(
+        cached.note ||
+          `contracts-cache empty for ${cached.agencyId || keyword} (${cached.fetchedAt || '—'})`
+      );
+      return {
+        contracts: [],
+        packageId: cached.source || 'contracts-cache',
+        totalEstimate: 0,
+        fetchNotes: notes,
+      };
     }
   } catch (e) {
     notes.push(`contracts-cache: ${e instanceof Error ? e.message : 'error'}`);

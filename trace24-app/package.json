@@ -15,7 +15,9 @@
     "sync-contracts-cache": "node scripts/sync-contracts-cache.mjs",
     "build-all-contracts-caches": "node scripts/build-all-contracts-caches.mjs",
     "repair-contracts-winners": "node scripts/repair-contracts-cache-winners.mjs",
-    "seed-papai-related": "node scripts/seed-papai-related.mjs"
+    "seed-papai-related": "node scripts/seed-papai-related.mjs",
+    "seed-executives": "node scripts/seed-executives-from-websites.mjs",
+    "build-price-benchmarks": "node scripts/build-price-benchmarks.mjs"
   },
   "dependencies": {
     "next": "16.2.10",

@@ -6,6 +6,14 @@ import {
   looksLikeBadWinner,
 } from './announce-enrich';
 import { buildCatalogStubReport } from './catalog-stub';
+import {
+  categorizeWork,
+  formatBenchmarkBaht,
+  pctLabel,
+  resolveProjectBenchmark,
+  severityFromVsMedian,
+  type WorkCategoryId,
+} from './price-benchmark';
 import { buildUiClusters } from './ui-clusters';
 import { buildUiEntityGraph } from './ui-entity-graph';
 
@@ -120,16 +128,19 @@ export function enrichStubWithContracts(
     const projectCode = String(c.project_id || '');
     const egpUrl = /^\d{8,}$/.test(projectCode) ? egpAnnounceUrl(projectCode) : null;
 
+    const workCat = categorizeWork(c.project_name);
     projects[pid] = {
       code: c.project_id || pid,
       name: c.project_name,
-      cat: c.project_type_name || 'จัดซื้อจัดจ้าง',
+      cat: workCat.label,
+      workCategoryId: workCat.id,
       fy: c._fy ? `ปีงบ ${c._fy}` : '—',
       method: c.project_type_name || '—',
       methodShort: c.project_type_name || '—',
       award: formatBaht(awardN),
+      awardN,
       budget: formatBaht(parseMoney(c.project_money)),
-      ref: formatBaht(parseMoney(c.project_money)),
+      ref: '—',
       pct: '—',
       winner: winnerId,
       announced: c.contract[0]?.contract_date || c._fy || '—',
@@ -162,6 +173,74 @@ export function enrichStubWithContracts(
       related: [] as [string, string, string][],
       _sourceUrl: egpUrl || govSpendingPortalSearchUrl(stub.agency.th),
     };
+  }
+
+  // Market price benchmarks (cache medians) — not official ราคากลาง
+  const peerByCat: Partial<Record<WorkCategoryId, number[]>> = {};
+  for (const p of Object.values(projects) as { workCategoryId?: WorkCategoryId; awardN?: number }[]) {
+    const id = p.workCategoryId || 'other';
+    const n = p.awardN || 0;
+    if (!n) continue;
+    if (!peerByCat[id]) peerByCat[id] = [];
+    peerByCat[id]!.push(n);
+  }
+  const province = String(stub.agency.prov || '').trim();
+  for (const p of Object.values(projects) as {
+    name?: string;
+    awardN?: number;
+    ref?: string;
+    pct?: string;
+    sevKey?: string;
+    ind?: number;
+    alerts?: {
+      tag: string;
+      title: string;
+      sevKey: string;
+      conf: string;
+      facts: string[][];
+      explain: string;
+      innocent: string;
+      evidence: string[];
+    }[];
+    priceBenchmark?: unknown;
+    cat?: string;
+  }[]) {
+    const bm = resolveProjectBenchmark({
+      projectName: p.name || '',
+      award: p.awardN || 0,
+      province,
+      agencyPeerAwardsByCategory: peerByCat,
+    });
+    if (!bm) continue;
+    p.ref = formatBenchmarkBaht(bm.median);
+    p.pct = pctLabel(bm);
+    p.cat = bm.categoryLabel;
+    p.priceBenchmark = bm;
+    const priceSev = severityFromVsMedian(bm.vsMedianPct);
+    if (priceSev !== 'Low') {
+      p.sevKey = p.sevKey === 'High' ? 'High' : priceSev;
+      p.ind = (p.ind || 0) + 1;
+      p.alerts = p.alerts || [];
+      p.alerts.push({
+        tag: 'R-PRICE · ตลาด',
+        title:
+          bm.vsMedianPct > 0
+            ? `ราคาที่ตกลงสูงกว่าค่ากลางกลุ่ม「${bm.categoryLabel}」${pctLabel(bm)}`
+            : `ราคาที่ตกลงต่ำกว่าค่ากลางกลุ่ม「${bm.categoryLabel}」${pctLabel(bm)}`,
+        sevKey: priceSev,
+        conf: `n=${bm.n} · ${bm.scope}`,
+        facts: [
+          ['ราคาที่ตกลง', formatBenchmarkBaht(bm.award)],
+          ['ค่ากลางตลาด (median)', formatBenchmarkBaht(bm.median)],
+          ['ช่วง P25–P75', `${formatBenchmarkBaht(bm.p25)} – ${formatBenchmarkBaht(bm.p75)}`],
+          ['ขอบเขตเปรียบเทียบ', bm.scope === 'province' ? `จังหวัด${province}` : bm.scope === 'national' ? 'ทั้งประเทศ' : 'ในหน่วยงาน'],
+        ],
+        explain: bm.note,
+        innocent:
+          'ความต่างจากค่ากลางอาจมาจากขนาดงาน ปริมาณ สเปก หรือทำเล — ต้องเทียบกับ TOR/ปริมาณงาน ไม่ใช่ข้อกล่าวหา',
+        evidence: ['contracts-cache · price-by-category benchmarks'],
+      });
+    }
   }
 
   const totalContracts = Object.values(contractors).reduce((s, co) => s + co.contracts, 0) || 1;
@@ -374,26 +453,35 @@ export async function buildAgencyReportFromCatalog(
     }
     if (!use.length) {
       const notes = fetchNotes?.length ? fetchNotes.slice(0, 3).join(' · ') : '';
-      const cacheMiss = /403|blocked|contracts-cache/i.test(notes) || !notes.includes('contracts-cache');
+      const hasCacheHit = /contracts-cache/i.test(notes);
+      const cacheEmpty = hasCacheHit && /empty/i.test(notes);
+      const liveBlocked = /403|blocked/i.test(notes);
+      const cacheMiss = !hasCacheHit;
       return {
         ...stub,
         meta: {
           ...stub.meta,
-          scanSummary: cacheMiss
-            ? `อยู่ในทะเบียน e-GP · ยังไม่มีสัญญาในแคชสำหรับหน่วยงานนี้ (estimate ${totalEstimate})`
-            : `อยู่ในทะเบียน e-GP · ค้นสัญญาแล้วยังไม่เจอที่ตรงชื่อ (estimate ${totalEstimate})`,
-          dataGapNote: cacheMiss
-            ? `Production อ่านจาก contracts-cache — รัน npm run build-all-contracts-caches จากเครือข่ายไทย (หรือ sync-contracts-cache รายชื่อ) แล้ว commit แคช${notes ? ` · ${notes}` : ''}`
-            : notes || stub.meta.dataGapNote,
+          scanSummary: cacheEmpty
+            ? `อยู่ในทะเบียน e-GP · ไม่พบสัญญาใน egp-contact ปี 2568 ภายใต้ชื่อหน่วยงานนี้`
+            : cacheMiss
+              ? `อยู่ในทะเบียน e-GP · ยังไม่มีสัญญาในแคชสำหรับหน่วยงานนี้ (estimate ${totalEstimate})`
+              : `อยู่ในทะเบียน e-GP · ค้นสัญญาแล้วยังไม่เจอที่ตรงชื่อ (estimate ${totalEstimate})`,
+          dataGapNote: cacheEmpty
+            ? `${notes} — หน่วยย่อยบางแห่งไม่มีสัญญาแยกใน egp-contact ลองค้นหน่วยงานแม่ (เช่น มหาวิทยาลัยอุบลราชธานี)`
+            : cacheMiss || liveBlocked
+              ? `Production อ่านจาก contracts-cache — รัน sync-contracts-cache จากเครือข่ายไทยแล้ว commit แคช${notes ? ` · ${notes}` : ''}`
+              : notes || stub.meta.dataGapNote,
         },
       };
     }
     const enriched = enrichStubWithContracts(stub, use, packageId);
 
-    // Auto-fetch e-GP winner announcements for projects missing usable winners
+    // Auto-fetch e-GP winner announcements only when cache didn't already supply winners
+    // (keeps scan budget for website executive auto-fetch on Vercel)
+    const fromContractsCache = (fetchNotes || []).some((n) => /contracts-cache/i.test(n));
     const projectList = Object.values(enriched.projects || {}) as { winner?: string | null }[];
     const missingWinners = projectList.filter((p) => !p.winner).length;
-    if (missingWinners > 0) {
+    if (missingWinners > 0 && !fromContractsCache) {
       const announce = await enrichReportFromEgAnnouncements(
         enriched as unknown as Parameters<typeof enrichReportFromEgAnnouncements>[0],
         {

@@ -17,6 +17,10 @@ export type ContractsCacheFile = {
   source: string;
   count: number;
   rows: Record<string, unknown>[];
+  /** Human-readable reason when count is 0 (known empty, not a cache miss). */
+  note?: string;
+  parentAgencyId?: string;
+  parentKeyword?: string;
 };
 
 function cachePaths(agencyId: string) {

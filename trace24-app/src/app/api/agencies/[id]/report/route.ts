@@ -1,8 +1,10 @@
 import fs from 'fs';
 import path from 'path';
 import { getCatalogAgency } from '@/lib/agency-catalog';
+import { websiteForAgency } from '@/lib/agency-websites';
 import { isRealAgency, REAL_AGENCIES } from '@/lib/agencies';
 import { buildCatalogStubReport } from '@/lib/pipeline/catalog-stub';
+import { ensureAgencyExecutives } from '@/lib/pipeline/ensure-executives';
 import {
   agencyFromSearchParams,
   buildAgencyReportFromCatalog,
@@ -12,6 +14,44 @@ import type { PipelineReportLike } from '@/lib/pipeline/types';
 
 export const maxDuration = 60;
 
+async function withAutoExecutives(
+  report: PipelineReportLike,
+  opts: { agencyId: string; agencyName: string; web?: string; enabled: boolean }
+) {
+  let withRelated = withRelatedPartyOverlay(report);
+  if (!opts.enabled) return withRelated;
+
+  const hasExec = Array.isArray(withRelated.executives) && withRelated.executives.length > 0;
+  const web = opts.web || websiteForAgency(opts.agencyId) || '';
+  if (hasExec || !web) return withRelated;
+
+  try {
+    const ensured = await ensureAgencyExecutives({
+      agencyId: opts.agencyId,
+      agencyName: opts.agencyName,
+      web,
+      onlyIfEmpty: true,
+    });
+    if (ensured.saved || ensured.attempted) {
+      withRelated = withRelatedPartyOverlay(report);
+      if (withRelated.meta && ensured.note) {
+        withRelated.meta = {
+          ...withRelated.meta,
+          relatedPartyNote: [
+            withRelated.relatedParty?.coverage,
+            ensured.note,
+          ]
+            .filter(Boolean)
+            .join(' · '),
+        };
+      }
+    }
+  } catch {
+    /* keep report without executives */
+  }
+  return withRelated;
+}
+
 export async function GET(
   req: Request,
   { params }: { params: Promise<{ id: string }> }
@@ -19,6 +59,7 @@ export async function GET(
   const { id } = await params;
   const url = new URL(req.url);
   const fetchContracts = url.searchParams.get('contracts') !== '0';
+  const autoExecutives = url.searchParams.get('autoExecutives') !== '0';
 
   // Allow any catalog selection passed from the client, not only egp-/curated ids
   const fromQuery = agencyFromSearchParams(id, url.searchParams);
@@ -32,6 +73,7 @@ export async function GET(
       projects?: Record<string, unknown>;
       priorityOrder?: string[];
       stats?: { label: string; value: string }[];
+      agency?: { th?: string; web?: string };
     };
     const projectCount = Object.keys(raw.projects || {}).length;
     const priorityCount = Array.isArray(raw.priorityOrder) ? raw.priorityOrder.length : 0;
@@ -40,7 +82,13 @@ export async function GET(
     // Stale curated snapshots (e.g. nongyaeng) can hold projects but empty priorityOrder/stats → blank dashboard
     const usable = !(projectCount > 0 && (priorityCount === 0 || statsSayZero));
     if (usable) {
-      return Response.json(withRelatedPartyOverlay(raw as PipelineReportLike));
+      const finalized = await withAutoExecutives(raw as PipelineReportLike, {
+        agencyId: id,
+        agencyName: raw.agency?.th || id,
+        web: raw.agency?.web || websiteForAgency(id),
+        enabled: autoExecutives,
+      });
+      return Response.json(finalized);
     }
   }
 
@@ -69,7 +117,13 @@ export async function GET(
         fetchContracts,
         limit: 60,
       });
-      return Response.json(withRelatedPartyOverlay(report as unknown as PipelineReportLike), {
+      const finalized = await withAutoExecutives(report as unknown as PipelineReportLike, {
+        agencyId: id,
+        agencyName: fallback.th,
+        web: fallback.web || websiteForAgency(id),
+        enabled: autoExecutives,
+      });
+      return Response.json(finalized, {
         headers: { 'X-TRACE24-Catalog-Only': '1' },
       });
     }
@@ -87,20 +141,29 @@ export async function GET(
       fetchContracts,
       limit: 80,
     });
-    const withRelated = withRelatedPartyOverlay(report as unknown as PipelineReportLike);
-    return Response.json(withRelated, {
+    const finalized = await withAutoExecutives(report as unknown as PipelineReportLike, {
+      agencyId: agency.id,
+      agencyName: agency.th,
+      web: agency.web || websiteForAgency(agency.id),
+      enabled: autoExecutives,
+    });
+    return Response.json(finalized, {
       headers: {
-        'X-TRACE24-Catalog-Only': withRelated.meta?.catalogOnly ? '1' : '0',
+        'X-TRACE24-Catalog-Only': finalized.meta?.catalogOnly ? '1' : '0',
       },
     });
   } catch {
     // Never fail hard — registry stub is enough to open the agency
-    return Response.json(
-      withRelatedPartyOverlay(buildCatalogStubReport(agency) as unknown as PipelineReportLike),
-      {
-        headers: { 'X-TRACE24-Catalog-Only': '1' },
-        status: 200,
-      }
-    );
+    const stub = buildCatalogStubReport(agency) as unknown as PipelineReportLike;
+    const finalized = await withAutoExecutives(stub, {
+      agencyId: agency.id,
+      agencyName: agency.th,
+      web: agency.web || websiteForAgency(agency.id),
+      enabled: autoExecutives,
+    });
+    return Response.json(finalized, {
+      headers: { 'X-TRACE24-Catalog-Only': '1' },
+      status: 200,
+    });
   }
 }

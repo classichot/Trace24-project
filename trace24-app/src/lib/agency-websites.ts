@@ -8,6 +8,8 @@ export const KNOWN_AGENCY_WEBSITES: Record<string, string> = {
   /** เทศบาลตำบลป่าไผ่ อ.ลี้ จ.ลำพูน */
   'egp-6510407': 'paphai.go.th',
   'egp-6501402': 'nongyaeng.go.th',
+  /** เทศบาลตำบลเวียงเชียงแสน อ.เชียงแสน จ.เชียงราย */
+  'egp-5570801': 'wiangchiangsaen.go.th',
 };
 
 export function websiteForAgency(id: string | null | undefined, fallback = ''): string {

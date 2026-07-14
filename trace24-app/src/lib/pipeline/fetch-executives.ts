@@ -20,6 +20,7 @@ const UA = {
 
 const PATH_HINTS = [
   '',
+  '/index.php',
   '/ทำเนียบผู้บริหาร',
   '/ทำเนียบผู้บริหาร.html',
   '/โครงสร้างองค์กร',
@@ -30,6 +31,9 @@ const PATH_HINTS = [
   '/executives',
   '/about/executive',
   '/personnel',
+  '/personnel.php',
+  '/personnel.php?id=12',
+  '/data.php?id=14',
   '/ita/executive',
 ];
 
@@ -90,7 +94,7 @@ function htmlToText(html: string): string {
     .replace(/<style[\s\S]*?<\/style>/gi, ' ')
     .replace(/<noscript[\s\S]*?<\/noscript>/gi, ' ')
     .replace(/<!--[\s\S]*?-->/g, ' ')
-    .replace(/<\/(p|div|tr|li|h[1-6]|br|section|article)>/gi, '\n')
+    .replace(/<\/(p|div|tr|td|th|li|h[1-6]|br|section|article)>/gi, '\n')
     .replace(/<br\s*\/?>/gi, '\n')
     .replace(/<[^>]+>/g, ' ')
     .replace(/&nbsp;/g, ' ')
@@ -150,22 +154,26 @@ async function fetchHtml(url: string): Promise<{ ok: boolean; status: number; ht
 function heuristicExtract(text: string, sourceUrl: string): AgencyExecutive[] {
   const lines = text.split(/\n+/).map((l) => l.trim()).filter(Boolean);
   const out: AgencyExecutive[] = [];
-  const titleHints =
-    /(นายกเทศมนตรี|รองนายกเทศมนตรี|ปลัดเทศบาล|รองปลัด|หัวหน้าสำนัก|ผู้อำนวยการ|หัวหน้าฝ่าย|เจ้าหน้าที่พัสดุ|ประธาน|รองประธาน)/;
-  const nameHints = /(นาย|นางสาว|นาง|ว่าที่)\s*[\u0E00-\u0E7F.]+\s+[\u0E00-\u0E7F.]+/;
+  const titleRe =
+    /^(นายกเทศมนตรี(?:ตำบล|เมือง|นคร)?[\u0E00-\u0E7F\s]{0,24}|รองนายกเทศมนตรี|เลขานุการนายกเทศมนตรี|ที่ปรึกษานายกเทศมนตรี|ปลัดเทศบาล|รองปลัดเทศบาล|หัวหน้าสำนัก[\u0E00-\u0E7F\s]{0,20}|ผู้อำนวยการ[\u0E00-\u0E7F\s]{0,24}|หัวหน้าฝ่าย[\u0E00-\u0E7F\s]{0,20}|เจ้าหน้าที่พัสดุ|ประธานสภาเทศบาล|รองประธานสภาเทศบาล)$/;
+  const nameRe = /^((?:นาย|นางสาว|นาง|ว่าที่)\s*[\u0E00-\u0E7F.]+\s+[\u0E00-\u0E7F.]+)$/;
 
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i];
-    const nearby = [lines[i - 1], line, lines[i + 1]].filter(Boolean).join(' · ');
-    if (!titleHints.test(nearby) || !nameHints.test(nearby)) continue;
-    const nameMatch = nearby.match(nameHints);
-    const titleMatch = nearby.match(titleHints);
-    if (!nameMatch || !titleMatch) continue;
-    const name = nameMatch[0].replace(/\s+/g, ' ').trim();
-    const title = titleMatch[0].trim();
-    if (out.some((e) => e.name === name && e.title === title)) continue;
-    out.push({ name, title, sourceUrl });
-    if (out.length >= 20) break;
+  const push = (name: string, title: string) => {
+    const n = name.replace(/\s+/g, ' ').trim();
+    const t = title.replace(/\s+/g, ' ').trim();
+    if (n.length < 5 || t.length < 4) return;
+    if (/นายกเทศมนตรี$/.test(n) || nameRe.test(t) || titleRe.test(n)) return;
+    if (out.some((e) => e.name === n && e.title === t)) return;
+    out.push({ name: n, title: t, sourceUrl });
+  };
+
+  for (let i = 0; i < lines.length - 1; i++) {
+    const a = lines[i];
+    const b = lines[i + 1];
+    // Prefer adjacent lines only (common CMS: name then title)
+    if (nameRe.test(a) && titleRe.test(b)) push(a, b);
+    else if (titleRe.test(a) && nameRe.test(b)) push(b, a);
+    if (out.length >= 25) break;
   }
   return out;
 }
@@ -285,8 +293,8 @@ export async function fetchAgencyExecutives(opts: {
   const usedUrls: string[] = [];
   const discovered: string[] = [];
 
-  // First pass: homepage + path hints (cap)
-  const firstBatch = [...candidateUrls].slice(0, 6);
+  // First pass: homepage + path hints (cap) — include /index.php and personnel CMS paths
+  const firstBatch = [...candidateUrls].slice(0, 10);
   for (const url of firstBatch) {
     const got = await fetchHtml(url);
     sources.push({

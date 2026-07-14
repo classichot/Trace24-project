@@ -33,6 +33,16 @@ type ProjectLike = {
   alerts?: ProjectAlert[];
   timeline?: [string, string, string][];
   related?: [string, string, string][];
+  priceBenchmark?: {
+    categoryLabel?: string;
+    scope?: string;
+    n?: number;
+    median?: number;
+    p25?: number;
+    p75?: number;
+    vsMedianPct?: number;
+    note?: string;
+  };
 };
 
 export function ProjectScreen() {
@@ -138,7 +148,7 @@ export function ProjectScreen() {
       >
         {[
           ['งบประมาณ', pr0.budget || '—'],
-          ['ราคากลาง', pr0.ref || '—'],
+          ['ค่ากลางตลาด', pr0.ref || '—'],
           ['ราคาที่ตกลง', pr0.award || '—'],
         ].map(([label, value]) => (
           <div key={label as string} style={{ padding: '20px 20px 20px 0', borderRight: '1px solid #EEEEEA', marginRight: 20 }}>
@@ -147,22 +157,53 @@ export function ProjectScreen() {
           </div>
         ))}
         <div style={{ padding: '20px 0' }}>
-          <div style={{ fontSize: 11, color: '#8B8B85' }}>ราคาที่ตกลง / ราคากลาง</div>
+          <div style={{ fontSize: 11, color: '#8B8B85' }}>เทียบค่ากลางตลาด</div>
           <div
             style={{
               fontSize: 24,
               fontWeight: 500,
               marginTop: 8,
-              color: pr0.sevKey === 'High' ? 'var(--accent)' : '#111110',
+              color:
+                pr0.priceBenchmark && Math.abs(pr0.priceBenchmark.vsMedianPct || 0) >= 20
+                  ? 'var(--accent)'
+                  : '#111110',
             }}
           >
             {pr0.pct || '—'}
           </div>
-          <div style={{ fontSize: 11.5, color: '#8B8B85', marginTop: 3 }}>
-            {pr0.pct && pr0.pct !== '—' ? 'ค่ากลางกลุ่มเปรียบเทียบ — รอเทียบกลุ่ม' : 'ยังไม่มีราคากลางเปรียบเทียบ'}
+          <div style={{ fontSize: 11.5, color: '#8B8B85', marginTop: 3, lineHeight: 1.45 }}>
+            {pr0.priceBenchmark
+              ? `${pr0.priceBenchmark.categoryLabel || 'กลุ่มงาน'} · n=${pr0.priceBenchmark.n || 0} · ${
+                  pr0.priceBenchmark.scope === 'province'
+                    ? 'ระดับจังหวัด'
+                    : pr0.priceBenchmark.scope === 'national'
+                      ? 'ทั้งประเทศ'
+                      : 'ในหน่วยงาน'
+                } — ไม่ใช่ราคากลางราชการ`
+              : 'ยังไม่มีกลุ่มเปรียบเทียบจากแคช'}
           </div>
         </div>
       </div>
+
+      {!!pr0.priceBenchmark?.note && (
+        <div
+          style={{
+            marginTop: 16,
+            padding: '12px 14px',
+            background: '#F6F6F3',
+            fontSize: 12.5,
+            color: '#55554F',
+            lineHeight: 1.55,
+          }}
+        >
+          {pr0.priceBenchmark.note}
+          {pr0.priceBenchmark.p25 != null && pr0.priceBenchmark.p75 != null
+            ? ` · ช่วง P25–P75 ประมาณ ${Number(pr0.priceBenchmark.p25).toLocaleString('th-TH')} – ${Number(
+                pr0.priceBenchmark.p75
+              ).toLocaleString('th-TH')} บาท`
+            : ''}
+        </div>
+      )}
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: 56, marginTop: 40, alignItems: 'start' }}>
         <div>

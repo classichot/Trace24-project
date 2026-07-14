@@ -9,28 +9,44 @@ import {
 } from './related-party';
 import type { PipelineReportLike } from './types';
 
-function relatedDir() {
+function isServerless() {
+  return Boolean(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME);
+}
+
+function committedDir() {
   return path.join(/*turbopackIgnore: true*/ process.cwd(), 'data', 'related');
 }
 
-function relatedPath(agencyId: string) {
-  const safe = agencyId.replace(/[^a-zA-Z0-9._\-ก-๙]/g, '_');
-  return path.join(relatedDir(), `${safe}.json`);
+/** Vercel/Lambda can only write under /tmp. */
+function writableDir() {
+  if (isServerless()) return path.join('/tmp', 'trace24-related');
+  return committedDir();
 }
 
-export function loadRelatedPartyPack(agencyId: string): RelatedPartyPack | null {
-  const file = relatedPath(agencyId);
-  if (!fs.existsSync(file)) return null;
+function relatedFile(dir: string, agencyId: string) {
+  const safe = agencyId.replace(/[^a-zA-Z0-9._\-ก-๙]/g, '_');
+  return path.join(dir, `${safe}.json`);
+}
+
+function readPackFile(file: string): RelatedPartyPack | null {
   try {
+    if (!fs.existsSync(file)) return null;
     return JSON.parse(fs.readFileSync(file, 'utf8')) as RelatedPartyPack;
   } catch {
     return null;
   }
 }
 
+export function loadRelatedPartyPack(agencyId: string): RelatedPartyPack | null {
+  if (!agencyId) return null;
+  // Prefer instance-local writes (auto-fetch in this warm lambda)
+  const fromWritable = readPackFile(relatedFile(writableDir(), agencyId));
+  if (fromWritable) return fromWritable;
+  // Committed packs shipped with the deploy
+  return readPackFile(relatedFile(committedDir(), agencyId));
+}
+
 export function saveRelatedPartyPack(agencyId: string, pack: RelatedPartyPack): RelatedPartyPack {
-  const dir = relatedDir();
-  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
   const next: RelatedPartyPack = {
     ...pack,
     agencyId,
@@ -38,7 +54,20 @@ export function saveRelatedPartyPack(agencyId: string, pack: RelatedPartyPack): 
     executives: pack.executives || [],
     companies: pack.companies || [],
   };
-  fs.writeFileSync(relatedPath(agencyId), JSON.stringify(next, null, 2), 'utf8');
+  const dir = writableDir();
+  fs.mkdirSync(dir, { recursive: true });
+  fs.writeFileSync(relatedFile(dir, agencyId), JSON.stringify(next, null, 2), 'utf8');
+
+  // Also try committed path in local/dev so batch + git can pick it up
+  if (!isServerless()) {
+    try {
+      const committed = committedDir();
+      fs.mkdirSync(committed, { recursive: true });
+      fs.writeFileSync(relatedFile(committed, agencyId), JSON.stringify(next, null, 2), 'utf8');
+    } catch {
+      /* ignore */
+    }
+  }
   return next;
 }
 
