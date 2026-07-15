@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { adminWriteError, adminWriteHeaders, getAdminToken, setAdminToken } from '@/lib/admin-client';
 import { isRealAgency } from '@/lib/agencies';
 import { useTrace24 } from '@/context/trace24-context';
+import { exportCaseReport } from '@/lib/export-case-report';
 import { REVIEW_OPTIONS, sev } from '@/lib/utils';
 import { SeverityBadge, inputStyle, selectStyle, RiskDisclaimer, LoadingHint } from './ui';
 import type { InvestigationPack, PipelineStatusResponse, HybridRagResult } from '@/lib/pipeline/types';
@@ -149,6 +150,75 @@ export function AdminScreen() {
   const [relatedDbdPaste, setRelatedDbdPaste] = useState('');
   const [relatedDbdTin, setRelatedDbdTin] = useState('');
   const [relatedDbdName, setRelatedDbdName] = useState('');
+  const [exportMsg, setExportMsg] = useState<string | null>(null);
+  const [exportBusy, setExportBusy] = useState(false);
+
+  const runExportReport = async () => {
+    if (exportBusy) return;
+    setExportBusy(true);
+    setExportMsg(null);
+    try {
+      let packForExport = pack;
+      if (!packForExport && scannedId && isRealAgency(scannedId)) {
+        try {
+          const r = await fetch(`/api/agencies/${encodeURIComponent(scannedId)}/investigate`);
+          if (r.ok) packForExport = (await r.json()) as InvestigationPack;
+        } catch {
+          /* export still works from caseFile alone */
+        }
+      }
+
+      const { filename } = exportCaseReport({
+        agencyId: scannedId,
+        agencyName: dataset.agency?.th,
+        agencyLoc: dataset.agency?.loc,
+        caseFile: {
+          id: CF.id,
+          title: CF.title,
+          summary: CF.summary,
+          status: CF.status,
+          opened: CF.opened,
+          owner: CF.owner,
+          signals: CF.signals,
+          evidence: CF.evidence,
+          questions: CF.questions,
+          timeline: CF.timeline,
+          parties: CF.parties,
+          money: CF.money,
+        },
+        notes: caseNotes,
+        alerts: (packForExport?.alerts || []).map((a) => ({
+          tag: a.title,
+          text: a.body,
+          sevKey: a.severity,
+        })),
+        relatedMatches: dataset.relatedParty?.matches || relatedMatches,
+        relatedCoverage: dataset.relatedParty?.coverage || relatedCoverage,
+        reviewStates,
+        pack: packForExport
+          ? {
+              generatedAt: packForExport.generatedAt,
+              caseBrief: packForExport.caseBrief,
+              leads: packForExport.leads,
+              risk: {
+                overall: String(packForExport.risk?.overall ?? '—'),
+                score100:
+                  typeof packForExport.risk?.overall === 'number'
+                    ? Math.round(packForExport.risk.overall)
+                    : undefined,
+              },
+              missingInfo: packForExport.missingInfo,
+              facts: packForExport.facts,
+            }
+          : null,
+      });
+      setExportMsg(`ส่งออกแล้ว: ${filename} · หน้าพิมพ์เปิดสำหรับบันทึก PDF`);
+    } catch (e) {
+      setExportMsg(e instanceof Error ? e.message : 'ส่งออกล้มเหลว');
+    } finally {
+      setExportBusy(false);
+    }
+  };
 
   useEffect(() => {
     if (adminTab !== 'related') return;
@@ -476,20 +546,48 @@ export function AdminScreen() {
         boxSizing: 'border-box',
       }}
     >
-      <div style={{ display: 'flex', alignItems: 'baseline', gap: 14 }}>
-        <h1 style={{ fontSize: 26, fontWeight: 500, margin: 0 }}>ตัวช่วยทำคดี</h1>
-        <span
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'baseline',
+          justifyContent: 'space-between',
+          gap: 16,
+          flexWrap: 'wrap',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: 14 }}>
+          <h1 style={{ fontSize: 26, fontWeight: 500, margin: 0 }}>ตัวช่วยทำคดี</h1>
+          <span
+            style={{
+              fontSize: 10,
+              letterSpacing: '.08em',
+              padding: '3px 8px',
+              border: '1px solid #C9C9C4',
+              color: '#55554F',
+            }}
+          >
+            ภายใน · จำกัดสิทธิ์
+          </span>
+        </div>
+        <div
+          onClick={() => void runExportReport()}
+          className="trace24-btn-dark"
           style={{
-            fontSize: 10,
-            letterSpacing: '.08em',
-            padding: '3px 8px',
-            border: '1px solid #C9C9C4',
-            color: '#55554F',
+            padding: '11px 18px',
+            fontSize: 13,
+            cursor: exportBusy ? 'wait' : 'pointer',
+            opacity: exportBusy ? 0.7 : 1,
+            flex: 'none',
+            userSelect: 'none',
           }}
+          title="ดาวน์โหลด Markdown และเปิดหน้าพิมพ์สำหรับบันทึก PDF"
         >
-          ภายใน · จำกัดสิทธิ์
-        </span>
+          {exportBusy ? 'กำลังส่งออก…' : 'ส่งออกรายงาน'}
+        </div>
       </div>
+      {exportMsg && (
+        <div style={{ marginTop: 10, fontSize: 12.5, color: '#55554F', lineHeight: 1.5 }}>{exportMsg}</div>
+      )}
 
       <div
         style={{
@@ -1018,17 +1116,20 @@ export function AdminScreen() {
               </div>
             </div>
             <div
+              onClick={() => void runExportReport()}
               className="trace24-btn-outline"
               style={{
                 border: '1px solid #111110',
                 padding: '11px 18px',
                 fontSize: 13,
-                cursor: 'pointer',
+                cursor: exportBusy ? 'wait' : 'pointer',
+                opacity: exportBusy ? 0.7 : 1,
                 userSelect: 'none',
                 flex: 'none',
               }}
+              title="ดาวน์โหลด Markdown และเปิดหน้าพิมพ์สำหรับบันทึก PDF"
             >
-              ส่งออกสำนวนหลักฐาน (PDF)
+              {exportBusy ? 'กำลังส่งออก…' : 'ส่งออกรายงาน (PDF)'}
             </div>
           </div>
           <p
