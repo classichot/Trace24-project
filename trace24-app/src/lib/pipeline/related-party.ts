@@ -115,7 +115,7 @@ export function emptyRelatedPack(agencyId: string): RelatedPartyPack {
   return {
     agencyId,
     updatedAt: new Date().toISOString(),
-    note: 'ใส่ทำเนียบผู้บริหาร + กรรมการ/ผู้ถือหุ้นจาก DBD หรือ บอจ.5 — นามสกุลร่วมไม่ใช่ข้อพิสูจน์',
+    note: 'ใส่ทำเนียบผู้บริหาร/เจ้าหน้าที่ + กรรมการ/ผู้ถือหุ้นจาก DBD หรือ บอจ.5 — นามสกุลร่วมไม่ใช่ข้อพิสูจน์',
     executives: [],
     companies: [],
   };
@@ -676,11 +676,11 @@ export function applyRelatedPartyToReport(
   const hasExec = executives.length > 0;
   const hasDir = Object.values(contractors).some((c) => (c.directors || []).length > 0);
   const coverage = !hasExec && !hasDir
-    ? 'ยังไม่มีทำเนียบผู้บริหารและกรรมการ — เพิ่มที่แท็บความเชื่อมโยง'
+    ? 'ยังไม่มีทำเนียบผู้บริหาร/เจ้าหน้าที่และกรรมการ — เพิ่มที่แท็บความเชื่อมโยง'
     : !hasExec
-      ? 'มีกรรมการบางราย แต่ยังไม่มีทำเนียบผู้บริหาร'
+      ? 'มีกรรมการบางราย แต่ยังไม่มีทำเนียบผู้บริหาร/เจ้าหน้าที่'
       : !hasDir
-        ? 'มีทำเนียบผู้บริหาร แต่ยังไม่มีกรรมการ/ผู้ถือหุ้นจาก DBD'
+        ? 'มีทำเนียบผู้บริหาร/เจ้าหน้าที่ แต่ยังไม่มีกรรมการ/ผู้ถือหุ้นจาก DBD'
         : matches.length
           ? `พบสัญญาณความเชื่อมโยง ${matches.length} รายการ (รอยืนยัน)`
           : 'มีข้อมูลทั้งสองฝั่ง — ยังไม่พบชื่อ/นามสกุลที่ตรงกัน';

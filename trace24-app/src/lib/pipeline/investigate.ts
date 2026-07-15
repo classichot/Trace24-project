@@ -32,7 +32,7 @@ function layers(): { layer: string; status: PipelineLayerStatus; note: string }[
     { layer: 'OCR + Document Extraction', status: 'live', note: 'HTML/PDF extract + OCR hook' },
     { layer: 'Validation + Normalisation', status: 'live', note: 'Thai digits, baht, titles, methods' },
     { layer: 'Structured Database', status: 'live', note: 'JSON reports in data/real' },
-    { layer: 'Vector Index', status: 'live', note: 'Local TF-IDF passages in data/vector' },
+    { layer: 'Vector Index', status: 'live', note: 'TF-IDF passages · /tmp on Vercel · memory fallback' },
     { layer: 'Entity Resolution', status: 'live', note: 'Alias clustering' },
     { layer: 'Alert System', status: 'live', note: 'High-severity signals with innocent alternatives' },
     { layer: 'Investigation Assistant', status: 'live', note: 'Brief / leads / Rule Proposer' },

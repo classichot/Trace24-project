@@ -1,6 +1,6 @@
 /**
- * Auto-fetch municipal executives from the agency website when the related pack
- * has none yet, then persist into data/related (or /tmp on Vercel).
+ * Auto-fetch municipal officers (executives + division staff) from the agency
+ * website when the related pack is empty or thin, then persist into data/related.
  */
 import 'server-only';
 
@@ -12,6 +12,16 @@ import {
   saveRelatedPartyPack,
 } from './related-party-store';
 import type { RelatedPartyPack } from './related-party';
+
+/** Titles that indicate we already captured procurement-relevant staff. */
+const DEPT_STAFF_TITLE_RE =
+  /กองช่าง|กองคลัง|นายช่าง|เจ้าพนักงาน|เจ้าหน้าที่พัสดุ|ผู้อำนวยการกอง|หัวหน้าส่วน/;
+
+function packLooksComplete(pack: RelatedPartyPack | null | undefined): boolean {
+  const list = pack?.executives || [];
+  if (list.length < 12) return false;
+  return list.some((e) => DEPT_STAFF_TITLE_RE.test(e.title || ''));
+}
 
 export type EnsureExecutivesResult = {
   attempted: boolean;
@@ -26,18 +36,18 @@ export async function ensureAgencyExecutives(opts: {
   agencyName: string;
   web?: string | null;
   url?: string | null;
-  /** Skip if pack already has executives (default true). */
+  /** Skip if pack already has a full officer roster (default true). */
   onlyIfEmpty?: boolean;
 }): Promise<EnsureExecutivesResult> {
   const onlyIfEmpty = opts.onlyIfEmpty !== false;
   const existing = loadRelatedPartyPack(opts.agencyId);
-  if (onlyIfEmpty && existing?.executives?.length) {
+  if (onlyIfEmpty && packLooksComplete(existing)) {
     return {
       attempted: false,
       saved: false,
-      executives: existing.executives.length,
-      note: 'มีทำเนียบในแคชแล้ว',
-      pack: existing,
+      executives: existing!.executives.length,
+      note: 'มีทำเนียบผู้บริหาร/เจ้าหน้าที่ในแคชแล้ว',
+      pack: existing!,
     };
   }
 
@@ -88,7 +98,7 @@ export async function ensureAgencyExecutives(opts: {
     attempted: true,
     saved: true,
     executives: pack.executives.length,
-    note: `บันทึกทำเนียบอัตโนมัติ ${result.executives.length} รายการ · ${result.note}`,
+    note: `บันทึกทำเนียบผู้บริหาร/เจ้าหน้าที่อัตโนมัติ ${result.executives.length} รายการ · ${result.note}`,
     pack,
   };
 }

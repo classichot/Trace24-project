@@ -23,7 +23,7 @@ export function getPipelineStatus(cachedAgencyIds: string[]): PipelineStatusResp
       { layer: 'OCR + Document Extraction', status: 'live', note: 'HTML/PDF extract + OCR hook' },
       { layer: 'Validation + Normalisation', status: 'live', note: 'normalize.ts' },
       { layer: 'Structured Database', status: 'live', note: 'JSON reports in data/real' },
-      { layer: 'Vector Index', status: 'live', note: 'TF-IDF passages in data/vector' },
+      { layer: 'Vector Index', status: 'live', note: 'TF-IDF passages · /tmp on Vercel · memory fallback' },
       { layer: 'Entity Resolution', status: 'live', note: 'alias clustering resolve.ts' },
       { layer: 'Temporal Knowledge Graph', status: 'live', note: 'graph.ts from agency reports' },
       { layer: 'Detection suite', status: 'live', note: 'rules + Benford + similarity + approved dynamic rules' },

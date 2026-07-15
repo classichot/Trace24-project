@@ -24,7 +24,28 @@ type TermIndex = {
   tfs: Record<string, number>[];
 };
 
-const VECTOR_ROOT = path.join(process.cwd(), 'data', 'vector');
+function isServerless() {
+  return Boolean(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME);
+}
+
+/** Committed seed (read-only on Vercel). */
+function committedRoot() {
+  return path.join(/*turbopackIgnore: true*/ process.cwd(), 'data', 'vector');
+}
+
+/** Vercel/Lambda only allow writes under /tmp. */
+function writableRoot() {
+  if (isServerless()) return path.join('/tmp', 'trace24-vector');
+  return committedRoot();
+}
+
+/** Warm-lambda memory cache — works even when disk write fails. */
+const memoryIndex = new Map<string, TermIndex>();
+
+function indexPath(root: string, agencyId: string) {
+  const safe = agencyId.replace(/[^a-zA-Z0-9._\-ก-๙]/g, '_');
+  return path.join(root, `${safe}.json`);
+}
 
 function tokenize(text: string): string[] {
   const lower = text.toLowerCase();
@@ -65,8 +86,13 @@ function cosine(a: Record<string, number>, b: Record<string, number>, idf: Recor
   return dot / (Math.sqrt(na) * Math.sqrt(nb));
 }
 
-function indexPath(agencyId: string) {
-  return path.join(VECTOR_ROOT, `${agencyId}.json`);
+function readIndexFile(file: string): TermIndex | null {
+  try {
+    if (!fs.existsSync(file)) return null;
+    return JSON.parse(fs.readFileSync(file, 'utf8')) as TermIndex;
+  } catch {
+    return null;
+  }
 }
 
 /** Build passages from agency report (projects, alerts, timelines, contractors) */
@@ -146,15 +172,48 @@ export function buildVectorIndex(agencyId: string, report: PipelineReportLike): 
     passages,
     tfs,
   };
-  fs.mkdirSync(VECTOR_ROOT, { recursive: true });
-  fs.writeFileSync(indexPath(agencyId), JSON.stringify(index), 'utf8');
+
+  memoryIndex.set(agencyId, index);
+
+  try {
+    const root = writableRoot();
+    fs.mkdirSync(root, { recursive: true });
+    fs.writeFileSync(indexPath(root, agencyId), JSON.stringify(index), 'utf8');
+  } catch {
+    /* EROFS / tmp full — keep in-memory index for this warm instance */
+  }
+
+  // Local/dev: also persist under committed data/vector for git workflows
+  if (!isServerless()) {
+    try {
+      const root = committedRoot();
+      fs.mkdirSync(root, { recursive: true });
+      fs.writeFileSync(indexPath(root, agencyId), JSON.stringify(index), 'utf8');
+    } catch {
+      /* ignore */
+    }
+  }
+
   return index;
 }
 
 export function loadVectorIndex(agencyId: string): TermIndex | null {
-  const file = indexPath(agencyId);
-  if (!fs.existsSync(file)) return null;
-  return JSON.parse(fs.readFileSync(file, 'utf8')) as TermIndex;
+  const fromMem = memoryIndex.get(agencyId);
+  if (fromMem) return fromMem;
+
+  const fromWritable = readIndexFile(indexPath(writableRoot(), agencyId));
+  if (fromWritable) {
+    memoryIndex.set(agencyId, fromWritable);
+    return fromWritable;
+  }
+
+  const fromCommitted = readIndexFile(indexPath(committedRoot(), agencyId));
+  if (fromCommitted) {
+    memoryIndex.set(agencyId, fromCommitted);
+    return fromCommitted;
+  }
+
+  return null;
 }
 
 export function ensureVectorIndex(agencyId: string, report: PipelineReportLike): TermIndex {
@@ -205,11 +264,30 @@ export function vectorIndexStats(agencyId?: string) {
       ? { agencyId, passages: idx.nDocs, builtAt: idx.builtAt }
       : { agencyId, passages: 0, builtAt: null };
   }
-  if (!fs.existsSync(VECTOR_ROOT)) return { indexes: [], totalPassages: 0 };
-  const indexes = fs
-    .readdirSync(VECTOR_ROOT)
-    .filter((f) => f.endsWith('.json'))
-    .map((f) => vectorIndexStats(f.replace(/\.json$/, '')));
+
+  const seen = new Set<string>();
+  const indexes: { agencyId: string; passages: number; builtAt: string | null }[] = [];
+
+  for (const [id, idx] of memoryIndex) {
+    seen.add(id);
+    indexes.push({ agencyId: id, passages: idx.nDocs, builtAt: idx.builtAt });
+  }
+
+  for (const root of [writableRoot(), committedRoot()]) {
+    try {
+      if (!fs.existsSync(root)) continue;
+      for (const f of fs.readdirSync(root)) {
+        if (!f.endsWith('.json')) continue;
+        const id = f.replace(/\.json$/, '');
+        if (seen.has(id)) continue;
+        seen.add(id);
+        indexes.push(vectorIndexStats(id));
+      }
+    } catch {
+      /* ignore */
+    }
+  }
+
   return {
     indexes,
     totalPassages: indexes.reduce((s, i) => s + i.passages, 0),

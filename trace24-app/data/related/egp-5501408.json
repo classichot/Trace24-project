@@ -1,8 +1,244 @@
 {
   "agencyId": "egp-5501408",
-  "updatedAt": "2026-07-14T06:01:32.003Z",
-  "note": "เทศบาลตำบลป่าไผ่ จ.เชียงใหม่ — stub ผู้ชนะจาก contracts-cache · ใส่กรรมการจาก DBD/บอจ.5 และทำเนียบจาก https://www.paphaichiangmai.go.th/",
-  "executives": [],
+  "updatedAt": "2026-07-15T03:33:36.602Z",
+  "note": "auto · seed officers (executives+staff) · paphaichiangmai.go.th",
+  "executives": [
+    {
+      "name": "นายไชยยันต์ วิริยา",
+      "title": "นายกเทศมนตรีตำบลป่าไผ่",
+      "sourceUrl": "https://www.paphaichiangmai.go.th/officers2/executive_information"
+    },
+    {
+      "name": "นางเครือวัลย์ คำมูล",
+      "title": "รองนายกเทศมนตรี",
+      "sourceUrl": "https://www.paphaichiangmai.go.th/officers2/executive_information"
+    },
+    {
+      "name": "นางสาวภัสณภรณ์ วิริยา",
+      "title": "รองนายกเทศมนตรี",
+      "sourceUrl": "https://www.paphaichiangmai.go.th/officers2/executive_information"
+    },
+    {
+      "name": "นายสวัสดิ์ ชมพล",
+      "title": "เลขานุการ นายกเทศมนตรีตำบลป่าไผ่",
+      "sourceUrl": "https://www.paphaichiangmai.go.th/officers2/executive_information"
+    },
+    {
+      "name": "นายจรัล มานิตย์",
+      "title": "ที่ปรึกษานายกเทศมนตรี",
+      "sourceUrl": "https://www.paphaichiangmai.go.th/officers2/executive_information"
+    },
+    {
+      "name": "ว่าที่ร้อยตรีจำรอง อ่อนพุทธา",
+      "title": "ปลัดเทศบาลตำบลป่าไผ่",
+      "sourceUrl": "https://www.paphaichiangmai.go.th/officers2/government"
+    },
+    {
+      "name": "นางดารุณี สถานเดิม",
+      "title": "รองปลัดเทศบาลตำบลป่าไผ",
+      "sourceUrl": "https://www.paphaichiangmai.go.th/officers2/government"
+    },
+    {
+      "name": "นางน้องนุช ลำจวน",
+      "title": "ผู้อำนวยการกองคลัง",
+      "sourceUrl": "https://www.paphaichiangmai.go.th/officers2/government"
+    },
+    {
+      "name": "นางสาวอารีลักษณ์ สลิดแก้ว",
+      "title": "หัวหน้าสำนักปลัด",
+      "sourceUrl": "https://www.paphaichiangmai.go.th/officers2/government"
+    },
+    {
+      "name": "นายดวงเนตร วงศ์จักร์",
+      "title": "ผู้อำนวยการกองช่าง",
+      "sourceUrl": "https://www.paphaichiangmai.go.th/officers2/government"
+    },
+    {
+      "name": "นายประจวบ หน่อศักดิ์",
+      "title": "ผู้อำนวยการกองสาธารณสุขและสิ่งแวดล้อม",
+      "sourceUrl": "https://www.paphaichiangmai.go.th/officers2/government"
+    },
+    {
+      "name": "นางรักชนก สมสาย",
+      "title": "นักจัดการงานทะเบียนและบัตรชำนาญการ",
+      "sourceUrl": "https://www.paphaichiangmai.go.th/officers2/officepalad"
+    },
+    {
+      "name": "นางสุจิตราภรณ์ ไชยแก้ว",
+      "title": "นักจัดการงานทั่วไปชำนาญการ",
+      "sourceUrl": "https://www.paphaichiangmai.go.th/officers2/officepalad"
+    },
+    {
+      "name": "นายกิตติศักดิ์ อาษาไชย",
+      "title": "นักวิชาการเกษตรชำนาญการ",
+      "sourceUrl": "https://www.paphaichiangmai.go.th/officers2/officepalad"
+    },
+    {
+      "name": "นายวรพจน์ วิริยภาพ",
+      "title": "นักทรัพยากรบุคคลชำนาญการ",
+      "sourceUrl": "https://www.paphaichiangmai.go.th/officers2/officepalad"
+    },
+    {
+      "name": "นางสาวกฤติกา เอกทวีวัฒน์",
+      "title": "นักวิเคราะห์นโยบายและแผนปฏิบัติการ",
+      "sourceUrl": "https://www.paphaichiangmai.go.th/officers2/officepalad"
+    },
+    {
+      "name": "นางสาวนงนุช ชุ่มเชื้อ",
+      "title": "เจ้าพนักงานทะเบียนและบัตรชำนาญงาน",
+      "sourceUrl": "https://www.paphaichiangmai.go.th/officers2/officepalad"
+    },
+    {
+      "name": "นางสาวพุริตา ทีฆาวงค์",
+      "title": "นักวิชาการคลังชำนาญการ",
+      "sourceUrl": "https://www.paphaichiangmai.go.th/officers2/divisionoffinance"
+    },
+    {
+      "name": "นางสาวงามฟ้า ฟูนาโคชิ",
+      "title": "นักวิชาการจัดเก็บรายได้ชำนาญการ",
+      "sourceUrl": "https://www.paphaichiangmai.go.th/officers2/divisionoffinance"
+    },
+    {
+      "name": "นางสาวธัญญลักษณ์ จันทะกันยา",
+      "title": "นักวิชาการเงินและบัญชีชำนาญการ",
+      "sourceUrl": "https://www.paphaichiangmai.go.th/officers2/divisionoffinance"
+    },
+    {
+      "name": "นางธิดาวรรณ จันต๊ะจาย",
+      "title": "เจ้าพนักงานพัสดุปฏิบัติงาน",
+      "sourceUrl": "https://www.paphaichiangmai.go.th/officers2/divisionoffinance"
+    },
+    {
+      "name": "นางเกศริน จันไสย",
+      "title": "นักวิชาการพัสดุ",
+      "sourceUrl": "https://www.paphaichiangmai.go.th/officers2/divisionoffinance"
+    },
+    {
+      "name": "นายพิทักษ์ วรรณวงค์",
+      "title": "นายช่างโยธา อาวุโส",
+      "sourceUrl": "https://www.paphaichiangmai.go.th/officers2/engineeroffice"
+    },
+    {
+      "name": "นายมาโนช กู่ก้อง",
+      "title": "นายช่างโยธาชำนาญงาน",
+      "sourceUrl": "https://www.paphaichiangmai.go.th/officers2/engineeroffice"
+    },
+    {
+      "name": "นายคมสัน อูปคำแดง",
+      "title": "นายช่างโยธา ชำนาญงาน",
+      "sourceUrl": "https://www.paphaichiangmai.go.th/officers2/engineeroffice"
+    },
+    {
+      "name": "นางสาวรุ่งทิวา ก้อนแก้ว",
+      "title": "เจ้าพนักงานธุรการชำนาญงาน",
+      "sourceUrl": "https://www.paphaichiangmai.go.th/officers2/engineeroffice"
+    },
+    {
+      "name": "นายจตุรงค์ ประกายสกุล",
+      "title": "นักวิชาการสาธารณสุขชำนาญการ",
+      "sourceUrl": "https://www.paphaichiangmai.go.th/officers2/publichealth"
+    },
+    {
+      "name": "นางสาวฐิติมา กำพุฒกลาง",
+      "title": "นักวิชาการสุขาภิบาลปฏิบัติการ",
+      "sourceUrl": "https://www.paphaichiangmai.go.th/officers2/publichealth"
+    },
+    {
+      "name": "นายชัญชนก ปาสอน",
+      "title": "เจ้าพนักงานสาธารณสุขชำนาญงาน",
+      "sourceUrl": "https://www.paphaichiangmai.go.th/officers2/publichealth"
+    },
+    {
+      "name": "นางสาวปุณยภัสร์ ฐิติภักดีพรนิธิ",
+      "title": "เจ้าพนักงานธุรการปฏิบัติงาน",
+      "sourceUrl": "https://www.paphaichiangmai.go.th/officers2/publichealth"
+    },
+    {
+      "name": "นางสาวมนต์ณัฐ รุจจีรัตน์ยาภา",
+      "title": "ผู้อำนวยการกองการศึกษา",
+      "sourceUrl": "https://www.paphaichiangmai.go.th/officers2/educationoffice"
+    },
+    {
+      "name": "นายกฤตภาส ภานุวัฒน์ชัย",
+      "title": "นักวิชาการตรวจสอบภายในปฏิบัติการ",
+      "sourceUrl": "https://www.paphaichiangmai.go.th/officers2/officers2_20"
+    },
+    {
+      "name": "นายประสิทธิ์ รัตนัง",
+      "title": "ประธานสภาเทศบาลตำบลป่าไผ่",
+      "sourceUrl": "https://www.paphaichiangmai.go.th/officers2/concil_member_officer"
+    },
+    {
+      "name": "นายประสิทธิ์ รัตนัง",
+      "title": "สมาชิกสภาเทศบาลตำบลป่าไผ่ เขต 1",
+      "sourceUrl": "https://www.paphaichiangmai.go.th/officers2/concil_member_officer"
+    },
+    {
+      "name": "นางอำภา วงค์จักร",
+      "title": "รองประธานสภาเทศบาลตำบลป่าไผ่",
+      "sourceUrl": "https://www.paphaichiangmai.go.th/officers2/concil_member_officer"
+    },
+    {
+      "name": "นางอำภา วงค์จักร",
+      "title": "สมาชิกสภาเทศบาลตำบลป่าไผ่ เขต 2",
+      "sourceUrl": "https://www.paphaichiangmai.go.th/officers2/concil_member_officer"
+    },
+    {
+      "name": "นายมงคล อิกำเหนิด",
+      "title": "เลขานุการสภาเทศบาลตำบลป่าไผ่",
+      "sourceUrl": "https://www.paphaichiangmai.go.th/officers2/concil_member_officer"
+    },
+    {
+      "name": "นายมงคล อิกำเหนิด",
+      "title": "สมาชิกสภาเทศบาลตำบลป่าไผ่ เขต 2",
+      "sourceUrl": "https://www.paphaichiangmai.go.th/officers2/concil_member_officer"
+    },
+    {
+      "name": "นายทองทับ สะหลี",
+      "title": "สมาชิกสภาเทศบาลตำบลป่าไผ่ เขต 1",
+      "sourceUrl": "https://www.paphaichiangmai.go.th/officers2/concil_member_officer"
+    },
+    {
+      "name": "นางวันเพ็ญ ชำนาญ",
+      "title": "สมาชิกสภาเทศบาลตำบลป่าไผ่ เขต 1",
+      "sourceUrl": "https://www.paphaichiangmai.go.th/officers2/concil_member_officer"
+    },
+    {
+      "name": "นางสาวศรีแพน รัตนัง",
+      "title": "สมาชิกสภาเทศบาลตำบลป่าไผ่ เขต 1",
+      "sourceUrl": "https://www.paphaichiangmai.go.th/officers2/concil_member_officer"
+    },
+    {
+      "name": "นายธนายุ เพียรงาม",
+      "title": "สมาชิกสภาเทศบาลตำบลป่าไผ่ เขต 1",
+      "sourceUrl": "https://www.paphaichiangmai.go.th/officers2/concil_member_officer"
+    },
+    {
+      "name": "นายเกษตร สะหลี",
+      "title": "สมาชิกสภาเทศบาลตำบลป่าไผ่ เขต 1",
+      "sourceUrl": "https://www.paphaichiangmai.go.th/officers2/concil_member_officer"
+    },
+    {
+      "name": "นายวันชัย นันทะพัฒน์",
+      "title": "สมาชิกสภาเทศบาลตำบลป่าไผ่ เขต 2",
+      "sourceUrl": "https://www.paphaichiangmai.go.th/officers2/concil_member_officer"
+    },
+    {
+      "name": "นายอังคาร สีลาเม",
+      "title": "สมาชิกสภาเทศบาลตำบลป่าไผ่ เขต 2",
+      "sourceUrl": "https://www.paphaichiangmai.go.th/officers2/concil_member_officer"
+    },
+    {
+      "name": "นายบัณจง พงษ์ศรี",
+      "title": "สมาชิกสภาเทศบาลตำบลป่าไผ่ เขต 2",
+      "sourceUrl": "https://www.paphaichiangmai.go.th/officers2/concil_member_officer"
+    },
+    {
+      "name": "นายสง่า บุญมายัง",
+      "title": "สมาชิกสภาเทศบาลตำบลป่าไผ่ เขต 2",
+      "sourceUrl": "https://www.paphaichiangmai.go.th/officers2/concil_member_officer"
+    }
+  ],
   "companies": [
     {
       "tin": "0503561008203",

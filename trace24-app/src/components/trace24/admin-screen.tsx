@@ -652,7 +652,7 @@ export function AdminScreen() {
             ความเชื่อมโยงผู้บริหาร ↔ กรรมการ/ผู้ถือหุ้น
           </h2>
           <p style={{ margin: '0 0 14px', fontSize: 13.5, color: '#55554F', lineHeight: 1.6 }}>
-            กฎ R13 เทียบทำเนียบผู้บริหารของหน่วยงานกับกรรมการ/ผู้ถือหุ้นของผู้ชนะ · กฎ R5 จับกรรมการหรือที่อยู่ร่วมระหว่างผู้รับจ้าง
+            กฎ R13 เทียบทำเนียบผู้บริหาร/เจ้าหน้าที่หน่วยงานกับกรรมการ/ผู้ถือหุ้นของผู้ชนะ · กฎ R5 จับกรรมการหรือที่อยู่ร่วมระหว่างผู้รับจ้าง
             — นามสกุลตรงกันเป็นเพียง lead (ระดับ Medium) ไม่ใช่ข้อพิสูจน์
           </p>
           <RiskDisclaimer style={{ marginBottom: 16 }} />
@@ -661,7 +661,7 @@ export function AdminScreen() {
           )}
           {relatedFetchBusy && (
             <LoadingHint
-              label="กำลังดึงทำเนียบจากเว็บ"
+              label="กำลังดึงทำเนียบ/เจ้าหน้าที่จากเว็บ"
               hint="ดึงหน้า HTML แล้วให้ AI สกัดชื่อ — อาจใช้เวลาหลายวินาที"
               style={{ marginBottom: 12 }}
             />
@@ -699,7 +699,7 @@ export function AdminScreen() {
             </div>
           )}
           <div style={{ fontSize: 12.5, color: '#8B8B85', marginBottom: 8 }}>
-            ดึงทำเนียบจากเว็บ · กรรมการจาก DBD · วันจดทะเบียนจาก DataForThai / เว็บ (ตรวจก่อนบันทึก) ·{' '}
+            ดึงทำเนียบ/เจ้าหน้าที่จากเว็บ · กรรมการจาก DBD · วันจดทะเบียนจาก DataForThai / เว็บ (ตรวจก่อนบันทึก) ·{' '}
             <a href="https://datawarehouse.dbd.go.th/" target="_blank" rel="noreferrer" style={{ color: '#55554F' }}>
               datawarehouse.dbd.go.th
             </a>
@@ -728,7 +728,7 @@ export function AdminScreen() {
                   กำลังดึง
                 </span>
               ) : (
-                'ดึงทำเนียบจากเว็บ'
+                'ดึงทำเนียบ/เจ้าหน้าที่จากเว็บ'
               )}
             </div>
             <div

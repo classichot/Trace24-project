@@ -25,6 +25,7 @@ const KNOWN = {
 };
 
 const PATH_HINTS = [
+  '/index',
   '',
   '/index.php',
   '/ทำเนียบผู้บริหาร',
@@ -33,6 +34,17 @@ const PATH_HINTS = [
   '/โครงสร้าง',
   '/คณะผู้บริหาร',
   '/ผู้บริหาร',
+  '/ข้อมูลผู้บริหาร',
+  '/officers2/executive_information',
+  '/officers2/executive',
+  '/officers2/government',
+  '/officers2/officepalad',
+  '/officers2/divisionoffinance',
+  '/officers2/engineeroffice',
+  '/officers2/publichealth',
+  '/officers2/educationoffice',
+  '/officers2/officers2_20',
+  '/officers2/concil_member_officer',
   '/executive',
   '/about/executive',
   '/personnel',
@@ -43,8 +55,23 @@ const PATH_HINTS = [
   '/data.php?id=3',
   '/index.php?page=executive',
 ];
+const KNOWN_EXEC_PAGES = {
+  'egp-5501408': [
+    'https://www.paphaichiangmai.go.th/index',
+    'https://www.paphaichiangmai.go.th/officers2/executive_information',
+    'https://www.paphaichiangmai.go.th/officers2/government',
+    'https://www.paphaichiangmai.go.th/officers2/officepalad',
+    'https://www.paphaichiangmai.go.th/officers2/divisionoffinance',
+    'https://www.paphaichiangmai.go.th/officers2/engineeroffice',
+    'https://www.paphaichiangmai.go.th/officers2/publichealth',
+    'https://www.paphaichiangmai.go.th/officers2/educationoffice',
+    'https://www.paphaichiangmai.go.th/officers2/officers2_20',
+    'https://www.paphaichiangmai.go.th/officers2/concil_member_officer',
+  ],
+};
 const LINK_RE = /href\s*=\s*["']([^"']+)["'][^>]*>([^<]{0,120})/gi;
-const KEYWORD_RE = /ทำเนียบ|ผู้บริหาร|คณะผู้บริหาร|โครงสร้างองค์กร|นายกเทศมนตรี|ปลัดเทศบาล|personnel|executive|โครงสร้าง/i;
+const KEYWORD_RE =
+  /ทำเนียบ|ผู้บริหาร|ข้อมูลผู้บริหาร|คณะผู้บริหาร|โครงสร้างองค์กร|หัวหน้าส่วน|นายกเทศมนตรี|ปลัดเทศบาล|กองช่าง|กองคลัง|สำนักปลัด|บุคลากร|personnel|executive|officers2|engineeroffice|divisionoffinance|officepalad|โครงสร้าง/i;
 
 const UA = {
   'User-Agent': 'TRACE24/1.3 (public integrity research; +https://trace24-app.vercel.app)',
@@ -85,7 +112,7 @@ function discoverLinks(html, pageUrl) {
       /* ignore */
     }
   }
-  return found.slice(0, 8);
+  return found.slice(0, 16);
 }
 
 async function fetchHtml(url) {
@@ -102,53 +129,86 @@ async function fetchHtml(url) {
   }
 }
 
+function looksLikeOfficerTitle(raw) {
+  const s = raw.replace(/\s+/g, ' ').trim();
+  if (s.length < 4 || s.length > 72) return false;
+  if (looksLikePersonName(s)) return false;
+  return /^(นายกเทศมนตรี|รองนายกเทศมนตรี|เลขานุการ|ที่ปรึกษา|ปลัดเทศบาล|รองปลัดเทศบาล|หัวหน้าสำนัก|หัวหน้าส่วน|หัวหน้าฝ่าย|หัวหน้างาน|หัวหน้าหน่วย|ผู้อำนวยการ|นายช่าง|เจ้าพนักงาน|นักวิชาการ|นักจัดการ|นักวิเคราะห์|นักทรัพยากร|เจ้าหน้าที่|พนักงาน|สมาชิกสภา|ประธานสภา|รองประธานสภา|ผู้ช่วยนายก|ผู้ช่วยปลัด)/.test(
+    s
+  );
+}
+
+function looksLikePersonName(raw) {
+  const s = raw.replace(/\s+/g, ' ').trim();
+  if (s.length < 5 || s.length > 48) return false;
+  if (/^นายช่าง/.test(s)) return false;
+  if (/^นายกเทศมนตรี|^รองนายก|^ปลัดเทศบาล/.test(s)) return false;
+  return /^(?:นาย|นางสาว|นาง|ว่าที่(?:\s*ร้อยตรี|\s*ร\.?\s*ต\.?)?)\s*[\u0E00-\u0E7F.]+\s+[\u0E00-\u0E7F.]+$/.test(
+    s
+  );
+}
+
+function pushOfficer(out, name, title, sourceUrl) {
+  const n = name.replace(/\s+/g, ' ').trim();
+  const t = title.replace(/\s+/g, ' ').trim();
+  if (!looksLikePersonName(n) || !looksLikeOfficerTitle(t)) return;
+  if (out.some((e) => e.name === n && e.title === t)) return;
+  out.push({ name: n, title: t, sourceUrl });
+}
+
+function htmlCardExtract(html, sourceUrl) {
+  const out = [];
+  const re =
+    /<(?:div|p|td|span|h[1-6]|li)[^>]*>\s*([^<]{4,80}?)\s*<\/(?:div|p|td|span|h[1-6]|li)>\s*<(?:div|p|td|span|h[1-6]|li)[^>]*>\s*([^<]{3,80}?)\s*<\/(?:div|p|td|span|h[1-6]|li)>/gi;
+  let m;
+  while ((m = re.exec(html))) {
+    const a = m[1].replace(/\s+/g, ' ').trim();
+    const b = m[2].replace(/\s+/g, ' ').trim();
+    if (looksLikePersonName(a) && looksLikeOfficerTitle(b)) pushOfficer(out, a, b, sourceUrl);
+    if (out.length >= 120) break;
+  }
+  return out;
+}
+
 function heuristicExtract(text, sourceUrl) {
   const lines = text.split(/\n+/).map((l) => l.trim()).filter(Boolean);
   const out = [];
-  const titleRe =
-    /^(นายกเทศมนตรี(?:ตำบล|เมือง|นคร)?[\u0E00-\u0E7F\s]{0,24}|รองนายกเทศมนตรี|เลขานุการนายกเทศมนตรี|ที่ปรึกษานายกเทศมนตรี|ปลัดเทศบาล|รองปลัดเทศบาล|หัวหน้าสำนัก[\u0E00-\u0E7F\s]{0,20}|ผู้อำนวยการ[\u0E00-\u0E7F\s]{0,24}|หัวหน้าฝ่าย[\u0E00-\u0E7F\s]{0,20}|เจ้าหน้าที่พัสดุ|ประธานสภาเทศบาล|รองประธานสภาเทศบาล)$/;
-  const nameRe = /^((?:นาย|นางสาว|นาง|ว่าที่)\s*[\u0E00-\u0E7F.]+\s+[\u0E00-\u0E7F.]+)$/;
-  const push = (name, title) => {
-    const n = name.replace(/\s+/g, ' ').trim();
-    const t = title.replace(/\s+/g, ' ').trim();
-    if (n.length < 5 || t.length < 4) return;
-    if (/นายกเทศมนตรี$/.test(n) || nameRe.test(t) || titleRe.test(n)) return;
-    if (out.some((e) => e.name === n && e.title === t)) return;
-    out.push({ name: n, title: t, sourceUrl });
-  };
   for (let i = 0; i < lines.length - 1; i++) {
     const a = lines[i];
     const b = lines[i + 1];
-    if (nameRe.test(a) && titleRe.test(b)) push(a, b);
-    else if (titleRe.test(a) && nameRe.test(b)) push(b, a);
-    if (out.length >= 25) break;
+    if (looksLikePersonName(a) && looksLikeOfficerTitle(b)) pushOfficer(out, a, b, sourceUrl);
+    if (out.length >= 120) break;
   }
   return out;
 }
 
 async function crawlAgency(agencyId, web, keyword) {
   const hosts = [`https://www.${web}/`, `https://${web}/`];
-  const urls = new Set();
+  const urls = new Set(KNOWN_EXEC_PAGES[agencyId] || []);
   for (const base of hosts) {
     for (const p of PATH_HINTS) urls.add(`${base.replace(/\/$/, '')}${p || '/'}`);
   }
   const executives = [];
   const sources = [];
   const discovered = [];
-  for (const url of [...urls].slice(0, 10)) {
+  const knownFirst = [...(KNOWN_EXEC_PAGES[agencyId] || []), ...urls];
+  const ordered = [...new Set(knownFirst)];
+  for (const url of ordered.slice(0, 22)) {
     const got = await fetchHtml(url);
     sources.push({ url, ok: got.ok, status: got.status });
     if (!got.ok || !got.html) continue;
     discovered.push(...discoverLinks(got.html, url));
+    executives.push(...htmlCardExtract(got.html, url));
     const text = htmlToText(got.html);
     if (text.length < 80) continue;
     executives.push(...heuristicExtract(text, url));
   }
-  for (const url of discovered.slice(0, 6)) {
+  for (const url of discovered.slice(0, 14)) {
     if (sources.some((s) => s.url === url)) continue;
     const got = await fetchHtml(url);
     sources.push({ url, ok: got.ok, status: got.status });
     if (!got.ok || !got.html) continue;
+    executives.push(...htmlCardExtract(got.html, url));
     const text = htmlToText(got.html);
     if (text.length < 80) continue;
     executives.push(...heuristicExtract(text, url));
@@ -175,7 +235,9 @@ function loadExisting(agencyId) {
 
 function sourceScore(url = '') {
   if (/personnel\.php\?id=12/i.test(url)) return 5; // คณะผู้บริหาร
+  if (/officers2\/(engineeroffice|divisionoffinance|officepalad|government)/i.test(url)) return 5;
   if (/personnel\.php\?id=13/i.test(url)) return 4; // สภา
+  if (/officers2\//i.test(url)) return 4;
   if (/personnel\.php/i.test(url)) return 3;
   if (/ทำเนียบ|executive/i.test(url)) return 2;
   return 1;
@@ -210,7 +272,7 @@ function refineExecutives(list) {
       })
     );
   }
-  return out.slice(0, 30);
+  return out.slice(0, 120);
 }
 
 function savePack(agencyId, keyword, web, executives) {
@@ -220,19 +282,14 @@ function savePack(agencyId, keyword, web, executives) {
     executives: [],
     companies: [],
   };
+  // Replace roster from a fresh crawl (keeps companies); avoids keeping bad title pairs.
   const refined = refineExecutives(executives);
-  const merged = [
-    ...prev.executives,
-    ...refined.filter(
-      (e) => !prev.executives.some((x) => x.name === e.name && x.title === e.title)
-    ),
-  ];
   const pack = {
     ...prev,
     agencyId,
     updatedAt: new Date().toISOString(),
-    note: `auto · seed-executives-from-websites · ${web}`,
-    executives: refineExecutives(merged),
+    note: `auto · seed officers (executives+staff) · ${web}`,
+    executives: refined,
     companies: prev.companies || [],
   };
   const file = path.join(RELATED_DIR, `${agencyId}.json`);
