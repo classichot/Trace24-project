@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { adminWriteError, adminWriteHeaders, getAdminToken, setAdminToken } from '@/lib/admin-client';
 import { isRealAgency } from '@/lib/agencies';
 import { useTrace24 } from '@/context/trace24-context';
 import { REVIEW_OPTIONS, sev } from '@/lib/utils';
@@ -85,6 +86,11 @@ export function AdminScreen() {
     caseNotesAdded,
     scannedId,
   } = useTrace24();
+
+  const [adminTokenDraft, setAdminTokenDraft] = useState('');
+  useEffect(() => {
+    setAdminTokenDraft(getAdminToken());
+  }, []);
 
   const CF = {
     id: dataset.caseFile?.id || `case-${scannedId || 'unknown'}`,
@@ -239,12 +245,13 @@ export function AdminScreen() {
     }
     fetch(`/api/agencies/${scannedId}/related`, {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
+      headers: adminWriteHeaders(),
       body: JSON.stringify(body),
     })
       .then(async (r) => {
-        if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || `HTTP ${r.status}`);
-        return r.json();
+        const data = await r.json().catch(() => ({}));
+        if (!r.ok) throw new Error(await adminWriteError(r, data));
+        return data;
       })
       .then((d) => {
         setRelatedPackJson(JSON.stringify(d.pack, null, 2));
@@ -262,7 +269,7 @@ export function AdminScreen() {
     const web = dataset.agency?.web || '';
     fetch(`/api/agencies/${encodeURIComponent(scannedId)}/related/fetch-executives`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: adminWriteHeaders(),
       body: JSON.stringify({
         url: relatedExecUrl.trim() || undefined,
         web: web || undefined,
@@ -271,7 +278,7 @@ export function AdminScreen() {
     })
       .then(async (r) => {
         const data = await r.json().catch(() => ({}));
-        if (!r.ok) throw new Error(data.error || data.note || `HTTP ${r.status}`);
+        if (!r.ok) throw new Error(await adminWriteError(r, data));
         return data;
       })
       .then((d) => {
@@ -300,12 +307,12 @@ export function AdminScreen() {
         : { merge: true, limit: 10 };
     fetch(`/api/agencies/${encodeURIComponent(scannedId)}/related/fetch-directors`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: adminWriteHeaders(),
       body: JSON.stringify(body),
     })
       .then(async (r) => {
         const data = await r.json().catch(() => ({}));
-        if (!r.ok) throw new Error(data.error || data.note || `HTTP ${r.status}`);
+        if (!r.ok) throw new Error(await adminWriteError(r, data));
         return data;
       })
       .then((d) => {
@@ -332,12 +339,12 @@ export function AdminScreen() {
     setRelatedMsg(null);
     fetch(`/api/agencies/${encodeURIComponent(scannedId)}/related/fetch-company-age`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: adminWriteHeaders(),
       body: JSON.stringify({ merge: true, limit: 6 }),
     })
       .then(async (r) => {
         const data = await r.json().catch(() => ({}));
-        if (!r.ok) throw new Error(data.error || data.note || `HTTP ${r.status}`);
+        if (!r.ok) throw new Error(await adminWriteError(r, data));
         return data;
       })
       .then((d) => {
@@ -397,12 +404,12 @@ export function AdminScreen() {
     setLlmError(null);
     fetch(`/api/agencies/${encodeURIComponent(scannedId)}/llm`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: adminWriteHeaders(),
       body: JSON.stringify({ action, persist: true }),
     })
       .then(async (r) => {
         const data = await r.json().catch(() => ({}));
-        if (!r.ok) throw new Error(data.error || data.hint || `HTTP ${r.status}`);
+        if (!r.ok) throw new Error(await adminWriteError(r, data));
         return data;
       })
       .then((data) => {
@@ -428,12 +435,12 @@ export function AdminScreen() {
     setRulesMsg(null);
     fetch(`/api/rules/${ruleId}`, {
       method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
+      headers: adminWriteHeaders(),
       body: JSON.stringify({ status, by: 'admin' }),
     })
       .then(async (r) => {
         const data = await r.json().catch(() => ({}));
-        if (!r.ok) throw new Error(data.error || `HTTP ${r.status}`);
+        if (!r.ok) throw new Error(await adminWriteError(r, data));
         return data;
       })
       .then((data) => {
@@ -447,12 +454,12 @@ export function AdminScreen() {
     if (!isRealAgency(scannedId)) return;
     fetch('/api/rules', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: adminWriteHeaders(),
       body: JSON.stringify({ action: 'feedback', agencyId: scannedId, signalId, ruleId, label }),
     })
       .then(async (r) => {
         const data = await r.json().catch(() => ({}));
-        if (!r.ok) throw new Error(data.error || `HTTP ${r.status}`);
+        if (!r.ok) throw new Error(await adminWriteError(r, data));
         setRulesMsg(`บันทึก feedback: ${label}`);
         if (data.summary) setRuleFbSummary(data.summary);
       })
@@ -482,6 +489,39 @@ export function AdminScreen() {
         >
           ภายใน · จำกัดสิทธิ์
         </span>
+      </div>
+
+      <div
+        style={{
+          marginTop: 18,
+          padding: '14px 16px',
+          background: '#F6F6F3',
+          display: 'flex',
+          flexWrap: 'wrap',
+          gap: 10,
+          alignItems: 'center',
+        }}
+      >
+        <div style={{ fontSize: 12.5, color: '#55554F', flex: '1 1 220px', lineHeight: 1.5 }}>
+          Admin token สำหรับบันทึก/ดึงกรรมการ/ร่างกฎบน production (เก็บใน session นี้เท่านั้น)
+        </div>
+        <input
+          type="password"
+          value={adminTokenDraft}
+          onChange={(e) => setAdminTokenDraft(e.target.value)}
+          placeholder="TRACE24_ADMIN_TOKEN"
+          style={{ ...inputStyle, flex: '1 1 200px', maxWidth: 320 }}
+        />
+        <div
+          onClick={() => {
+            setAdminToken(adminTokenDraft);
+            setRelatedMsg(adminTokenDraft.trim() ? 'บันทึก admin token ใน session แล้ว' : 'ล้าง admin token แล้ว');
+          }}
+          className="trace24-btn-dark"
+          style={{ padding: '10px 14px', fontSize: 12.5 }}
+        >
+          ใช้ token
+        </div>
       </div>
 
       <div style={{ display: 'flex', gap: 26, borderBottom: '1px solid #E4E4E0', marginTop: 24, flexWrap: 'wrap' }}>

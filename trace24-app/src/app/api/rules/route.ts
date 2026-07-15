@@ -1,3 +1,4 @@
+import { adminUnauthorizedResponse, assertAdminWrite } from '@/lib/admin-auth';
 import {
   addSignalFeedback,
   feedbackSummary,
@@ -26,6 +27,9 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
+  const gate = assertAdminWrite(req);
+  if (!gate.ok) return adminUnauthorizedResponse(gate);
+
   const body = (await req.json().catch(() => ({}))) as {
     action?: 'propose' | 'feedback' | 'approve' | 'reject';
     agencyId?: string;

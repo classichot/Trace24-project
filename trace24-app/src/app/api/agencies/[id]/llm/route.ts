@@ -1,3 +1,4 @@
+import { adminUnauthorizedResponse, assertAdminWrite } from '@/lib/admin-auth';
 import { isRealAgency } from '@/lib/agencies';
 import {
   proposeRulesWithLlm,
@@ -84,13 +85,18 @@ export async function POST(
   }
 
   if (action === 'propose-rules') {
-    const out = await proposeAndPersistRules(pack, { persist: body.persist !== false });
+    const persist = body.persist !== false;
+    if (persist) {
+      const gate = assertAdminWrite(req);
+      if (!gate.ok) return adminUnauthorizedResponse(gate);
+    }
+    const out = await proposeAndPersistRules(pack, { persist });
     if ('error' in out) {
       const legacy = await proposeRulesWithLlm(pack);
       if ('error' in legacy) return Response.json({ error: out.error }, { status: 502 });
       return Response.json({ agencyId: id, persisted: false, ...legacy });
     }
-    return Response.json({ agencyId: id, persisted: true, ...out });
+    return Response.json({ agencyId: id, persisted: persist, ...out });
   }
 
   if (action === 'refine-brief') {

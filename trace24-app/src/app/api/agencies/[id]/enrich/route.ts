@@ -1,9 +1,10 @@
+import { adminUnauthorizedResponse, assertAdminWrite } from '@/lib/admin-auth';
 import { isRealAgency } from '@/lib/agencies';
 import {
   collectProjectAnnounceUrls,
   extractFromAnnounceUrl,
 } from '@/lib/pipeline/announce-fallback';
-import { loadAgencyReport } from '@/lib/pipeline/load-report';
+import { resolveAgencyReport } from '@/lib/pipeline/resolve-report';
 import { fetchCgdContracts } from '@/lib/gov-apis/opend';
 
 /**
@@ -14,13 +15,22 @@ export async function POST(
   req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const gate = assertAdminWrite(req);
+  if (!gate.ok) return adminUnauthorizedResponse(gate);
+
   const { id } = await params;
   if (!isRealAgency(id)) {
     return Response.json({ error: 'Agency not found' }, { status: 404 });
   }
-  const report = loadAgencyReport(id);
+  const report = await resolveAgencyReport(id);
   if (!report) {
-    return Response.json({ error: 'Real data not cached' }, { status: 503 });
+    return Response.json(
+      {
+        error: 'ยังสร้างรายงานหน่วยงานไม่ได้',
+        hint: 'สแกนหน่วยงานก่อน หรือตรวจ contracts-cache',
+      },
+      { status: 503 }
+    );
   }
 
   const body = (await req.json().catch(() => ({}))) as {

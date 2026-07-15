@@ -1,3 +1,4 @@
+import { adminUnauthorizedResponse, assertAdminWrite } from '@/lib/admin-auth';
 import { isRealAgency } from '@/lib/agencies';
 import { fetchCompanyAgesForAgency, mergeCompanyDrafts } from '@/lib/pipeline/fetch-company-age';
 import { resolveAgencyReport } from '@/lib/pipeline/resolve-report';
@@ -9,6 +10,9 @@ export async function POST(
   req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const gate = assertAdminWrite(req);
+  if (!gate.ok) return adminUnauthorizedResponse(gate);
+
   const { id } = await params;
   if (!isRealAgency(id)) {
     return Response.json({ error: 'Agency not found' }, { status: 404 });

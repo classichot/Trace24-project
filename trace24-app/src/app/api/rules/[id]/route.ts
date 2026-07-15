@@ -1,3 +1,4 @@
+import { adminUnauthorizedResponse, assertAdminWrite } from '@/lib/admin-auth';
 import { getProposal, updateProposalStatus } from '@/lib/pipeline/rules';
 
 export async function GET(
@@ -14,6 +15,9 @@ export async function PATCH(
   req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const gate = assertAdminWrite(req);
+  if (!gate.ok) return adminUnauthorizedResponse(gate);
+
   const { id } = await params;
   const body = (await req.json().catch(() => ({}))) as {
     status?: 'approved' | 'rejected';

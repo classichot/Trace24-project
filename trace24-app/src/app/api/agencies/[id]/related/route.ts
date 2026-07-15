@@ -1,7 +1,5 @@
-import { getCatalogAgency } from '@/lib/agency-catalog';
-import { isRealAgency, REAL_AGENCIES } from '@/lib/agencies';
-import { buildAgencyReportFromCatalog } from '@/lib/pipeline/live-report';
-import { loadAgencyReport } from '@/lib/pipeline/load-report';
+import { adminUnauthorizedResponse, assertAdminWrite } from '@/lib/admin-auth';
+import { isRealAgency } from '@/lib/agencies';
 import {
   applyRelatedPartyToReport,
   detectRelatedPartyMatches,
@@ -11,8 +9,8 @@ import {
 import {
   getOrEmptyRelatedPack,
   saveRelatedPartyPack,
-  withRelatedPartyOverlay,
 } from '@/lib/pipeline/related-party-store';
+import { resolveAgencyReport } from '@/lib/pipeline/resolve-report';
 import type { PipelineReportLike } from '@/lib/pipeline/types';
 
 export const maxDuration = 60;
@@ -27,17 +25,7 @@ export async function GET(
   }
 
   const pack = getOrEmptyRelatedPack(id);
-  let report: PipelineReportLike | null = loadAgencyReport(id);
-  if (!report) {
-    const agency = getCatalogAgency(id) || REAL_AGENCIES.find((a) => a.id === id);
-    if (agency) {
-      const live = (await buildAgencyReportFromCatalog(agency, {
-        fetchContracts: true,
-        limit: 40,
-      })) as unknown as PipelineReportLike;
-      report = withRelatedPartyOverlay(live);
-    }
-  }
+  const report = (await resolveAgencyReport(id)) as PipelineReportLike | null;
 
   const matches = report
     ? detectRelatedPartyMatches(report)
@@ -55,7 +43,7 @@ export async function GET(
       : 'ยังไม่มีรายงานหน่วยงาน — บันทึกทำเนียบได้ก่อนแล้วค่อยสแกน',
     dbdHint: 'https://data.dbd.go.th/',
     ethics:
-      'นามสกุลหรือชื่อตรงกันเป็นเพียง lead ให้สอบสวน — ไม่ใช่ข้อพิสูจน์ความเกี่ยวข้องหรือการทุจริต',
+      'นามสกุลร่วมเป็น lead ให้สอบสวนเท่านั้น — ไม่ใช่ข้อพิสูจน์เครือญาติหรือการทุจริต · ชื่อเต็มยกระดับความมั่นใจ',
   });
 }
 
@@ -63,6 +51,9 @@ export async function PUT(
   req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const gate = assertAdminWrite(req);
+  if (!gate.ok) return adminUnauthorizedResponse(gate);
+
   const { id } = await params;
   if (!isRealAgency(id)) {
     return Response.json({ error: 'Agency not found' }, { status: 404 });
@@ -79,18 +70,8 @@ export async function PUT(
     note: body.note || base.note,
   });
 
-  let report: PipelineReportLike | null = loadAgencyReport(id);
-  if (!report) {
-    const agency = getCatalogAgency(id) || REAL_AGENCIES.find((a) => a.id === id);
-    if (agency) {
-      const live = (await buildAgencyReportFromCatalog(agency, {
-        fetchContracts: true,
-        limit: 40,
-      })) as unknown as PipelineReportLike;
-      report = applyRelatedPartyToReport(live, pack);
-    }
-  }
-
+  const baseReport = await resolveAgencyReport(id);
+  const report = baseReport ? applyRelatedPartyToReport(baseReport, pack) : null;
   const matches = report ? detectRelatedPartyMatches(report) : [];
 
   return Response.json({
@@ -98,6 +79,6 @@ export async function PUT(
     pack,
     matches,
     ethics:
-      'บันทึกแล้ว — สแกนหน่วยงานใหม่เพื่อให้แดชบอร์ดและกราฟสะท้อนสัญญาณ R5/R13',
+      'บันทึกแล้ว — สแกนหน่วยงานใหม่เพื่อให้แดชบอร์ดและกราฟสะท้อนสัญญาณ R5/R13 (นามสกุล = lead ไม่ใช่ข้อพิสูจน์)',
   });
 }

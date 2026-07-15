@@ -82,11 +82,14 @@ export function DashboardScreen() {
           {dataset.relatedParty.coverage}
           {(dataset.relatedParty.matches || []).slice(0, 3).map((m) => (
             <div key={m.explanation} style={{ marginTop: 8, fontSize: 12.5, color: '#55554F' }}>
-              · [{m.ruleId}] {m.explanation}
+              · [{m.ruleId}
+              {m.matchType === 'surname' ? ' · นามสกุล=lead' : m.matchType === 'full_name' ? ' · ชื่อเต็ม' : ''}
+              ] {m.explanation}
             </div>
           ))}
           <div style={{ marginTop: 10, fontSize: 12, color: '#8A5A1C' }}>
-            สังเกตจากนามสกุลเป็นหลัก · ชื่อเต็มยกระดับความมั่นใจ — ไม่ใช่ข้อพิสูจน์ · จัดการข้อมูลที่ Admin → ความเชื่อมโยง
+            นามสกุลร่วม = lead ให้สอบสวนเท่านั้น · ไม่ใช่ข้อพิสูจน์เครือญาติ/ทุจริต · ชื่อเต็มยกระดับความมั่นใจ ·
+            จัดการที่ Admin → ความเชื่อมโยง
           </div>
         </div>
       )}

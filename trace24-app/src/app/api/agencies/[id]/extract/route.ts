@@ -1,4 +1,5 @@
 import { isRealAgency } from '@/lib/agencies';
+import { adminUnauthorizedResponse, assertAdminWrite } from '@/lib/admin-auth';
 import { attachClaim, storeEvidence } from '@/lib/pipeline/evidence';
 import { extractFromUrl } from '@/lib/pipeline/extract';
 
@@ -13,6 +14,12 @@ export async function POST(
   const body = (await req.json().catch(() => ({}))) as { url?: string; store?: boolean };
   const url = (body.url || '').trim();
   if (!url) return Response.json({ error: 'url required' }, { status: 400 });
+
+  // Persisting evidence is an Admin write; preview-only extract (store:false) stays public.
+  if (body.store !== false) {
+    const gate = assertAdminWrite(req);
+    if (!gate.ok) return adminUnauthorizedResponse(gate);
+  }
 
   try {
     const fetched = await fetch(url, {
