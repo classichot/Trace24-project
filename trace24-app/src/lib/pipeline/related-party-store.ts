@@ -53,6 +53,7 @@ export function saveRelatedPartyPack(agencyId: string, pack: RelatedPartyPack): 
     updatedAt: new Date().toISOString(),
     executives: pack.executives || [],
     companies: pack.companies || [],
+    transparency: pack.transparency,
   };
   const dir = writableDir();
   fs.mkdirSync(dir, { recursive: true });

@@ -52,6 +52,17 @@ export type RelatedCompanyRecord = {
   registeredCapital?: number | null;
 };
 
+/** Website officer-roster transparency (R26). */
+export type ExecutiveRosterTransparency = {
+  status: 'found' | 'concealed' | 'unreachable' | 'no_website';
+  /** Policy presumption — not a proven accusation */
+  presumption: boolean;
+  note?: string;
+  checkedAt?: string;
+  officerPageHits?: number;
+  evidenceUrls?: string[];
+};
+
 /** Persisted pack under data/related/{agencyId}.json */
 export type RelatedPartyPack = {
   agencyId: string;
@@ -59,6 +70,9 @@ export type RelatedPartyPack = {
   note?: string;
   executives: AgencyExecutive[];
   companies: RelatedCompanyRecord[];
+  transparency?: {
+    executiveRoster?: ExecutiveRosterTransparency;
+  };
 };
 
 export type RelatedPartyMatch = {
@@ -747,20 +761,51 @@ export function applyRelatedPartyToReport(
 
   const hasExec = executives.length > 0;
   const hasDir = Object.values(contractors).some((c) => (c.directors || []).length > 0);
-  const coverage = !hasExec && !hasDir
-    ? 'ยังไม่มีทำเนียบผู้บริหาร/เจ้าหน้าที่และกรรมการ — เพิ่มที่แท็บความเชื่อมโยง'
-    : !hasExec
-      ? 'มีกรรมการบางราย แต่ยังไม่มีทำเนียบผู้บริหาร/เจ้าหน้าที่'
-      : !hasDir
-        ? 'มีทำเนียบผู้บริหาร/เจ้าหน้าที่ แต่ยังไม่มีกรรมการ/ผู้ถือหุ้นจากแหล่งสาธารณะ'
-        : matches.length
-          ? (() => {
-              const surN = matches.filter((m) => m.matchType === 'surname').length;
-              return surN
-                ? `พบสัญญาณความเชื่อมโยง ${matches.length} รายการ · นามสกุลร่วม ${surN} (สังเกตจากนามสกุลเป็นหลัก · รอยืนยัน)`
-                : `พบสัญญาณความเชื่อมโยง ${matches.length} รายการ (รอยืนยัน)`;
-            })()
-          : 'มีข้อมูลทั้งสองฝั่ง — ยังไม่พบนามสกุล/ชื่อที่ตรงกัน';
+  const rosterTx = pack?.transparency?.executiveRoster;
+  const concealedRoster =
+    !hasExec && rosterTx?.status === 'concealed' && rosterTx.presumption !== false;
+
+  // R26 — website reachable but executive/staff roster missing or walled off
+  if (concealedRoster) {
+    const tag = 'R26 · การเปิดเผยข้อมูล';
+    const text =
+      rosterTx?.note ||
+      'เข้าถึงเว็บหน่วยงานได้ แต่ไม่พบทำเนียบผู้บริหาร/เจ้าหน้าที่ — สันนิษฐานไว้ก่อนว่ามีการปกปิดข้อมูล';
+    cloned.alerts = cloned.alerts || [];
+    if (!cloned.alerts.some((a) => a.tag?.startsWith('R26'))) {
+      cloned.alerts.push({
+        tag,
+        text,
+        sevKey: (rosterTx?.officerPageHits || 0) > 0 ? 'High' : 'Medium',
+      });
+    }
+    if (cloned.caseFile) {
+      const qs = cloned.caseFile.questions || [];
+      const q: [string, string] = [
+        'ทำไมเว็บหน่วยงานเข้าได้แต่ไม่มีรายชื่อผู้บริหาร/เจ้าหน้าที่เผยแพร่ — มีการถอดหรือปิดบังหรือไม่?',
+        'รอตรวจ — สันนิษฐานปกปิดไว้ก่อนจนกว่าจะเปิดเผยทำเนียบครบ',
+      ];
+      if (!qs.some((x) => x[0] === q[0])) qs.push(q);
+      cloned.caseFile.questions = qs;
+    }
+  }
+
+  const coverage = concealedRoster
+    ? `R26 · สันนิษฐานปกปิดทำเนียบผู้บริหาร — ${rosterTx?.note || 'เว็บเข้าได้แต่ไม่มีรายชื่อ'}`
+    : !hasExec && !hasDir
+      ? 'ยังไม่มีทำเนียบผู้บริหาร/เจ้าหน้าที่และกรรมการ — เพิ่มที่แท็บความเชื่อมโยง'
+      : !hasExec
+        ? 'มีกรรมการบางราย แต่ยังไม่มีทำเนียบผู้บริหาร/เจ้าหน้าที่'
+        : !hasDir
+          ? 'มีทำเนียบผู้บริหาร/เจ้าหน้าที่ แต่ยังไม่มีกรรมการ/ผู้ถือหุ้นจากแหล่งสาธารณะ'
+          : matches.length
+            ? (() => {
+                const surN = matches.filter((m) => m.matchType === 'surname').length;
+                return surN
+                  ? `พบสัญญาณความเชื่อมโยง ${matches.length} รายการ · นามสกุลร่วม ${surN} (สังเกตจากนามสกุลเป็นหลัก · รอยืนยัน)`
+                  : `พบสัญญาณความเชื่อมโยง ${matches.length} รายการ (รอยืนยัน)`;
+              })()
+            : 'มีข้อมูลทั้งสองฝั่ง — ยังไม่พบนามสกุล/ชื่อที่ตรงกัน';
 
   cloned.relatedParty = { matches, coverage };
   if (cloned.meta) {

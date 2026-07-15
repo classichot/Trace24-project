@@ -27,6 +27,7 @@ export function scoreRisks(report: PipelineReportLike): RiskScores {
       s.ruleId === 'R5' ||
       s.ruleId === 'R13' ||
       s.ruleId === 'R19' ||
+      s.ruleId === 'R26' ||
       s.kind === 'network'
   );
 

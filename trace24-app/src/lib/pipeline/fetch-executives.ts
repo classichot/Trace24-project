@@ -25,6 +25,9 @@ const PATH_HINTS = [
   '/index', // many .go.th sites put an event splash on `/` and the real site on /index
   '',
   '/index.php',
+  '/web2029/',
+  '/web2029/main/executive',
+  '/web2029/main/structure',
   '/ทำเนียบผู้บริหาร',
   '/ทำเนียบผู้บริหาร.html',
   '/โครงสร้างองค์กร',
@@ -78,6 +81,13 @@ function discoverSiteEntryLinks(html: string, pageUrl: string): string[] {
   return found.slice(0, 3);
 }
 
+/** Outcome of officer-roster crawl for transparency / R26. */
+export type ExecutiveRosterStatus =
+  | 'found'
+  | 'concealed'
+  | 'unreachable'
+  | 'no_website';
+
 export type FetchExecutivesResult = {
   ok: boolean;
   executives: AgencyExecutive[];
@@ -85,7 +95,29 @@ export type FetchExecutivesResult = {
   model: string | null;
   note: string;
   error?: string;
+  /** Website reachable but roster missing/hidden → R26 concealment presumption */
+  rosterStatus: ExecutiveRosterStatus;
+  /** True when we presume intentional non-disclosure (not proven misconduct). */
+  concealmentPresumption: boolean;
+  officerPageHits: number;
+  evidenceUrls: string[];
 };
+
+function looksLikeAccessWall(html: string): boolean {
+  const head = html.slice(0, 4000);
+  return (
+    /just a moment|attention required|cf-browser-verification|cloudflare/i.test(head) ||
+    (/เข้าสู่ระบบ|login|sign\s*in/i.test(head) &&
+      /password|รหัสผ่าน|username|ชื่อผู้ใช้/i.test(head) &&
+      html.length < 20_000)
+  );
+}
+
+function pageMentionsOfficerSection(text: string): boolean {
+  return /ทำเนียบ|คณะผู้บริหาร|ข้อมูลผู้บริหาร|โครงสร้างผู้บริหาร|นายกเทศมนตรี|ปลัดเทศบาล|สมาชิกสภาเทศบาล/i.test(
+    text
+  );
+}
 
 function normalizeHost(web: string): string {
   return String(web || '')
@@ -198,12 +230,15 @@ function looksLikeOfficerTitle(raw: string): boolean {
 }
 
 function looksLikePersonName(raw: string): boolean {
-  const s = raw.replace(/\s+/g, ' ').trim();
-  if (s.length < 5 || s.length > 48) return false;
+  const s = raw
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  if (s.length < 5 || s.length > 56) return false;
   // Civil-service job titles that start with นาย… (นายช่างโยธา)
   if (/^นายช่าง/.test(s)) return false;
   if (/^นายกเทศมนตรี|^รองนายก|^ปลัดเทศบาล/.test(s)) return false;
-  return /^(?:นาย|นางสาว|นาง|ว่าที่(?:\s*ร้อยตรี|\s*ร\.?\s*ต\.?)?)\s*[\u0E00-\u0E7F.]+\s+[\u0E00-\u0E7F.]+$/.test(
+  return /^(?:นาย|นางสาว|นาง|ร้อยตำรวจเอก|ร\.ต\.อ\.|ว่าที่(?:\s*ร้อยตรี|\s*ร\.?\s*ต\.?)?)\s*[\u0E00-\u0E7F.]+\s+[\u0E00-\u0E7F.]+$/.test(
     s
   );
 }
@@ -244,9 +279,24 @@ function htmlCardExtract(html: string, sourceUrl: string): AgencyExecutive[] {
     /<(?:div|p|td|span|h[1-6]|li)[^>]*>\s*([^<]{4,80}?)\s*<\/(?:div|p|td|span|h[1-6]|li)>\s*<(?:div|p|td|span|h[1-6]|li)[^>]*>\s*([^<]{3,80}?)\s*<\/(?:div|p|td|span|h[1-6]|li)>/gi;
   let m: RegExpExecArray | null;
   while ((m = re.exec(html))) {
-    const a = m[1].replace(/\s+/g, ' ').trim();
-    const b = m[2].replace(/\s+/g, ' ').trim();
+    const a = m[1].replace(/&nbsp;/gi, ' ').replace(/\s+/g, ' ').trim();
+    const b = m[2].replace(/&nbsp;/gi, ' ').replace(/\s+/g, ' ').trim();
     // CMS cards are name then title; do not reverse (avoids pairing prior title with next name)
+    if (looksLikePersonName(a) && looksLikeOfficerTitle(b)) pushOfficer(out, a, b, sourceUrl);
+    if (out.length >= MAX_OFFICERS) break;
+  }
+  return out;
+}
+
+/** cityub-style: ชื่อ<br><strong>ตำแหน่ง</strong> inside one paragraph */
+function htmlBrPairExtract(html: string, sourceUrl: string): AgencyExecutive[] {
+  const out: AgencyExecutive[] = [];
+  const re =
+    /((?:นาย|นางสาว|นาง|ร้อยตำรวจเอก|ร\.ต\.อ\.|ว่าที่(?:\s*ร้อยตรี|\s*ร\.?\s*ต\.?)?)\s*[\u0E00-\u0E7F.&nbsp; ]+?)\s*(?:<[^>]+>\s*)*<br\s*\/?>\s*(?:<[^>]+>\s*)*((?:นายกเทศมนตรี|รองนายกเทศมนตรี|เลขานุการ|ที่ปรึกษา|ปลัดเทศบาล|รองปลัดเทศบาล|ผู้อำนวยการ|หัวหน้าสำนัก|หัวหน้าส่วน|นายช่าง|เจ้าพนักงาน|นักวิชาการ|เจ้าหน้าที่)[^<]{0,48})/gi;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(html))) {
+    const a = m[1].replace(/&nbsp;/gi, ' ').replace(/\s+/g, ' ').trim();
+    const b = m[2].replace(/&nbsp;/gi, ' ').replace(/\s+/g, ' ').trim();
     if (looksLikePersonName(a) && looksLikeOfficerTitle(b)) pushOfficer(out, a, b, sourceUrl);
     if (out.length >= MAX_OFFICERS) break;
   }
@@ -358,6 +408,10 @@ export async function fetchAgencyExecutives(opts: {
       model: null,
       note: 'ยังไม่มี URL เว็บหน่วยงาน — ใส่ลิงก์ทำเนียบ/บุคลากรแล้วลองใหม่',
       error: 'missing_url',
+      rosterStatus: 'no_website',
+      concealmentPresumption: false,
+      officerPageHits: 0,
+      evidenceUrls: [],
     };
   }
 
@@ -382,6 +436,9 @@ export async function fetchAgencyExecutives(opts: {
   const htmlByUrl = new Map<string, string>();
   const usedUrls: string[] = [];
   const discovered: string[] = [];
+  let officerPageHits = 0;
+  let wallOnOfficerPath = 0;
+  let reachableOk = 0;
 
   // Prefer known officer pages, then /index before splash `/`
   const firstBatch = [
@@ -398,15 +455,26 @@ export async function fetchAgencyExecutives(opts: {
       status: got.status,
       error: got.error,
     });
-    if (!got.ok || !got.html) continue;
+    if (!got.ok || !got.html) {
+      if (KEYWORD_RE.test(url) && (got.status === 401 || got.status === 403 || got.status === 404)) {
+        wallOnOfficerPath += 1;
+      }
+      continue;
+    }
+    reachableOk += 1;
 
     if (looksLikeSplashGate(got.html)) {
       discovered.push(...discoverSiteEntryLinks(got.html, url));
       continue;
     }
+    if (looksLikeAccessWall(got.html) && KEYWORD_RE.test(url)) {
+      wallOnOfficerPath += 1;
+      continue;
+    }
 
     discovered.push(...discoverOfficerLinks(got.html, url));
     const text = htmlToText(got.html);
+    if (pageMentionsOfficerSection(text) || KEYWORD_RE.test(url)) officerPageHits += 1;
     if (text.length > 80) {
       textParts.push(`### ${url}\n${text.slice(0, 8000)}`);
       htmlByUrl.set(url, got.html);
@@ -425,10 +493,21 @@ export async function fetchAgencyExecutives(opts: {
       status: got.status,
       error: got.error,
     });
-    if (!got.ok || !got.html) continue;
+    if (!got.ok || !got.html) {
+      if (KEYWORD_RE.test(url) && (got.status === 401 || got.status === 403 || got.status === 404)) {
+        wallOnOfficerPath += 1;
+      }
+      continue;
+    }
+    reachableOk += 1;
     if (looksLikeSplashGate(got.html)) continue;
+    if (looksLikeAccessWall(got.html) && KEYWORD_RE.test(url)) {
+      wallOnOfficerPath += 1;
+      continue;
+    }
     discovered.push(...discoverOfficerLinks(got.html, url));
     const text = htmlToText(got.html);
+    if (pageMentionsOfficerSection(text) || KEYWORD_RE.test(url)) officerPageHits += 1;
     if (text.length > 80) {
       textParts.push(`### ${url}\n${text.slice(0, 8000)}`);
       htmlByUrl.set(url, got.html);
@@ -436,22 +515,34 @@ export async function fetchAgencyExecutives(opts: {
     }
   }
 
+  const evidenceUrls = usedUrls.slice(0, 8);
   const combined = textParts.join('\n\n').slice(0, 24000);
   if (!combined.trim()) {
+    const siteTouched = reachableOk > 0 || wallOnOfficerPath > 0;
+    const concealed = siteTouched && wallOnOfficerPath > 0;
     return {
       ok: false,
       executives: [],
       sources,
       model: null,
-      note: 'ดึงหน้าเว็บไม่ได้หรือไม่มีข้อความ — ตรวจ URL / เว็บอาจบล็อกเซิร์ฟเวอร์',
-      error: 'empty_pages',
+      note: concealed
+        ? 'เว็บหน่วยงานเข้าถึงได้บางส่วน แต่หน้าทำเนียบ/บุคลากรถูกบล็อกหรือถอดออก — สันนิษฐานไว้ก่อนว่ามีการปกปิดข้อมูลผู้บริหาร (R26 · ยังไม่ใช่ข้อพิสูจน์)'
+        : 'ดึงหน้าเว็บไม่ได้หรือไม่มีข้อความ — ตรวจ URL / เว็บอาจบล็อกเซิร์ฟเวอร์',
+      error: concealed ? 'roster_concealed' : 'empty_pages',
+      rosterStatus: concealed ? 'concealed' : 'unreachable',
+      concealmentPresumption: concealed,
+      officerPageHits,
+      evidenceUrls: sources.filter((s) => s.ok).map((s) => s.url).slice(0, 6),
     };
   }
 
   const heuristic: AgencyExecutive[] = [];
   for (const url of usedUrls) {
     const html = htmlByUrl.get(url);
-    if (html) heuristic.push(...htmlCardExtract(html, url));
+    if (html) {
+      heuristic.push(...htmlCardExtract(html, url));
+      heuristic.push(...htmlBrPairExtract(html, url));
+    }
     const chunk = textParts.find((t) => t.includes(url)) || combined;
     heuristic.push(...heuristicExtract(chunk, url));
   }
@@ -459,16 +550,39 @@ export async function fetchAgencyExecutives(opts: {
   const llm = await llmExtract(opts.agencyName, combined, usedUrls);
   const executives = dedupeOfficers([...heuristic, ...llm.executives]).slice(0, MAX_OFFICERS);
 
+  if (executives.length > 0) {
+    return {
+      ok: true,
+      executives,
+      sources,
+      model: llm.model,
+      note: `สกัดได้ ${executives.length} รายการ (ผู้บริหาร+เจ้าหน้าที่กอง) จากเว็บ — ตรวจชื่อก่อนบันทึก`,
+      rosterStatus: 'found',
+      concealmentPresumption: false,
+      officerPageHits,
+      evidenceUrls,
+    };
+  }
+
+  // Site content fetched but no named officers → presume concealment (R26)
+  const strong =
+    officerPageHits > 0 ||
+    wallOnOfficerPath > 0 ||
+    pageMentionsOfficerSection(combined);
+  const note = strong
+    ? 'เข้าถึงเว็บหน่วยงานได้และพบหน้า/หัวข้อทำเนียบหรือโครงสร้าง แต่ไม่มีรายชื่อผู้บริหาร/เจ้าหน้าที่ที่เผยแพร่ — สันนิษฐานไว้ก่อนว่ามีการปกปิดหรือถอดข้อมูล (R26 · ยังไม่ใช่ข้อพิสูจน์)'
+    : 'เข้าถึงเว็บหน่วยงานได้ แต่ไม่พบรายชื่อผู้บริหาร/เจ้าหน้าที่ในหน้าที่ดึงได้ — สันนิษฐานไว้ก่อนว่าข้อมูลทำเนียบไม่ได้เปิดเผยหรือถูกปิดบัง (R26 · ยังไม่ใช่ข้อพิสูจน์)';
+
   return {
-    ok: executives.length > 0,
-    executives,
+    ok: false,
+    executives: [],
     sources,
     model: llm.model,
-    note: executives.length
-      ? `สกัดได้ ${executives.length} รายการ (ผู้บริหาร+เจ้าหน้าที่กอง) จากเว็บ — ตรวจชื่อก่อนบันทึก`
-      : llm.error
-        ? `ไม่พบรายชื่อชัดเจน (${llm.error}) — ใส่ URL หน้าทำเนียบ/บุคลากรโดยตรงแล้วลองใหม่`
-        : 'ไม่พบรายชื่อเจ้าหน้าที่ในข้อความที่ดึงได้ — ใส่ URL หน้าทำเนียบ/บุคลากรโดยตรงแล้วลองใหม่',
-    error: executives.length ? undefined : 'no_executives',
+    note: llm.error ? `${note} · ${llm.error}` : note,
+    error: 'roster_concealed',
+    rosterStatus: 'concealed',
+    concealmentPresumption: true,
+    officerPageHits,
+    evidenceUrls,
   };
 }

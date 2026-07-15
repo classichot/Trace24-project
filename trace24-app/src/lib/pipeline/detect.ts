@@ -93,6 +93,48 @@ export function runRuleEngine(report: PipelineReportLike): RiskSignal[] {
   const related = detectRelatedPartyMatches(report);
   signals.push(...relatedMatchesToSignals(related));
 
+  // R26 — site reachable but executive/staff roster missing or walled (concealment presumption)
+  const execCount = Array.isArray(
+    (report as { executives?: unknown[] }).executives
+  )
+    ? ((report as { executives?: unknown[] }).executives || []).length
+    : 0;
+  const r26Alert = (report.alerts || []).find((a) => String(a.tag || '').startsWith('R26'));
+  const coverage = String(
+    (report as { relatedParty?: { coverage?: string } }).relatedParty?.coverage ||
+      report.meta?.relatedPartyNote ||
+      ''
+  );
+  if (!execCount && (r26Alert || /R26|สันนิษฐานปกปิดทำเนียบ|ปกปิดข้อมูลผู้บริหาร/.test(coverage))) {
+    const strong = /พบหน้า|หัวข้อทำเนียบ|ถูกบล็อก|ถอดออก/.test(
+      String(r26Alert?.text || coverage)
+    );
+    signals.push(
+      baseSignal({
+        id: 'sig-agency-r26',
+        ruleId: 'R26',
+        category: 'R26 · การเปิดเผยข้อมูล',
+        title: 'สันนิษฐานปกปิดทำเนียบผู้บริหาร/เจ้าหน้าที่',
+        severity: strong || r26Alert?.sevKey === 'High' ? 'High' : 'Medium',
+        score: strong || r26Alert?.sevKey === 'High' ? 0.82 : 0.62,
+        confidence: 0.78,
+        subjectIds: [`agency:${report.agency?.id || 'agency'}`],
+        explanation:
+          r26Alert?.text ||
+          coverage ||
+          'เว็บหน่วยงานเข้าถึงได้ แต่ไม่พบรายชื่อผู้บริหาร/เจ้าหน้าที่ที่เผยแพร่ — สันนิษฐานไว้ก่อนว่ามีการปกปิดข้อมูล (ยังไม่ใช่ข้อพิสูจน์)',
+        innocentExplanation:
+          'อาจเป็นข้อจำกัดของ CMS, หน้าทำเนียบอยู่คนละพาธ, หรือชุดข้อมูลยังดึงไม่ครบ — หน่วยงานหักล้างได้ด้วยการเปิดเผยทำเนียบสาธารณะ',
+        evidenceRefs: [],
+        facts: [
+          'นโยบาย TRACE24: เว็บเข้าได้แต่ไม่มีทำเนียบ → สันนิษฐานปกปิดไว้ก่อน',
+          execCount ? `พบรายชื่อ ${execCount} คน` : 'ยังไม่พบรายชื่อจากเว็บ',
+        ],
+        kind: 'missing_information',
+      })
+    );
+  }
+
   return signals;
 }
 

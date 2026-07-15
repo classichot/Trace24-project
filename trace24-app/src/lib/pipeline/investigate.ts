@@ -204,6 +204,34 @@ function buildLeads(
     });
   }
 
+  const r26 =
+    (report.alerts || []).some((a) => String(a.tag || '').startsWith('R26')) ||
+    /R26|สันนิษฐานปกปิดทำเนียบ/.test(
+      String((report as { relatedParty?: { coverage?: string } }).relatedParty?.coverage || '')
+    );
+  const hasExecutives = Array.isArray((report as { executives?: unknown[] }).executives)
+    ? ((report as { executives?: unknown[] }).executives || []).length > 0
+    : false;
+  if (r26 && !hasExecutives) {
+    leads.unshift({
+      id: 'lead-r26-roster',
+      question:
+        'ทำไมเว็บหน่วยงานเข้าถึงได้แต่ไม่มีรายชื่อผู้บริหาร/เจ้าหน้าที่ — มีการถอดหรือปิดบังทำเนียบหรือไม่?',
+      why: 'R26: นโยบายสันนิษฐานปกปิดข้อมูลไว้ก่อนเมื่อเว็บเข้าได้แต่ทำเนียบว่าง/ถูกบล็อก (ยังไม่ใช่ข้อพิสูจน์)',
+      missingDocuments: [
+        'ทำเนียบผู้บริหารสาธารณะ',
+        'โครงสร้างบุคลากรกองช่าง/กองคลัง',
+        'คำสั่งแต่งตั้ง / หน้า ITA',
+      ],
+      nextActions: [
+        'เก็บหลักฐาน URL + ภาพหน้าจอวันที่ตรวจ',
+        'ขอเอกสารทำเนียบจากหน่วยงานหรือช่องทาง ITA',
+        'ถ้าเปิดเผยแล้ว ให้วาง URL หน้าทำเนียบในแท็บความเชื่อมโยงแล้วดึงใหม่',
+      ],
+      priority: 'High',
+    });
+  }
+
   return leads.slice(0, 14);
 }
 

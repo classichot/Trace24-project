@@ -43,6 +43,8 @@ next-env.d.ts
 
 # large uncompressed catalog (commit agencies.json.gz only)
 /data/catalog/agencies.json
+# DLA website CSV cache (~13MB) — regenerate via npm run import-dla-websites
+/data/catalog/dla-org-websites.csv
 
 # contracts cache: commit .json.gz + sync manifest; ignore other uncompressed dumps
 /data/contracts-cache/*.json

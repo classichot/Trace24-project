@@ -1,6 +1,7 @@
 /**
  * Auto-fetch municipal officers (executives + division staff) from the agency
  * website when the related pack is empty or thin, then persist into data/related.
+ * When the site is reachable but roster is missing/walled → R26 concealment flag.
  */
 import 'server-only';
 
@@ -11,7 +12,7 @@ import {
   loadRelatedPartyPack,
   saveRelatedPartyPack,
 } from './related-party-store';
-import type { RelatedPartyPack } from './related-party';
+import type { ExecutiveRosterTransparency, RelatedPartyPack } from './related-party';
 
 /** Titles that indicate we already captured procurement-relevant staff. */
 const DEPT_STAFF_TITLE_RE =
@@ -29,7 +30,24 @@ export type EnsureExecutivesResult = {
   executives: number;
   note: string;
   pack: RelatedPartyPack;
+  rosterStatus?: ExecutiveRosterTransparency['status'];
+  concealmentPresumption?: boolean;
 };
+
+function transparencyFromFetch(result: Awaited<ReturnType<typeof fetchAgencyExecutives>>): {
+  executiveRoster: ExecutiveRosterTransparency;
+} {
+  return {
+    executiveRoster: {
+      status: result.rosterStatus,
+      presumption: result.concealmentPresumption,
+      note: result.note,
+      checkedAt: new Date().toISOString(),
+      officerPageHits: result.officerPageHits,
+      evidenceUrls: result.evidenceUrls,
+    },
+  };
+}
 
 export async function ensureAgencyExecutives(opts: {
   agencyId: string;
@@ -48,18 +66,36 @@ export async function ensureAgencyExecutives(opts: {
       executives: existing!.executives.length,
       note: 'มีทำเนียบผู้บริหาร/เจ้าหน้าที่ในแคชแล้ว',
       pack: existing!,
+      rosterStatus: 'found',
+      concealmentPresumption: false,
     };
   }
 
   const web = opts.web || websiteForAgency(opts.agencyId) || '';
   if (!web && !opts.url) {
     const pack = existing || getOrEmptyRelatedPack(opts.agencyId);
+    const next = saveRelatedPartyPack(opts.agencyId, {
+      ...pack,
+      transparency: {
+        ...pack.transparency,
+        executiveRoster: {
+          status: 'no_website',
+          presumption: false,
+          note: 'ยังไม่มีเว็บไซต์หน่วยงานในแคตตาล็อก',
+          checkedAt: new Date().toISOString(),
+          officerPageHits: 0,
+          evidenceUrls: [],
+        },
+      },
+    });
     return {
       attempted: false,
-      saved: false,
-      executives: pack.executives.length,
+      saved: true,
+      executives: next.executives.length,
       note: 'ยังไม่มีเว็บไซต์หน่วยงาน — ใส่ web ในแคตตาล็อกหรือ KNOWN_AGENCY_WEBSITES',
-      pack,
+      pack: next,
+      rosterStatus: 'no_website',
+      concealmentPresumption: false,
     };
   }
 
@@ -71,13 +107,28 @@ export async function ensureAgencyExecutives(opts: {
   });
 
   const base = existing || getOrEmptyRelatedPack(opts.agencyId);
+  const transparency = transparencyFromFetch(result);
+
   if (!result.executives.length) {
+    // Persist R26 presumption even when no names were saved
+    const pack = saveRelatedPartyPack(opts.agencyId, {
+      ...base,
+      transparency: {
+        ...base.transparency,
+        ...transparency,
+      },
+      note: result.concealmentPresumption
+        ? `R26 · ${result.note}`
+        : base.note || result.note,
+    });
     return {
       attempted: true,
-      saved: false,
-      executives: 0,
+      saved: true,
+      executives: pack.executives.length,
       note: result.note,
-      pack: base,
+      pack,
+      rosterStatus: result.rosterStatus,
+      concealmentPresumption: result.concealmentPresumption,
     };
   }
 
@@ -91,6 +142,10 @@ export async function ensureAgencyExecutives(opts: {
   const pack = saveRelatedPartyPack(opts.agencyId, {
     ...base,
     executives,
+    transparency: {
+      ...base.transparency,
+      ...transparency,
+    },
     note: `auto · ${result.note}`,
   });
 
@@ -100,5 +155,7 @@ export async function ensureAgencyExecutives(opts: {
     executives: pack.executives.length,
     note: `บันทึกทำเนียบผู้บริหาร/เจ้าหน้าที่อัตโนมัติ ${result.executives.length} รายการ · ${result.note}`,
     pack,
+    rosterStatus: 'found',
+    concealmentPresumption: false,
   };
 }

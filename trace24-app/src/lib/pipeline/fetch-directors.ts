@@ -105,9 +105,20 @@ function htmlToText(html: string): string {
 }
 
 function looksLikeLoginOrBlocked(html: string, text: string): boolean {
-  return /login|signin|captcha|cloudflare|just a moment|enable javascript|เข้าสู่ระบบ|กรุณาเข้าสู่ระบบ|access denied/i.test(
-    `${html.slice(0, 2500)}\n${text.slice(0, 1500)}`
-  );
+  const head = `${html.slice(0, 2500)}\n${text.slice(0, 1800)}`;
+  // Real bot/login walls — do not treat nav "เข้าสู่ระบบ" /login links as blocked
+  if (/cloudflare|just a moment|enable javascript and cookies|captcha|access denied/i.test(head)) {
+    return true;
+  }
+  if (/กรุณาเข้าสู่ระบบ/i.test(head) && text.length < 1000) return true;
+  if (
+    text.length < 1400 &&
+    /เข้าสู่ระบบ|sign\s*in|log\s*in/i.test(text) &&
+    !/(กรรมการ|ผู้ถือหุ้น|จดทะเบียน|เลขทะเบียน)/i.test(text)
+  ) {
+    return true;
+  }
+  return false;
 }
 
 function sourceLabel(kind: DirectorSourceKind): string {
@@ -128,9 +139,21 @@ function sourceLabel(kind: DirectorSourceKind): string {
 }
 
 function preferredSourceUrl(w: WinnerCandidate): string {
+  // Prefer URLs that usually open in a browser even when cloud scrape is blocked
   if (w.tin) return dataforthaiProfileUrl(w.tin);
+  if (w.credenUrl) return w.credenUrl;
   if (w.egpUrls?.[0]) return w.egpUrls[0];
   return w.dbdUrl;
+}
+
+function publicSourceLinks(w: WinnerCandidate): string[] {
+  const links = [
+    w.dataforthaiUrl,
+    w.credenUrl,
+    w.dbdUrl,
+    ...(w.egpUrls || []).slice(0, 2),
+  ].filter(Boolean) as string[];
+  return [...new Set(links)];
 }
 
 function collectDocAndEgpUrls(
@@ -675,7 +698,7 @@ export async function fetchDirectorsForAgency(opts: {
   const withPeople = companies.filter((c) => c.directors.length > 0).length;
   const kindNote = hitKinds.size
     ? `แหล่งที่สำเร็จ: ${[...hitKinds].map(sourceLabel).join(' · ')}`
-    : 'ยังสกัดกรรมการอัตโนมัติไม่ได้จากทุกแหล่ง';
+    : 'ยังสกัดกรรมการอัตโนมัติไม่ได้ (DataForThai มักโดน Cloudflare · Creden มักปิดชื่อฟรี · DBD มัก 404/บล็อกจากคลาวด์)';
 
   const noteParts = [
     `ไล่แหล่ง DataForThai → Creden → e-GP/เอกสารผู้ชนะ → DBD · เตรียม ${companies.length} ผู้ชนะ`,
@@ -684,8 +707,15 @@ export async function fetchDirectorsForAgency(opts: {
       : kindNote,
   ];
   if (scrapeBlocked || !withPeople) {
+    const sampleLinks = winners
+      .slice(0, 3)
+      .flatMap((w) => publicSourceLinks(w))
+      .filter((u, i, arr) => arr.indexOf(u) === i)
+      .slice(0, 6);
     noteParts.push(
-      'ถ้าเว็บบล็อกเซิร์ฟเวอร์: เปิด sourceUrl ใน JSON (DataForThai/Creden/DBD) → คัดลอกส่วนกรรมการ/ผู้ถือหุ้นมาวางด้านล่าง → กดสกัด'
+      sampleLinks.length
+        ? `เปิดลิงก์แล้ววางข้อความกรรมการ: ${sampleLinks.join(' · ')}`
+        : 'เปิด sourceUrl ใน JSON → คัดลอกส่วนกรรมการ/ผู้ถือหุ้นมาวางด้านล่าง → กดสกัด'
     );
   }
   noteParts.push(PUBLIC_SOURCE_DISCLAIMER);

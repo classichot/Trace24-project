@@ -4,6 +4,7 @@ import fs from 'fs';
 import path from 'path';
 import zlib from 'zlib';
 import type { AgencyRecord } from './agencies';
+import { websiteForAgency } from './agency-websites';
 import { provinceFromEgpCode } from './province-from-egp-code';
 
 type CatalogFile = {
@@ -68,7 +69,7 @@ function rowToAgency(row: CatalogFile['rows'][number]): CatalogAgency {
     tshort,
     loc: locLine(useProv, useDist),
     code: code || '—',
-    web: '',
+    web: websiteForAgency(id, ''),
     aff,
     ...(realFlag ? { real: true } : {}),
   };

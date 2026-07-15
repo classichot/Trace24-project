@@ -14,6 +14,16 @@ const ROOT = path.join(__dirname, '..');
 const RELATED_DIR = path.join(ROOT, 'data', 'related');
 const CACHE_DIR = path.join(ROOT, 'data', 'contracts-cache');
 
+function loadWebsiteFile() {
+  const p = path.join(ROOT, 'data', 'catalog', 'agency-websites.json');
+  try {
+    return JSON.parse(fs.readFileSync(p, 'utf8'));
+  } catch {
+    return { websites: {} };
+  }
+}
+
+const WEBSITE_FILE = loadWebsiteFile();
 const KNOWN = {
   phothale: 'phothale.go.th',
   nakornnont: 'nakornnont.go.th',
@@ -22,7 +32,12 @@ const KNOWN = {
   'egp-6510407': 'paphai.go.th',
   'egp-6501402': 'nongyaeng.go.th',
   'egp-5570801': 'wiangchiangsaen.go.th',
+  'egp-3340101': 'cityub.go.th',
+  'egp-001442300': 'cityub.go.th',
 };
+for (const [id, e] of Object.entries(WEBSITE_FILE.websites || {})) {
+  if (e?.host) KNOWN[id] = e.host;
+}
 
 const PATH_HINTS = [
   '/index',
@@ -45,6 +60,9 @@ const PATH_HINTS = [
   '/officers2/educationoffice',
   '/officers2/officers2_20',
   '/officers2/concil_member_officer',
+  '/web2029/',
+  '/web2029/main/executive',
+  '/web2029/main/structure',
   '/executive',
   '/about/executive',
   '/personnel',
@@ -68,7 +86,22 @@ const KNOWN_EXEC_PAGES = {
     'https://www.paphaichiangmai.go.th/officers2/officers2_20',
     'https://www.paphaichiangmai.go.th/officers2/concil_member_officer',
   ],
+  'egp-3340101': [
+    'https://www.cityub.go.th/web2029/',
+    'https://www.cityub.go.th/web2029/main/executive',
+    'https://www.cityub.go.th/web2029/main/structure',
+  ],
+  'egp-001442300': [
+    'https://www.cityub.go.th/web2029/',
+    'https://www.cityub.go.th/web2029/main/executive',
+    'https://www.cityub.go.th/web2029/main/structure',
+  ],
 };
+for (const [id, e] of Object.entries(WEBSITE_FILE.websites || {})) {
+  const pages = [...(e.executivePages || [])];
+  if (e.home) pages.unshift(e.home);
+  if (pages.length) KNOWN_EXEC_PAGES[id] = [...new Set([...(KNOWN_EXEC_PAGES[id] || []), ...pages])];
+}
 const LINK_RE = /href\s*=\s*["']([^"']+)["'][^>]*>([^<]{0,120})/gi;
 const KEYWORD_RE =
   /ทำเนียบ|ผู้บริหาร|ข้อมูลผู้บริหาร|คณะผู้บริหาร|โครงสร้างองค์กร|หัวหน้าส่วน|นายกเทศมนตรี|ปลัดเทศบาล|กองช่าง|กองคลัง|สำนักปลัด|บุคลากร|personnel|executive|officers2|engineeroffice|divisionoffinance|officepalad|โครงสร้าง/i;
@@ -139,11 +172,11 @@ function looksLikeOfficerTitle(raw) {
 }
 
 function looksLikePersonName(raw) {
-  const s = raw.replace(/\s+/g, ' ').trim();
-  if (s.length < 5 || s.length > 48) return false;
+  const s = raw.replace(/&nbsp;/gi, ' ').replace(/\s+/g, ' ').trim();
+  if (s.length < 5 || s.length > 56) return false;
   if (/^นายช่าง/.test(s)) return false;
   if (/^นายกเทศมนตรี|^รองนายก|^ปลัดเทศบาล/.test(s)) return false;
-  return /^(?:นาย|นางสาว|นาง|ว่าที่(?:\s*ร้อยตรี|\s*ร\.?\s*ต\.?)?)\s*[\u0E00-\u0E7F.]+\s+[\u0E00-\u0E7F.]+$/.test(
+  return /^(?:นาย|นางสาว|นาง|ร้อยตำรวจเอก|ร\.ต\.อ\.|ว่าที่(?:\s*ร้อยตรี|\s*ร\.?\s*ต\.?)?)\s*[\u0E00-\u0E7F.]+\s+[\u0E00-\u0E7F.]+$/.test(
     s
   );
 }
@@ -162,8 +195,22 @@ function htmlCardExtract(html, sourceUrl) {
     /<(?:div|p|td|span|h[1-6]|li)[^>]*>\s*([^<]{4,80}?)\s*<\/(?:div|p|td|span|h[1-6]|li)>\s*<(?:div|p|td|span|h[1-6]|li)[^>]*>\s*([^<]{3,80}?)\s*<\/(?:div|p|td|span|h[1-6]|li)>/gi;
   let m;
   while ((m = re.exec(html))) {
-    const a = m[1].replace(/\s+/g, ' ').trim();
-    const b = m[2].replace(/\s+/g, ' ').trim();
+    const a = m[1].replace(/&nbsp;/gi, ' ').replace(/\s+/g, ' ').trim();
+    const b = m[2].replace(/&nbsp;/gi, ' ').replace(/\s+/g, ' ').trim();
+    if (looksLikePersonName(a) && looksLikeOfficerTitle(b)) pushOfficer(out, a, b, sourceUrl);
+    if (out.length >= 120) break;
+  }
+  return out;
+}
+
+function htmlBrPairExtract(html, sourceUrl) {
+  const out = [];
+  const re =
+    /((?:นาย|นางสาว|นาง|ร้อยตำรวจเอก|ร\.ต\.อ\.|ว่าที่(?:\s*ร้อยตรี|\s*ร\.?\s*ต\.?)?)\s*[\u0E00-\u0E7F.&nbsp; ]+?)\s*(?:<[^>]+>\s*)*<br\s*\/?>\s*(?:<[^>]+>\s*)*((?:นายกเทศมนตรี|รองนายกเทศมนตรี|เลขานุการ|ที่ปรึกษา|ปลัดเทศบาล|รองปลัดเทศบาล|ผู้อำนวยการ|หัวหน้าสำนัก|หัวหน้าส่วน|นายช่าง|เจ้าพนักงาน|นักวิชาการ|เจ้าหน้าที่)[^<]{0,48})/gi;
+  let m;
+  while ((m = re.exec(html))) {
+    const a = m[1].replace(/&nbsp;/gi, ' ').replace(/\s+/g, ' ').trim();
+    const b = m[2].replace(/&nbsp;/gi, ' ').replace(/\s+/g, ' ').trim();
     if (looksLikePersonName(a) && looksLikeOfficerTitle(b)) pushOfficer(out, a, b, sourceUrl);
     if (out.length >= 120) break;
   }
@@ -199,6 +246,7 @@ async function crawlAgency(agencyId, web, keyword) {
     if (!got.ok || !got.html) continue;
     discovered.push(...discoverLinks(got.html, url));
     executives.push(...htmlCardExtract(got.html, url));
+    executives.push(...htmlBrPairExtract(got.html, url));
     const text = htmlToText(got.html);
     if (text.length < 80) continue;
     executives.push(...heuristicExtract(text, url));
@@ -209,6 +257,7 @@ async function crawlAgency(agencyId, web, keyword) {
     sources.push({ url, ok: got.ok, status: got.status });
     if (!got.ok || !got.html) continue;
     executives.push(...htmlCardExtract(got.html, url));
+    executives.push(...htmlBrPairExtract(got.html, url));
     const text = htmlToText(got.html);
     if (text.length < 80) continue;
     executives.push(...heuristicExtract(text, url));

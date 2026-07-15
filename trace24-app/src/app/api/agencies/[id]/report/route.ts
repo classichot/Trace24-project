@@ -43,6 +43,12 @@ async function withAutoExecutives(
           ]
             .filter(Boolean)
             .join(' · '),
+          ...(ensured.concealmentPresumption
+            ? {
+                executiveRosterStatus: ensured.rosterStatus || 'concealed',
+                concealmentPresumption: true,
+              }
+            : { executiveRosterStatus: ensured.rosterStatus || 'found' }),
         };
       }
     }
