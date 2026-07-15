@@ -1,6 +1,6 @@
 /** Mirror of src/lib/title-similarity.ts for build scripts. */
 
-export const SERVICE_SIMILARITY_THRESHOLD = 0.8;
+export const SERVICE_SIMILARITY_THRESHOLD = 0.9;
 
 const THAI_DIGITS = {
   '๐': '0', '๑': '1', '๒': '2', '๓': '3', '๔': '4',

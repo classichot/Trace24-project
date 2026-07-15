@@ -1,6 +1,8 @@
 /**
  * Market price benchmarks from contracts-cache (NOT official CGD ราคากลาง).
- * Supports whole-contract medians and unit rates (บาท/กม., บาท/ม., บาท/ตร.ม.).
+ * Supports whole-contract medians and unit rates (บาท/กม., บาท/ม., บาท/ตร.ม., บาท/ลบ.ม.).
+ * When a project has a usable unit rate, unit comparison is always primary — never fall back
+ * to whole-contract medians for the headline %.
  */
 import 'server-only';
 
@@ -82,7 +84,7 @@ export type ProjectPriceBenchmark = {
   quantityLabel?: string;
   unitRate?: number;
   unitRateLabel?: string;
-  /** Matched peer stem / similarity (>0.80 required) */
+  /** Matched peer stem / similarity (>0.90 required) */
   matchStem?: string;
   matchSimilarity?: number;
   parsed?: {
@@ -90,6 +92,7 @@ export type ProjectPriceBenchmark = {
     lengthM: number | null;
     lengthKm: number | null;
     areaM2: number | null;
+    volumeM3?: number | null;
     pieceCount?: number | null;
     pieceLabel?: string | null;
     capacityKw?: number | null;
@@ -261,6 +264,7 @@ function unitKindsToTry(categoryId: string, parsed: ParsedProjectQuantity): Unit
   const ordered: UnitRateKind[] = [];
   if (preferred && available.includes(preferred)) ordered.push(preferred);
   for (const k of [
+    'baht_per_m3',
     'baht_per_kw',
     'baht_per_piece',
     'baht_per_m2',
@@ -279,25 +283,26 @@ function quantityLabelFor(
 ): string {
   if (kind === 'baht_per_km') return formatQuantity(qty, 'km');
   if (kind === 'baht_per_m2') return formatQuantity(qty, 'm2');
+  if (kind === 'baht_per_m3') return formatQuantity(qty, 'm3');
   if (kind === 'baht_per_piece') return formatQuantity(qty, 'piece', parsed.pieceLabel);
   if (kind === 'baht_per_kw') return formatQuantity(qty, 'kw');
   return formatQuantity(qty, 'm');
 }
 
 /**
- * Compare only against peers with service/title similarity > 80%.
+ * Compare only against peers with service/title similarity > 90%.
  * Never use coarse category-wide medians (they widen P25–P75 across unlike work).
  *
  * Order: similar national stem (unit) → similar agency peers (unit)
- *      → similar national stem (contract) → similar agency peers (contract)
+ *      → (only if no unit rate) similar national/agency contract totals
  */
 export function resolveProjectBenchmark(opts: {
   projectName: string;
   award: number;
   province?: string;
-  /** Awards from agency peers already filtered to similarity > 80% */
+  /** Awards from agency peers already filtered to similarity > 90% */
   similarPeerAwards?: number[];
-  /** Unit rates from agency peers already filtered to similarity > 80% */
+  /** Unit rates from agency peers already filtered to similarity > 90% */
   similarPeerUnitRates?: Partial<Record<UnitRateKind, number[]>>;
   /** @deprecated ignored — category-wide peers mixed unlike services */
   agencyPeerAwardsByCategory?: Partial<Record<WorkCategoryId, number[]>>;
@@ -316,6 +321,7 @@ export function resolveProjectBenchmark(opts: {
     lengthM: parsed.lengthM,
     lengthKm: parsed.lengthKm,
     areaM2: parsed.areaM2,
+    volumeM3: parsed.volumeM3,
     pieceCount: parsed.pieceCount,
     pieceLabel: parsed.pieceLabel,
     capacityKw: parsed.capacityKw,
@@ -378,7 +384,7 @@ export function resolveProjectBenchmark(opts: {
     }
   }
 
-  // Contract totals — only similar stem / similar agency peers (never whole category)
+  // Prefer unit rate as the primary metric whenever quantity is parseable.
   const firstUnitKind = unitKindsToTry(cat.id, parsed)[0];
   const firstQty = firstUnitKind ? parsed.rates[firstUnitKind]?.qty : null;
   const displayUnitRate =
@@ -397,6 +403,27 @@ export function resolveProjectBenchmark(opts: {
         }
       : { parsed: parsedMeta, ...matchExtras };
 
+  // If this project has a unit rate, never headline-compare on whole-contract totals
+  // (avoids e.g. หินคลุก ลบ.ม. being compared to milk/security contract medians).
+  if (displayUnitRate && firstUnitKind) {
+    return {
+      categoryId: cat.id,
+      categoryLabel: cat.label,
+      scope: 'agency',
+      n: 0,
+      median: 0,
+      p25: 0,
+      p75: 0,
+      award: opts.award,
+      ratio: 0,
+      vsMedianPct: 0,
+      compareMode: 'unit',
+      note: `ใช้อัตราต่อหน่วยเป็นหลัก (${formatUnitRate(displayUnitRate, firstUnitKind, parsed.pieceLabel)}) · ยังไม่พบกลุ่มงานคล้าย >${Math.round(SERVICE_SIMILARITY_THRESHOLD * 100)}% ที่นับค่ากลางต่อหน่วยได้พอ — ไม่เทียบราคารวมทั้งสัญญา`,
+      ...unitExtras,
+    };
+  }
+
+  // Contract totals — only when no usable unit quantity on this project
   if (stemHit) {
     const contractHit = pickStemContractBucket(stemHit.bucket, opts.province);
     if (contractHit) {
@@ -422,25 +449,6 @@ export function resolveProjectBenchmark(opts: {
         note: `${similarNote('ในหน่วยงาน')} · n=${agencyBucket.n} — ไม่ใช่ราคากลางราชการ`,
       };
     }
-  }
-
-  // No similar peer group — still return unit rate display extras without false category median
-  if (displayUnitRate && firstUnitKind) {
-    return {
-      categoryId: cat.id,
-      categoryLabel: cat.label,
-      scope: 'agency',
-      n: 0,
-      median: 0,
-      p25: 0,
-      p75: 0,
-      award: opts.award,
-      ratio: 0,
-      vsMedianPct: 0,
-      compareMode: 'unit',
-      note: `ยังไม่พบกลุ่มงานคล้าย >${Math.round(SERVICE_SIMILARITY_THRESHOLD * 100)}% ที่นับได้พอ — ไม่ใช้ค่าเฉลี่ยทั้งหมวด (จะกว้างเกินจริง)`,
-      ...unitExtras,
-    };
   }
 
   return null;

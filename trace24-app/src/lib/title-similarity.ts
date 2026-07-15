@@ -1,11 +1,11 @@
 /**
  * Title / service similarity for peer grouping.
- * Benchmark peers must be > 80% similar — otherwise P25–P75 blows out.
+ * Benchmark peers must be > 90% similar — otherwise P25–P75 blows out.
  */
 import { toArabicDigits } from '@/lib/pipeline/normalize';
 
 /** Strict threshold: only group when similarity is greater than this. */
-export const SERVICE_SIMILARITY_THRESHOLD = 0.8;
+export const SERVICE_SIMILARITY_THRESHOLD = 0.9;
 
 /** Collapse location-specific parts so same service type can match across roads/villages. */
 export function titleStem(name: string): string {
@@ -27,7 +27,7 @@ export function titleStem(name: string): string {
 
   const work =
     t.match(
-      /ปรับปรุงผิวทาง[^\s]*|ลาดยาง[^\s]*|แอสฟัลต์[^\s]*|คสล[^\s]*|คอนกรีต[^\s]*|ถนน[^\s]*|ระบายน้ำ[^\s]*|ท่อ[^\s]*|โซลาร์[^\s]*|solar[^\s]*|ไฟฟ้า[^\s]*/i
+      /ปรับปรุงผิวทาง[^\s]*|ลาดยาง[^\s]*|แอสฟัลต์[^\s]*|คสล[^\s]*|คอนกรีต[^\s]*|ถนน[^\s]*|หินคลุก[^\s]*|หินเกล็ด[^\s]*|ลูกรัง[^\s]*|วัสดุก่อสร้าง[^\s]*|ระบายน้ำ[^\s]*|ท่อ[^\s]*|โซลาร์[^\s]*|solar[^\s]*|ไฟฟ้า[^\s]*|นม[^\s]*|รักษาความปลอดภัย[^\s]*|พัดลม[^\s]*/i
     )?.[0] || '';
   if (work) {
     const rest = t.replace(work, ' ').trim().slice(0, 48);
@@ -53,13 +53,22 @@ export function tokenSimilarity(a: string, b: string): number {
   return inter / Math.max(ta.size, tb.size);
 }
 
-/** True only when service/title similarity is strictly greater than 80%. */
-export function servicesSimilar(nameA: string, nameB: string, threshold = SERVICE_SIMILARITY_THRESHOLD): boolean {
+/** Jaccard-on-stem score in [0, 1]. */
+export function serviceSimilarity(nameA: string, nameB: string): number {
   const sa = titleStem(nameA);
   const sb = titleStem(nameB);
-  if (!sa || !sb) return false;
-  if (sa === sb) return true;
-  return tokenSimilarity(sa, sb) > threshold;
+  if (!sa || !sb) return 0;
+  if (sa === sb) return 1;
+  return tokenSimilarity(sa, sb);
+}
+
+/** True only when service/title similarity is strictly greater than the threshold (default 90%). */
+export function servicesSimilar(
+  nameA: string,
+  nameB: string,
+  threshold = SERVICE_SIMILARITY_THRESHOLD
+): boolean {
+  return serviceSimilarity(nameA, nameB) > threshold;
 }
 
 export function stemSimilarity(stemA: string, stemB: string): number {

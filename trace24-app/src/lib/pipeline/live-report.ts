@@ -185,7 +185,7 @@ export function enrichStubWithContracts(
     };
   }
 
-  // Market price benchmarks — only peers with service similarity > 80%
+  // Market price benchmarks — only peers with service similarity > 90%
   const province = String(stub.agency.prov || '').trim();
   const projectList = Object.values(projects) as {
     name?: string;
@@ -245,7 +245,7 @@ export function enrichStubWithContracts(
           : formatBenchmarkBaht(bm.median);
       p.pct = pctLabel(bm);
     } else if (bm.unitRateLabel) {
-      p.ref = 'ยังไม่มีกลุ่มคล้าย >80%';
+      p.ref = 'ยังไม่มีกลุ่มคล้าย >90%';
       p.pct = '—';
     }
     if (!(bm.median > 0 && bm.n >= 5)) continue;

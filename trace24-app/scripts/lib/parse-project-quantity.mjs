@@ -36,6 +36,10 @@ const RE_KW = new RegExp(
   String.raw`(${NUM})${SP}(?:กิโลวัตต์|กิโลวัต|กิโล\s*วัตต์|kw)`,
   'i'
 );
+const RE_VOLUME_M3 = new RegExp(
+  String.raw`(?:จำนวน|ปริมาณ)?${SP}(${NUM})${SP}(?:ลูกบาศก์เมตร|ลบ\.?${SP}ม\.?)`,
+  'i'
+);
 
 function toArabicDigitsLocal(s) {
   return String(s || '')
@@ -53,6 +57,7 @@ function inBounds(kind, qty) {
   if (kind === 'baht_per_km') return qty >= 0.05 && qty <= 80;
   if (kind === 'baht_per_m') return qty >= 10 && qty <= 80000;
   if (kind === 'baht_per_m2') return qty >= 20 && qty <= 250000;
+  if (kind === 'baht_per_m3') return qty >= 1 && qty <= 100000;
   if (kind === 'baht_per_piece') return qty >= 2 && qty <= 5000;
   if (kind === 'baht_per_kw') return qty >= 0.5 && qty <= 5000;
   return false;
@@ -63,6 +68,7 @@ function rateSane(kind, rate) {
   if (kind === 'baht_per_km') return rate >= 50000 && rate <= 80000000;
   if (kind === 'baht_per_m') return rate >= 200 && rate <= 5000000;
   if (kind === 'baht_per_m2') return rate >= 100 && rate <= 80000;
+  if (kind === 'baht_per_m3') return rate >= 20 && rate <= 50000;
   if (kind === 'baht_per_piece') return rate >= 500 && rate <= 50000000;
   if (kind === 'baht_per_kw') return rate >= 1000 && rate <= 5000000;
   return false;
@@ -112,14 +118,17 @@ export function parseProjectQuantity(title) {
   let capacityKw = null;
   if (kwEach) capacityKw = pieceCount ? kwEach * pieceCount : kwEach;
 
+  const volumeM3 = parseNum(t.match(RE_VOLUME_M3)?.[1]);
+
   const rates = {};
+  if (volumeM3 && inBounds('baht_per_m3', volumeM3)) rates.baht_per_m3 = { qty: volumeM3 };
   if (lengthKm && inBounds('baht_per_km', lengthKm)) rates.baht_per_km = { qty: lengthKm };
   if (lengthM && inBounds('baht_per_m', lengthM)) rates.baht_per_m = { qty: lengthM };
   if (areaM2 && inBounds('baht_per_m2', areaM2)) rates.baht_per_m2 = { qty: areaM2 };
   if (pieceCount && inBounds('baht_per_piece', pieceCount)) rates.baht_per_piece = { qty: pieceCount };
   if (capacityKw && inBounds('baht_per_kw', capacityKw)) rates.baht_per_kw = { qty: capacityKw };
 
-  return { widthM, lengthM, lengthKm, areaM2, pieceCount, pieceLabel, capacityKw, rates };
+  return { widthM, lengthM, lengthKm, areaM2, volumeM3, pieceCount, pieceLabel, capacityKw, rates };
 }
 
 export function unitRateFromAward(award, kind, qty) {

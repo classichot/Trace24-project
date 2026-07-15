@@ -16,9 +16,13 @@ type PriceCompareAi = {
   documentsToRequest: string[];
   nextSteps: string[];
   disclaimer: string;
+  concealmentPresumption?: boolean;
+  concealmentPremise?: string;
+  dataGaps?: string[];
   evidence?: {
     peerCount?: number;
-    peers?: { id: string; name: string; award: string; pct: string }[];
+    peerRule?: string;
+    peers?: { id: string; name: string; award: string; pct: string; similarity?: number }[];
     benchmark?: {
       compareMode?: string;
       unitLabel?: string;
@@ -291,8 +295,13 @@ export function ProjectScreen() {
           {pr0.priceBenchmark.unitRateLabel && pr0.award
             ? ` · ราคารวมสัญญา ${pr0.award}`
             : ''}
-          {pr0.priceBenchmark.compareMode !== 'unit' && pr0.priceBenchmark.unitRateLabel
-            ? ` · มีอัตราต่อหน่วยจากชื่องานแล้ว แต่ยังเทียบค่ากลางต่อหน่วยในหมวดนี้ไม่ได้ (ตัวอย่างน้อย) — แสดงเทียบราคารวมแทน`
+          {pr0.priceBenchmark.compareMode === 'unit' &&
+          pr0.priceBenchmark.unitRateLabel &&
+          !(pr0.priceBenchmark.n > 0 && pr0.priceBenchmark.median > 0)
+            ? ` · ใช้อัตราต่อหน่วยเป็นหลักแล้ว แต่ยังไม่มีกลุ่มงานคล้ายพอสำหรับค่ากลางต่อหน่วย`
+            : ''}
+          {pr0.priceBenchmark.compareMode !== 'unit' && !pr0.priceBenchmark.unitRateLabel
+            ? ` · ไม่มีปริมาณในชื่องานที่แปลงเป็นอัตราต่อหน่วยได้ — เทียบราคารวมชั่วคราว`
             : ''}
         </div>
       )}
@@ -310,7 +319,7 @@ export function ProjectScreen() {
               AI · เปรียบเทียบราคาเชิงรายละเอียด
             </div>
             <h2 style={{ fontSize: 16, fontWeight: 600, margin: '6px 0 0' }}>
-              อ่านปริมาณจากชื่องาน เทียบบาท/กม. · บาท/ตร.ม. และงานคล้าย
+              มีอัตราต่อหน่วยแล้วใช้เป็นหลัก · เทียบบาท/ลบ.ม. · บาท/กม. · บาท/ตร.ม.
             </h2>
           </div>
           <button
@@ -340,6 +349,34 @@ export function ProjectScreen() {
         {aiCompare && (
           <div style={{ marginTop: 18, display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: 32 }}>
             <div>
+              {aiCompare.concealmentPresumption && (
+                <div
+                  style={{
+                    marginBottom: 14,
+                    padding: '12px 14px',
+                    border: '1px solid #8A5A1C',
+                    background: '#FBF6EE',
+                    color: '#5C3D12',
+                    fontSize: 13.5,
+                    lineHeight: 1.55,
+                  }}
+                >
+                  <div style={{ fontWeight: 600, marginBottom: 4 }}>สันนิษฐานปิดบังข้อมูล</div>
+                  <div>
+                    {aiCompare.concealmentPremise ||
+                      'รายละเอียดที่เปิดเผยไม่ครบจนตรวจหรือเปรียบเทียบลำบาก — สันนิษฐานไว้ก่อนว่ามีการปิดบังข้อมูล จนกว่าจะมีเอกสารเติมช่องว่าง (ยังไม่ใช่ข้อกล่าวหา)'}
+                  </div>
+                  {(aiCompare.dataGaps || []).length > 0 && (
+                    <ul style={{ margin: '8px 0 0', paddingLeft: 18 }}>
+                      {aiCompare.dataGaps!.map((g, i) => (
+                        <li key={i} style={{ marginBottom: 2 }}>
+                          {g}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              )}
               <div style={{ fontSize: 18, fontWeight: 500, lineHeight: 1.4 }}>{aiCompare.headline}</div>
               <div style={{ marginTop: 16, fontSize: 14, color: '#33332E', lineHeight: 1.65 }}>
                 {aiCompare.marketPosition}
@@ -368,17 +405,25 @@ export function ProjectScreen() {
                   </div>
                 </div>
               )}
-              {(aiCompare.evidence?.peers || []).length > 0 && (
-                <div style={{ marginTop: 16, borderTop: '1px solid #EEEEEA', paddingTop: 12 }}>
-                  <div style={{ fontSize: 11, color: '#8B8B85', marginBottom: 8 }}>
-                    Peer ที่ใช้เป็นหลักฐาน ({aiCompare.evidence?.peerCount || 0})
+              <div style={{ marginTop: 16, borderTop: '1px solid #EEEEEA', paddingTop: 12 }}>
+                <div style={{ fontSize: 11, color: '#8B8B85', marginBottom: 8 }}>
+                  Peer งานคล้าย
+                  {(aiCompare.evidence?.peers || []).length > 0
+                    ? ` (${aiCompare.evidence?.peerCount || 0})`
+                    : ''}
+                  {aiCompare.evidence?.peerRule ? ` · ${aiCompare.evidence.peerRule}` : ' · similarity > 90%'}
+                </div>
+                {(aiCompare.evidence?.peers || []).length === 0 ? (
+                  <div style={{ fontSize: 13, color: '#8A5A1C', lineHeight: 1.55 }}>
+                    ไม่พบงานคล้ายในหน่วยงานนี้ — ไม่ใช้โครงการต่างชนิดในหมวดเดียวกันเป็น peer
                   </div>
-                  {(aiCompare.evidence?.peers || []).slice(0, 5).map((p) => (
+                ) : (
+                  (aiCompare.evidence?.peers || []).slice(0, 5).map((p) => (
                     <div
                       key={p.id}
                       style={{
                         display: 'grid',
-                        gridTemplateColumns: '1fr 120px 70px',
+                        gridTemplateColumns: '1fr 120px 56px 48px',
                         gap: 10,
                         fontSize: 12.5,
                         padding: '7px 0',
@@ -389,10 +434,13 @@ export function ProjectScreen() {
                       <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</div>
                       <div>{p.award}</div>
                       <div>{p.pct}</div>
+                      <div style={{ color: '#8B8B85' }}>
+                        {typeof p.similarity === 'number' ? `${Math.round(p.similarity * 100)}%` : ''}
+                      </div>
                     </div>
-                  ))}
-                </div>
-              )}
+                  ))
+                )}
+              </div>
             </div>
             <div>
               {[

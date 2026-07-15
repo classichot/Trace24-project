@@ -201,8 +201,9 @@ export function detectMissingInformation(report: PipelineReportLike): {
       score: g.gapScore,
       confidence: 0.9,
       subjectIds: g.subjectIds,
-      explanation: `${g.observed} (coverage ${(g.coverage * 100).toFixed(0)}%) — เป็นสัญญาณว่าข้อมูลที่ควรเผยแพร่ยังไม่ครบ ไม่ใช่ข้อพิสูจน์การทุจริต`,
-      innocentExplanation: 'เอกสารอาจอยู่คนละช่องทาง / ยังไม่ถึงรอบเผยแพร่ / หรือชุดข้อมูลยังไม่ครบ',
+      explanation: `${g.observed} (coverage ${(g.coverage * 100).toFixed(0)}%) — สันนิษฐานปิดบังข้อมูลไว้ก่อนเมื่อรายละเอียดไม่ครบจนตรวจหรือเปรียบเทียบลำบาก (ยังไม่ใช่ข้อพิสูจน์การทุจริต)`,
+      innocentExplanation:
+        'หน่วยงานอาจพิสูจน์หักล้างได้ด้วยการเปิดเผยเอกสารครบ หรือเอกสารอยู่คนละช่องทาง/ชุดข้อมูลยังไม่ครบ',
       evidenceRefs: g.evidenceRefs,
       facts: [g.observed, `คาดหวัง: ${g.expected}`],
       kind: 'missing_information',

@@ -1,7 +1,7 @@
 /**
  * Build national market price benchmarks from contracts-cache.
  *
- * Groups ONLY titles/services with stem similarity > 80%.
+ * Groups ONLY titles/services with stem similarity > 90%.
  * Category-wide averages are kept as coarse browse stats only — not for project compare.
  *
  *   npm run build-price-benchmarks
@@ -21,11 +21,12 @@ const ROOT = path.join(__dirname, '..');
 const CACHE_DIR = path.join(ROOT, 'data', 'contracts-cache');
 const OUT_DIR = path.join(ROOT, 'data', 'benchmarks');
 
-const UNIT_KINDS = ['baht_per_km', 'baht_per_m', 'baht_per_m2', 'baht_per_piece', 'baht_per_kw'];
+const UNIT_KINDS = ['baht_per_km', 'baht_per_m', 'baht_per_m2', 'baht_per_m3', 'baht_per_piece', 'baht_per_kw'];
 const UNIT_LABELS = {
   baht_per_km: 'บาท/กม.',
   baht_per_m: 'บาท/ม.',
   baht_per_m2: 'บาท/ตร.ม.',
+  baht_per_m3: 'บาท/ลบ.ม.',
   baht_per_piece: 'บาท/หน่วย',
   baht_per_kw: 'บาท/กิโลวัตต์',
 };
@@ -33,6 +34,7 @@ const UNIT_LABELS = {
 const CATEGORY_DEFS = [
   { id: 'road_concrete', label: 'ถนนคอนกรีต / คสล.', re: /คสล|คอนกรีตเสริมเหล็ก|ถนนคอนกรีต|ผิวจราจร.*คอนกรีต|คอนกรีตถนน/i },
   { id: 'road_asphalt', label: 'ถนนลาดยาง / แอสฟัลต์', re: /ลาดยาง|แอสฟัลต์|asphalt|overlay|เสริมผิว/i },
+  { id: 'materials', label: 'วัสดุก่อสร้าง / หินคลุก', re: /หินคลุก|หินเกล็ด|ลูกรัง|ทรายหยาบ|ทรายละเอียด|วัสดุก่อสร้าง|หินย่อย|ดินถม/i },
   { id: 'drainage', label: 'ระบายน้ำ / ท่อ / บ่อพัก', re: /ระบายน้ำ|ท่อระบาย|บ่อพัก|รางน้ำ|คูคลอง|ท่อเหลี่ยม/i },
   { id: 'water_supply', label: 'ประปา / บาดาล', re: /ประปา|บาดาล|ระบบน้ำ|ถังน้ำ|สถานีสูบ/i },
   { id: 'bridge', label: 'สะพาน / ท่อลอด', re: /สะพาน|ท่อลอด|สะพานลอย/i },
@@ -204,7 +206,7 @@ for (let i = 0; i < files.length; i++) {
   if ((i + 1) % 1000 === 0) console.log(`  scanned ${i + 1}/${files.length} · used ${used} · withUnit ${withUnit}`);
 }
 
-console.log('serializing stem groups (compare uses similarity > 80% at resolve time) …');
+console.log('serializing stem groups (compare uses similarity > 90% at resolve time) …');
 const categories = {};
 let stemGroupsKept = 0;
 for (const [id, cat] of byCat) {
@@ -260,7 +262,7 @@ for (const [id, cat] of byCat) {
     byUnit,
     byStem,
     stemCount: Object.keys(byStem).length,
-    note: 'เปรียบเทียบโครงการใช้ byStem (similarity > 80%) เท่านั้น — ค่าหมวดรวมเป็นภาพรวมหยาบ',
+    note: 'เปรียบเทียบโครงการใช้ byStem (similarity > 90%) เท่านั้น — ค่าหมวดรวมเป็นภาพรวมหยาบ',
   };
 }
 
@@ -269,7 +271,7 @@ const payload = {
   source: 'contracts-cache egp-contact-2568',
   similarityThreshold: SERVICE_SIMILARITY_THRESHOLD,
   note:
-    'ค่ากลางตลาดจัดกลุ่มเฉพาะงานที่คล้ายกันมากกว่า 80% (title stem) — ไม่รวมบริการต่างชนิดในกลุ่มเดียวกัน · ไม่ใช่ราคากลางราชการ',
+    'ค่ากลางตลาดจัดกลุ่มเฉพาะงานที่คล้ายกันมากกว่า 90% (title stem) — ไม่รวมบริการต่างชนิดในกลุ่มเดียวกัน · ไม่ใช่ราคากลางราชการ',
   rowsScanned: rows,
   rowsUsed: used,
   rowsWithUnitRate: withUnit,

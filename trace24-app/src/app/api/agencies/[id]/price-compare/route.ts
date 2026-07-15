@@ -2,6 +2,7 @@ import { isRealAgency } from '@/lib/agencies';
 import { llmStatus } from '@/lib/llm';
 import { buildPriceComparePayload, comparePriceWithLlm } from '@/lib/llm/price-compare';
 import { resolveAgencyReport } from '@/lib/pipeline/resolve-report';
+import { SERVICE_SIMILARITY_THRESHOLD } from '@/lib/title-similarity';
 
 export const maxDuration = 60;
 
@@ -72,7 +73,9 @@ export async function POST(
         pct: p.pct,
         lengthKm: p.lengthKm,
         unitRateLabel: p.unitRateLabel,
+        similarity: p.similarity,
       })),
+      peerRule: `งานคล้ายเท่านั้น · similarity > ${Math.round(SERVICE_SIMILARITY_THRESHOLD * 100)}% (ไม่ใช้ทั้งหมวด)`,
     },
     ...out,
   });

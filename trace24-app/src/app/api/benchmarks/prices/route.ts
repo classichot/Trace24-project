@@ -124,7 +124,7 @@ export async function GET(req: Request) {
     source: data.source,
     note:
       data.note ||
-      'ค่ากลางสำหรับเทียบโครงการใช้เฉพาะกลุ่มงานคล้าย >80% — ค่าในตารางหมวดเป็นภาพรวมหยาบ',
+      'ค่ากลางสำหรับเทียบโครงการใช้เฉพาะกลุ่มงานคล้าย >90% — ค่าในตารางหมวดเป็นภาพรวมหยาบ',
     similarityThreshold: data.similarityThreshold ?? 0.8,
     catalog: WORK_CATEGORY_DEFS.map((d) => ({ id: d.id, label: d.label, hint: d.hint })),
     categories,

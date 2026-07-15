@@ -7,6 +7,7 @@ export type WorkCategoryId =
   | 'water_supply'
   | 'building'
   | 'bridge'
+  | 'materials'
   | 'vehicle'
   | 'equipment'
   | 'waste'
@@ -27,6 +28,12 @@ export const WORK_CATEGORY_DEFS: { id: WorkCategoryId; label: string; re: RegExp
     label: 'ถนนลาดยาง / แอสฟัลต์',
     re: /ลาดยาง|แอสฟัลต์|asphalt|overlay|เสริมผิว/i,
     hint: 'ลาดยาง แอสฟัลต์ เสริมผิว',
+  },
+  {
+    id: 'materials',
+    label: 'วัสดุก่อสร้าง / หินคลุก',
+    re: /หินคลุก|หินเกล็ด|ลูกรัง|ทรายหยาบ|ทรายละเอียด|วัสดุก่อสร้าง|หินย่อย|ดินถม/i,
+    hint: 'หินคลุก ลูกรัง ทราย วัสดุก่อสร้าง',
   },
   {
     id: 'drainage',

@@ -3,7 +3,12 @@
  * Mapped from TRACE24 collusion playbook (detection proxies, not accusations).
  * Needs bidder lists / TOR / change orders for deeper Bid Collusion & Execution layers.
  */
+import { parseProjectQuantity } from '@/lib/parse-project-quantity';
 import { titleStem, tokenSimilarity } from '@/lib/title-similarity';
+
+/** Titles that normally need measurable specs for fair unit-rate comparison. */
+const NEEDS_MEASURABLE_SPECS =
+  /ถนน|คอนกรีต|ลาดยาง|หินคลุก|หินเกล็ด|ลูกรัง|ท่อระบาย|คสล\.|อาคาร|ปรับปรุงผิว|ผิวจราจร|ไหล่ทาง|รางระบาย|บล็อก|ปูพื้น|ก่อสร้าง|ซ่อมแซมถนน/i;
 
 export type CatalogAlert = {
   tag: string;
@@ -335,7 +340,9 @@ export function detectCatalogRules(
     }
   }
 
-  // —— R11: missing disclosable fields per project ——
+  // —— R11: incomplete disclosure → presume information concealment ——
+  // Policy: if missing details make audit/comparison hard, treat as concealment
+  // until the agency publishes TOR/BOQ/specs that fill the gaps (not a proven accusation).
   for (const p of projects) {
     const gaps: string[] = [];
     if (!p.sourceUrl) gaps.push('ไม่มี URL ประกาศ/เอกสารต้นทาง');
@@ -346,16 +353,44 @@ export function detectCatalogRules(
     } else {
       gaps.push('ไม่ระบุผู้ชนะ');
     }
-    if (gaps.length < 2) continue;
+    const title = p.name || '';
+    const qty = parseProjectQuantity(title);
+    const needsSpecs = NEEDS_MEASURABLE_SPECS.test(title);
+    const hasUnitQty = Object.keys(qty.rates).length > 0;
+    if (needsSpecs && !hasUnitQty) {
+      gaps.push('ไม่มีปริมาณ/สเปกในชื่องานที่แปลงเป็นอัตราต่อหน่วยได้ (กม./ม./ตร.ม./หน่วย)');
+    }
+    if (needsSpecs && /ถนน|คอนกรีต|ลาดยาง|ผิวจราจร|หินคลุก/i.test(title) && !qty.widthM) {
+      gaps.push('ไม่ระบุความกว้างผิวทาง/งาน ซึ่งจำเป็นต่อการเทียบราคา');
+    }
+    if (needsSpecs && /ถนน|คอนกรีต|ลาดยาง|หินคลุก/i.test(title) && !qty.thicknessM) {
+      gaps.push('ไม่ระบุความหนา ซึ่งจำเป็นต่อการเทียบสเปก');
+    }
+    if (p.priceBenchmark?.compareMode === 'contract' && needsSpecs && (p.awardN || 0) >= 50_000) {
+      gaps.push('เปรียบเทียบได้แค่ราคารวมทั้งสัญญา — รายละเอียดไม่พอทำอัตราต่อหน่วย');
+    }
+    // Trigger on any gap that blocks verification, or 2+ field gaps
+    const blocksCompare = gaps.some(
+      (g) =>
+        g.includes('อัตราต่อหน่วย') ||
+        g.includes('ความกว้าง') ||
+        g.includes('ความหนา') ||
+        g.includes('ราคารวมทั้งสัญญา')
+    );
+    if (!blocksCompare && gaps.length < 2) continue;
+    const sevKey: CatalogAlert['sevKey'] =
+      blocksCompare || gaps.length >= 3 ? 'High' : gaps.length >= 2 ? 'Medium' : 'Low';
     pushAlert(projectAlerts, p.id, {
       tag: 'R11 · การเปิดเผยข้อมูล',
-      title: `เอกสาร/ฟิลด์ที่ควรเปิดเผยยังไม่ครบ (${gaps.length} จุด)`,
-      sevKey: gaps.length >= 3 ? 'High' : 'Medium',
-      conf: `gaps=${gaps.length}`,
+      title: `สันนิษฐานปิดบังข้อมูล — รายละเอียดไม่ครบ (${gaps.length} จุด)`,
+      sevKey,
+      conf: `gaps=${gaps.length}${blocksCompare ? ' · blocks-compare' : ''}`,
       facts: gaps.map((g, i) => [`ช่องว่าง ${i + 1}`, g]),
-      explain: 'ขาดลิงก์เอกสารหรือฟิลด์สำคัญที่ใช้ตรวจสอบได้จากข้อมูลสาธารณะในแคช',
-      innocent: 'บางระเบียนต้นทางอาจไม่เผยแพร่ครบในชุดที่ดึงมา',
-      evidence: ['contracts-cache · field coverage · R11'],
+      explain:
+        'นโยบาย TRACE24: เมื่อหน่วยงานไม่ใส่รายละเอียดให้ครบจนตรวจหรือเปรียบเทียบลำบาก ให้สันนิษฐานไว้ก่อนว่ามีการปิดบังข้อมูล จนกว่าจะเปิดเผยเอกสารที่เติมช่องว่างได้',
+      innocent:
+        'หน่วยงานอาจพิสูจน์หักล้างได้ด้วยการเผยแพร่ TOR · BOQ · แบบก่อสร้าง · ราคากลาง และสเปกครบ — หรือข้อจำกัดของชุดข้อมูลต้นทาง',
+      evidence: ['contracts-cache · field coverage · R11 · concealment presumption'],
     });
   }
 
