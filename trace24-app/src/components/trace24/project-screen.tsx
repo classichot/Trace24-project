@@ -297,7 +297,7 @@ export function ProjectScreen() {
             : ''}
           {pr0.priceBenchmark.compareMode === 'unit' &&
           pr0.priceBenchmark.unitRateLabel &&
-          !(pr0.priceBenchmark.n > 0 && pr0.priceBenchmark.median > 0)
+          !((pr0.priceBenchmark.n ?? 0) > 0 && (pr0.priceBenchmark.median ?? 0) > 0)
             ? ` · ใช้อัตราต่อหน่วยเป็นหลักแล้ว แต่ยังไม่มีกลุ่มงานคล้ายพอสำหรับค่ากลางต่อหน่วย`
             : ''}
           {pr0.priceBenchmark.compareMode !== 'unit' && !pr0.priceBenchmark.unitRateLabel
