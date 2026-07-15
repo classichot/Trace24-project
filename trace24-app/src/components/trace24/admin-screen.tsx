@@ -316,7 +316,9 @@ export function AdminScreen() {
           0
         );
         setRelatedMsg(
-          `${d.note || ''}${d.model ? ` · model ${d.model}` : ''} · draft ${nCo} บริษัท / ${nDir} รายชื่อ — ตรวจแก้แล้วกดบันทึก`
+          `${d.note || ''}${d.model ? ` · model ${d.model}` : ''} · draft ${nCo} บริษัท / ${nDir} รายชื่อ — ตรวจแก้แล้วกดบันทึก${
+            d.disclaimer ? ` · ${d.disclaimer}` : ''
+          }`
         );
         if (mode === 'paste' && d.ok) setRelatedDbdPaste('');
       })
@@ -652,8 +654,8 @@ export function AdminScreen() {
             ความเชื่อมโยงผู้บริหาร ↔ กรรมการ/ผู้ถือหุ้น
           </h2>
           <p style={{ margin: '0 0 14px', fontSize: 13.5, color: '#55554F', lineHeight: 1.6 }}>
-            กฎ R13 เทียบทำเนียบผู้บริหาร/เจ้าหน้าที่หน่วยงานกับกรรมการ/ผู้ถือหุ้นของผู้ชนะ · กฎ R5 จับกรรมการหรือที่อยู่ร่วมระหว่างผู้รับจ้าง
-            — นามสกุลตรงกันเป็นเพียง lead (ระดับ Medium) ไม่ใช่ข้อพิสูจน์
+            สังเกตความเชื่อมโยงจากนามสกุลเป็นหลัก (R13 เจ้าหน้าที่↔ผู้ชนะ · R5 ระหว่างผู้รับจ้าง) · ชื่อเต็มยกระดับความมั่นใจ ·
+            ที่อยู่ร่วมยังตรวจแยก — นามสกุลตรงกันเป็น lead ไม่ใช่ข้อพิสูจน์
           </p>
           <RiskDisclaimer style={{ marginBottom: 16 }} />
           {relatedBusy && !relatedAnyBusy && (
@@ -668,8 +670,8 @@ export function AdminScreen() {
           )}
           {relatedDirectorsBusy && (
             <LoadingHint
-              label="กำลังดึงกรรมการจาก DBD"
-              hint="รวบรวมผู้ชนะ · ลองเปิดโปรไฟล์ DBD · หรือสกัดจากข้อความที่วาง"
+              label="กำลังดึงกรรมการจากหลายแหล่ง"
+              hint="DataForThai → Creden → e-GP/เอกสารผู้ชนะ → DBD · ถ้าบล็อกให้วางข้อความจาก sourceUrl"
               style={{ marginBottom: 12 }}
             />
           )}
@@ -691,18 +693,47 @@ export function AdminScreen() {
                   style={{ padding: '12px 0', borderBottom: '1px solid #EEEEEA', fontSize: 13, lineHeight: 1.55 }}
                 >
                   <span style={{ color: '#8B8B85', fontSize: 11, letterSpacing: '.04em' }}>
-                    {m.ruleId} · {m.matchType} · {m.severity}
+                    {m.ruleId} ·{' '}
+                    {m.matchType === 'surname'
+                      ? 'นามสกุล'
+                      : m.matchType === 'full_name'
+                        ? 'ชื่อเต็ม'
+                        : m.matchType}{' '}
+                    · {m.severity}
                   </span>
                   <div style={{ marginTop: 4 }}>{m.explanation}</div>
                 </div>
               ))}
             </div>
           )}
-          <div style={{ fontSize: 12.5, color: '#8B8B85', marginBottom: 8 }}>
-            ดึงทำเนียบ/เจ้าหน้าที่จากเว็บ · กรรมการจาก DBD · วันจดทะเบียนจาก DataForThai / เว็บ (ตรวจก่อนบันทึก) ·{' '}
-            <a href="https://datawarehouse.dbd.go.th/" target="_blank" rel="noreferrer" style={{ color: '#55554F' }}>
-              datawarehouse.dbd.go.th
+          <div style={{ fontSize: 12.5, color: '#8B8B85', marginBottom: 8, lineHeight: 1.55 }}>
+            ดึงทำเนียบ/เจ้าหน้าที่จากเว็บ · กรรมการไล่แหล่ง DataForThai → Creden → e-GP/เอกสารผู้ชนะ → DBD ·
+            วันจดทะเบียนจาก DataForThai ·{' '}
+            <a href="https://www.dataforthai.com/" target="_blank" rel="noreferrer" style={{ color: '#55554F' }}>
+              dataforthai
             </a>
+            {' · '}
+            <a href="https://data.creden.co/" target="_blank" rel="noreferrer" style={{ color: '#55554F' }}>
+              creden
+            </a>
+            {' · '}
+            <a href="https://datawarehouse.dbd.go.th/" target="_blank" rel="noreferrer" style={{ color: '#55554F' }}>
+              dbd
+            </a>
+          </div>
+          <div
+            style={{
+              fontSize: 12,
+              color: '#8A5A1C',
+              marginBottom: 12,
+              lineHeight: 1.55,
+              padding: '10px 12px',
+              background: '#FBF7F0',
+              border: '1px solid #E8DFD0',
+            }}
+          >
+            ข้อมูลกรรมการ/ผู้ถือหุ้นมาจากแหล่งสาธารณะ — เป็น draft ให้ตรวจสอบกับแหล่งทางการ (DBD / บอจ.5)
+            ก่อนใช้เป็นหลักฐาน
           </div>
           <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap', alignItems: 'center' }}>
             <input
@@ -745,10 +776,10 @@ export function AdminScreen() {
               {relatedDirectorsBusy ? (
                 <span className="trace24-btn-busy">
                   <span className="trace24-scan-spin trace24-scan-spin--sm" aria-hidden />
-                  กำลังดึง DBD
+                  กำลังดึงหลายแหล่ง
                 </span>
               ) : (
-                'ดึงกรรมการจาก DBD'
+                'ดึงกรรมการ (หลายแหล่ง)'
               )}
             </div>
             <div
@@ -781,7 +812,8 @@ export function AdminScreen() {
             }}
           >
             <div style={{ fontSize: 12.5, color: '#55554F', marginBottom: 8, lineHeight: 1.5 }}>
-              ถ้า DBD บล็อกเซิร์ฟเวอร์: เปิดลิงก์ใน JSON (`sourceUrl`) → คัดลอกส่วนกรรมการ/ผู้ถือหุ้นมาวางที่นี่ → กดสกัด
+              ถ้าเว็บบล็อกเซิร์ฟเวอร์: เปิดลิงก์ใน JSON (`sourceUrl` — DataForThai / Creden / DBD) → คัดลอกส่วนกรรมการ/ผู้ถือหุ้น
+              (หรือจาก e-GP / เอกสารแนบผู้ชนะ / บอจ.5) มาวางที่นี่ → กดสกัด · ข้อมูลจากแหล่งสาธารณะ ตรวจกับแหล่งทางการอีกครั้ง
             </div>
             <div style={{ display: 'flex', gap: 8, marginBottom: 8, flexWrap: 'wrap' }}>
               <input
@@ -801,7 +833,7 @@ export function AdminScreen() {
               value={relatedDbdPaste}
               onChange={(e) => setRelatedDbdPaste(e.target.value)}
               rows={4}
-              placeholder="วางข้อความจากหน้า DBD / บอจ.5 ที่นี่…"
+              placeholder="วางข้อความจาก DataForThai / Creden / DBD / บอจ.5 / เอกสารผู้ชนะ ที่นี่…"
               style={{
                 ...inputStyle,
                 width: '100%',

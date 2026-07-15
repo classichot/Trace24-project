@@ -195,8 +195,13 @@ export function buildUiEntityGraph(input: {
     details[pid] = {
       typeLabel: m.ruleId ? `${m.ruleId} · บุคคล` : 'บุคคล',
       label,
-      sub: m.matchType || 'ความสัมพันธ์',
-      facts: [m.explanation || 'พบความเชื่อมโยงจากทำเนียบ/กรรมการ'].filter(Boolean),
+      sub:
+        m.matchType === 'surname'
+          ? 'นามสกุลร่วม'
+          : m.matchType === 'full_name'
+            ? 'ชื่อเต็มตรงกัน'
+            : m.matchType || 'ความสัมพันธ์',
+      facts: [m.explanation || 'พบความเชื่อมโยงจากนามสกุล/ทำเนียบ/กรรมการ'].filter(Boolean),
       docs: [],
       link: null,
     };

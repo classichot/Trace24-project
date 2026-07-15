@@ -111,11 +111,27 @@ export function personSurname(name: string): string {
   return parts.length >= 2 ? parts[parts.length - 1] : '';
 }
 
+/** Surname usable as a primary COI lead (short / single-token names skipped). */
+export function isUsableSurname(surname: string): boolean {
+  const s = String(surname || '').trim();
+  return s.length >= 3 && !/^\d+$/.test(s);
+}
+
+function matchSortKey(m: RelatedPartyMatch): number {
+  // Surname-first observation, then exact identity, then address / volume
+  if (m.matchType === 'surname') return 0;
+  if (m.matchType === 'full_name') return 1;
+  if (m.matchType === 'shared_director') return 2;
+  if (m.matchType === 'shared_address') return 3;
+  if (m.matchType === 'shared_address_volume') return 4;
+  return 5;
+}
+
 export function emptyRelatedPack(agencyId: string): RelatedPartyPack {
   return {
     agencyId,
     updatedAt: new Date().toISOString(),
-    note: 'ใส่ทำเนียบผู้บริหาร/เจ้าหน้าที่ + กรรมการ/ผู้ถือหุ้นจาก DBD หรือ บอจ.5 — นามสกุลร่วมไม่ใช่ข้อพิสูจน์',
+    note: 'ใส่ทำเนียบผู้บริหาร/เจ้าหน้าที่ + กรรมการ/ผู้ถือหุ้นจากแหล่งสาธารณะ (DataForThai · Creden · e-GP · DBD/บอจ.5) — ตรวจกับแหล่งทางการอีกครั้ง · นามสกุลร่วมไม่ใช่ข้อพิสูจน์',
     executives: [],
     companies: [],
   };
@@ -287,8 +303,9 @@ export function detectRelatedPartyMatches(
     ...(pack?.executives || []),
   ];
 
-  // R5 — shared director / shareholder name across two contractors
+  // R5 — shared director / shareholder (exact name) across two contractors
   const personIndex = new Map<string, { cid: string; name: string; person: CompanyPerson }[]>();
+  const surnameIndex = new Map<string, { cid: string; name: string; person: CompanyPerson }[]>();
   for (const [cid, row] of companies) {
     if (!report.contractors?.[cid]) continue;
     for (const person of row.people) {
@@ -297,6 +314,12 @@ export function detectRelatedPartyMatches(
       const list = personIndex.get(key) || [];
       list.push({ cid, name: row.name, person });
       personIndex.set(key, list);
+
+      const sur = personSurname(person.name);
+      if (!isUsableSurname(sur)) continue;
+      const surList = surnameIndex.get(sur) || [];
+      surList.push({ cid, name: row.name, person });
+      surnameIndex.set(sur, surList);
     }
   }
   for (const [, list] of personIndex) {
@@ -319,6 +342,37 @@ export function detectRelatedPartyMatches(
       explanation: `${a.person.name} (${roleLabel(a.person.role)}) พบในทั้ง「${a.name}」และ「${b.name}」ซึ่งเป็นผู้รับจ้างของหน่วยงานนี้`,
       innocentExplanation:
         'อาจเป็นกลุ่มธุรกิจเดียวกันที่เปิดเผย หรือชื่อซ้ำกันคนละคน — ต้องยืนยันด้วยเลขบัตร/เอกสาร DBD',
+      evidenceRefs: [a.person.sourceUrl, b.person.sourceUrl].filter(Boolean) as string[],
+    });
+  }
+
+  // R5 — shared surname across contractors (primary observation lens)
+  for (const [sur, list] of surnameIndex) {
+    const byCompany = new Map<string, { cid: string; name: string; person: CompanyPerson }>();
+    for (const row of list) {
+      if (!byCompany.has(row.cid)) byCompany.set(row.cid, row);
+    }
+    const uniqueCos = [...byCompany.values()];
+    if (uniqueCos.length < 2) continue;
+    const a = uniqueCos[0];
+    const b = uniqueCos[1];
+    // Exact same person already covered by shared_director above
+    if (normalizePersonName(a.person.name) === normalizePersonName(b.person.name)) continue;
+    matches.push({
+      id: `r5-sur-${sur}-${a.cid}-${b.cid}`,
+      ruleId: 'R5',
+      matchType: 'surname',
+      severity: 'Medium',
+      confirmed: false,
+      personName: `${a.person.name} · ${b.person.name}`,
+      personRole: `${roleLabel(a.person.role)} / ${roleLabel(b.person.role)}`,
+      companyId: a.cid,
+      companyName: a.name,
+      otherCompanyId: b.cid,
+      otherCompanyName: b.name,
+      explanation: `นามสกุล「${sur}」พบใน「${a.name}」(${a.person.name}) และ「${b.name}」(${b.person.name}) — สังเกตจากนามสกุลเป็นหลัก · รอยืนยันว่าเกี่ยวข้องกันหรือไม่`,
+      innocentExplanation:
+        'นามสกุลเดียวกันแพร่หลายได้ หรือเป็นเครือญาติที่เปิดเผย — ใช้เป็น lead ไม่ใช่ข้อกล่าวหา',
       evidenceRefs: [a.person.sourceUrl, b.person.sourceUrl].filter(Boolean) as string[],
     });
   }
@@ -382,7 +436,7 @@ export function detectRelatedPartyMatches(
     }
   }
 
-  // R13 — executive ↔ director/shareholder
+  // R13 — agency officer ↔ director/shareholder (surname-first, full name upgrades confidence)
   for (const exec of executives) {
     const execFull = normalizePersonName(exec.name);
     const execSur = personSurname(exec.name);
@@ -408,12 +462,12 @@ export function detectRelatedPartyMatches(
             personRole: roleLabel(person.role),
             companyId: cid,
             companyName: row.name,
-            explanation: `ชื่อ「${exec.name}」(${exec.title}) ตรงกับ${roleLabel(person.role)}ของ「${row.name}」ซึ่งได้งานจากหน่วยงาน — รอยืนยันว่าเป็นบุคคลเดียวกัน`,
+            explanation: `ชื่อเต็ม「${exec.name}」(${exec.title}) ตรงกับ${roleLabel(person.role)}ของ「${row.name}」— ยกระดับจากนามสกุลเป็นบุคคลเดียวกัน (รอยืนยัน)`,
             innocentExplanation:
               'ชื่อ-นามสกุลซ้ำในประเทศไทยมีได้ — ต้องยืนยันด้วยเอกสารแต่งตั้งและทะเบียนนิติบุคคล',
             evidenceRefs: [exec.sourceUrl, person.sourceUrl].filter(Boolean) as string[],
           });
-        } else if (execSur && pSur && execSur === pSur && execSur.length >= 3) {
+        } else if (isUsableSurname(execSur) && execSur === pSur) {
           matches.push({
             id: `r13-sur-${cid}-${execSur}-${pFull}`,
             ruleId: 'R13',
@@ -426,7 +480,7 @@ export function detectRelatedPartyMatches(
             personRole: roleLabel(person.role),
             companyId: cid,
             companyName: row.name,
-            explanation: `นามสกุล「${execSur}」ของ${exec.title} ${exec.name} ตรงกับ${roleLabel(person.role)} ${person.name} ของ「${row.name}」— นามสกุลร่วมไม่ใช่ข้อพิสูจน์เครือญาติ`,
+            explanation: `นามสกุล「${execSur}」ตรงกัน: ${exec.title} ${exec.name} ↔ ${roleLabel(person.role)} ${person.name} ของ「${row.name}」— สังเกตจากนามสกุลเป็นหลัก · ไม่ใช่ข้อพิสูจน์เครือญาติ`,
             innocentExplanation: 'นามสกุลเดียวกันแพร่หลายได้ — ใช้เป็น lead ให้เจ้าหน้าที่ตรวจ ไม่ใช่ข้อกล่าวหา',
             evidenceRefs: [exec.sourceUrl, person.sourceUrl].filter(Boolean) as string[],
           });
@@ -435,8 +489,10 @@ export function detectRelatedPartyMatches(
     }
   }
 
-  // Deduplicate by id
-  return [...new Map(matches.map((m) => [m.id, m])).values()];
+  // Deduplicate, then surname-first ordering
+  const deduped = [...new Map(matches.map((m) => [m.id, m])).values()];
+  deduped.sort((a, b) => matchSortKey(a) - matchSortKey(b) || a.ruleId.localeCompare(b.ruleId));
+  return deduped;
 }
 
 export function relatedMatchesToSignals(matches: RelatedPartyMatch[]): RiskSignal[] {
@@ -446,19 +502,23 @@ export function relatedMatchesToSignals(matches: RelatedPartyMatch[]): RiskSigna
     category: m.ruleId === 'R19' ? 'R19 · ที่อยู่ร่วม' : `${m.ruleId} · ความสัมพันธ์`,
     title:
       m.ruleId === 'R13'
-        ? 'ผู้บริหารหน่วยงานเชื่อมโยงกับกรรมการ/ผู้ถือหุ้นผู้ชนะ'
+        ? m.matchType === 'surname'
+          ? 'นามสกุลเจ้าหน้าที่หน่วยงานตรงกับกรรมการ/ผู้ถือหุ้นผู้ชนะ'
+          : 'ชื่อเจ้าหน้าที่หน่วยงานตรงกับกรรมการ/ผู้ถือหุ้นผู้ชนะ'
         : m.ruleId === 'R19'
           ? 'บริษัทที่อยู่เดียวกันชนะรวมเกิน 5 สัญญา'
           : m.matchType === 'shared_address'
             ? 'ผู้รับจ้างมีที่อยู่จดทะเบียนร่วมกัน'
-            : 'ผู้รับจ้างมีกรรมการ/ผู้ถือหุ้นร่วมกัน',
+            : m.matchType === 'surname'
+              ? 'นามสกุลกรรมการ/ผู้ถือหุ้นร่วมระหว่างผู้รับจ้าง'
+              : 'ผู้รับจ้างมีกรรมการ/ผู้ถือหุ้นร่วมกัน',
     severity: m.severity,
-    score: m.severity === 'High' ? 0.82 : 0.55,
+    score: m.severity === 'High' ? 0.82 : m.matchType === 'surname' ? 0.58 : 0.55,
     confidence:
       m.matchType === 'full_name'
         ? 0.78
         : m.matchType === 'surname'
-          ? 0.45
+          ? 0.52
           : m.ruleId === 'R19'
             ? 0.75
             : 0.8,
@@ -596,12 +656,20 @@ export function applyRelatedPartyToReport(
         co.risks!.push({ tag, text: m.explanation, sevKey });
       }
       for (const d of co.directors || []) {
-        if (
-          normalizePersonName(d.name) === normalizePersonName(m.personName) ||
-          (m.matchType === 'surname' && personSurname(d.name) === personSurname(m.personName))
-        ) {
+        const sur = personSurname(d.name);
+        const matchSur =
+          m.matchType === 'surname' &&
+          isUsableSurname(sur) &&
+          (personSurname(m.personName) === sur ||
+            personSurname(m.executiveName || '') === sur ||
+            String(m.personName || '').includes(sur));
+        if (normalizePersonName(d.name) === normalizePersonName(m.personName) || matchSur) {
           d.flag = true;
-          if (!d.note.includes('รอยืนยัน')) d.note = `${d.note} · เชื่อมโยงผู้บริหาร (รอยืนยัน)`.trim();
+          if (!d.note.includes('รอยืนยัน')) {
+            d.note = `${d.note} · ${
+              m.matchType === 'surname' ? 'นามสกุลร่วม (รอยืนยัน)' : 'เชื่อมโยงผู้บริหาร (รอยืนยัน)'
+            }`.trim();
+          }
         }
       }
       if (m.otherCompanyId && contractors[m.otherCompanyId]) {
@@ -661,11 +729,15 @@ export function applyRelatedPartyToReport(
       const q: [string, string] =
         m.ruleId === 'R13'
           ? [
-              `${m.executiveName} เกี่ยวข้องกับ ${m.personName} ของ ${m.companyName} หรือไม่?`,
+              m.matchType === 'surname'
+                ? `นามสกุลของ ${m.executiveName} เกี่ยวข้องกับ ${m.personName} ของ ${m.companyName} หรือไม่?`
+                : `${m.executiveName} เป็นคนเดียวกับ ${m.personName} ของ ${m.companyName} หรือไม่?`,
               'รอตรวจ — นามสกุล/ชื่อตรงยังไม่ใช่ข้อพิสูจน์',
             ]
           : [
-              `${m.companyName} กับ ${m.otherCompanyName} เป็นกลุ่มเดียวกันหรือเสนอราคาแข่งกันอย่างไร?`,
+              m.matchType === 'surname'
+                ? `นามสกุลร่วมระหว่าง ${m.companyName} กับ ${m.otherCompanyName} เชื่อมโยงกันอย่างไร?`
+                : `${m.companyName} กับ ${m.otherCompanyName} เป็นกลุ่มเดียวกันหรือเสนอราคาแข่งกันอย่างไร?`,
               'รอตรวจเอกสารกรรมการ/ที่อยู่',
             ];
       if (!qs.some((x) => x[0] === q[0])) qs.push(q);
@@ -680,10 +752,15 @@ export function applyRelatedPartyToReport(
     : !hasExec
       ? 'มีกรรมการบางราย แต่ยังไม่มีทำเนียบผู้บริหาร/เจ้าหน้าที่'
       : !hasDir
-        ? 'มีทำเนียบผู้บริหาร/เจ้าหน้าที่ แต่ยังไม่มีกรรมการ/ผู้ถือหุ้นจาก DBD'
+        ? 'มีทำเนียบผู้บริหาร/เจ้าหน้าที่ แต่ยังไม่มีกรรมการ/ผู้ถือหุ้นจากแหล่งสาธารณะ'
         : matches.length
-          ? `พบสัญญาณความเชื่อมโยง ${matches.length} รายการ (รอยืนยัน)`
-          : 'มีข้อมูลทั้งสองฝั่ง — ยังไม่พบชื่อ/นามสกุลที่ตรงกัน';
+          ? (() => {
+              const surN = matches.filter((m) => m.matchType === 'surname').length;
+              return surN
+                ? `พบสัญญาณความเชื่อมโยง ${matches.length} รายการ · นามสกุลร่วม ${surN} (สังเกตจากนามสกุลเป็นหลัก · รอยืนยัน)`
+                : `พบสัญญาณความเชื่อมโยง ${matches.length} รายการ (รอยืนยัน)`;
+            })()
+          : 'มีข้อมูลทั้งสองฝั่ง — ยังไม่พบนามสกุล/ชื่อที่ตรงกัน';
 
   cloned.relatedParty = { matches, coverage };
   if (cloned.meta) {

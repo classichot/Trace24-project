@@ -1,5 +1,6 @@
 import { isRealAgency } from '@/lib/agencies';
 import {
+  PUBLIC_SOURCE_DISCLAIMER,
   extractDirectorsFromPaste,
   fetchDirectorsForAgency,
   mergeCompanyDrafts,
@@ -7,7 +8,7 @@ import {
 import { resolveAgencyReport } from '@/lib/pipeline/resolve-report';
 import { getOrEmptyRelatedPack } from '@/lib/pipeline/related-party-store';
 
-export const maxDuration = 60;
+export const maxDuration = 90;
 
 export async function POST(
   req: Request,
@@ -29,10 +30,10 @@ export async function POST(
 
   const pack = getOrEmptyRelatedPack(id);
 
-  // Mode A: paste DBD page text for one company
+  // Mode A: paste public-source / บอจ.5 text for one company
   if (body.pasteText && body.pasteText.trim().length >= 40) {
     const result = await extractDirectorsFromPaste({
-      companyName: body.pasteName || body.pasteTin || 'นิติบุคคลจาก DBD',
+      companyName: body.pasteName || body.pasteTin || 'นิติบุคคลจากแหล่งสาธารณะ',
       tin: body.pasteTin,
       text: body.pasteText,
     });
@@ -45,7 +46,7 @@ export async function POST(
       agencyId: id,
       updatedAt: new Date().toISOString(),
       companies,
-      note: result.note,
+      note: `${result.note} · ${PUBLIC_SOURCE_DISCLAIMER}`,
     };
     return Response.json({
       ok: result.ok,
@@ -57,12 +58,12 @@ export async function POST(
       note: result.note,
       error: result.error,
       scrapeBlocked: false,
-      ethics:
-        'รายชื่อจาก DBD เป็น draft — ตรวจแก้ก่อนกดบันทึก · ไม่ใช่ข้อพิสูจน์ความเกี่ยวข้อง',
+      disclaimer: PUBLIC_SOURCE_DISCLAIMER,
+      ethics: PUBLIC_SOURCE_DISCLAIMER,
     });
   }
 
-  // Mode B: pull winners from report + try DBD profile pages
+  // Mode B: winners from report — DataForThai → Creden → e-GP/docs → DBD
   const report = await resolveAgencyReport(id, { fetchContracts: true });
   if (!report) {
     return Response.json({ error: 'Agency report unavailable' }, { status: 503 });
@@ -70,7 +71,7 @@ export async function POST(
 
   const result = await fetchDirectorsForAgency({
     report,
-    limit: body.limit || 10,
+    limit: body.limit || 8,
     extraTins: body.extraTins,
   });
 
@@ -97,7 +98,7 @@ export async function POST(
     note: result.note,
     error: result.error,
     scrapeBlocked: result.scrapeBlocked,
-    ethics:
-      'รายชื่อจาก DBD เป็น draft — ตรวจแก้ก่อนกดบันทึก · ผู้ถือหุ้นเต็มมักอยู่ในบอจ.5',
+    disclaimer: result.disclaimer,
+    ethics: PUBLIC_SOURCE_DISCLAIMER,
   });
 }
