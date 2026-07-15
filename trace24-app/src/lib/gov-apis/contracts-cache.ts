@@ -48,6 +48,16 @@ export function loadContractsCache(agencyId: string): ContractsCacheFile | null 
   return null;
 }
 
+/** True when a committed contracts-cache file exists (incl. parent-alias stubs). */
+export function hasContractsCache(agencyId: string): boolean {
+  const { gz, json } = cachePaths(agencyId);
+  try {
+    return fs.existsSync(gz) || fs.existsSync(json);
+  } catch {
+    return false;
+  }
+}
+
 /** Also allow lookup by keyword filename slug when id unknown. */
 export function loadContractsCacheByKeyword(keyword: string): ContractsCacheFile | null {
   const dir = path.join(/*turbopackIgnore: true*/ process.cwd(), 'data', 'contracts-cache');

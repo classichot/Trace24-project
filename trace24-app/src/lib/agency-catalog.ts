@@ -191,6 +191,10 @@ function scoreAgency(a: CatalogAgency, needle: string, raw: string, categoryBoos
     'โรงพยาบาล',
   ]);
   if (prefer.has(a.tshort)) score += 15;
+  // Prefer fuller municipal titles over truncated catalog aliases (e.g. เทศบาลตะกั่วป่า)
+  if (/^เทศบาลเมือง|^เทศบาลนคร/.test(a.th)) score += 20;
+  if (/^เทศบาล(?!ตำบล|เมือง|นคร)/.test(a.th)) score -= 40;
+  if (a.prov) score += 5;
   return score;
 }
 
