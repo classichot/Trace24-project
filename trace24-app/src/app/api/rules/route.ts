@@ -7,9 +7,11 @@ import {
   updateProposalStatus,
 } from '@/lib/pipeline/rules';
 import { buildInvestigationPack } from '@/lib/pipeline/investigate';
-import { loadAgencyReport } from '@/lib/pipeline/load-report';
+import { resolveAgencyReport } from '@/lib/pipeline/resolve-report';
 import { isRealAgency } from '@/lib/agencies';
 import type { SignalFeedbackLabel } from '@/lib/pipeline/rules';
+
+export const maxDuration = 60;
 
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
@@ -69,8 +71,16 @@ export async function POST(req: Request) {
   if (!agencyId || !isRealAgency(agencyId)) {
     return Response.json({ error: 'valid agencyId required' }, { status: 400 });
   }
-  const report = loadAgencyReport(agencyId);
-  if (!report) return Response.json({ error: 'Real data not cached' }, { status: 503 });
+  const report = await resolveAgencyReport(agencyId);
+  if (!report) {
+    return Response.json(
+      {
+        error: 'ยังสร้างรายงานหน่วยงานไม่ได้',
+        hint: 'สแกนหน่วยงานก่อน หรือตรวจว่ามีในแคตตาล็อก / contracts-cache',
+      },
+      { status: 503 }
+    );
+  }
   const pack = buildInvestigationPack(agencyId, report);
   const out = await proposeAndPersistRules(pack, { persist: true });
   if ('error' in out) return Response.json({ error: out.error }, { status: 502 });

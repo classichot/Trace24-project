@@ -8,8 +8,10 @@ import {
 } from '@/lib/llm';
 import { proposeAndPersistRules } from '@/lib/pipeline/rules';
 import { buildInvestigationPack } from '@/lib/pipeline/investigate';
-import { loadAgencyReport } from '@/lib/pipeline/load-report';
+import { resolveAgencyReport } from '@/lib/pipeline/resolve-report';
 import { hybridGraphRag } from '@/lib/pipeline/rag';
+
+export const maxDuration = 60;
 
 type Action = 'status' | 'rag' | 'review-signals' | 'propose-rules' | 'refine-brief';
 
@@ -39,9 +41,16 @@ export async function POST(
     return Response.json(llmStatus());
   }
 
-  const report = loadAgencyReport(id);
+  // Same resolver as RAG / investigate — catalog agencies use live report + contracts-cache
+  const report = await resolveAgencyReport(id);
   if (!report) {
-    return Response.json({ error: 'Real data not cached' }, { status: 503 });
+    return Response.json(
+      {
+        error: 'ยังสร้างรายงานหน่วยงานไม่ได้',
+        hint: 'สแกนหน่วยงานก่อน หรือตรวจว่ามีในแคตตาล็อก / contracts-cache',
+      },
+      { status: 503 }
+    );
   }
 
   const pack = buildInvestigationPack(id, report);

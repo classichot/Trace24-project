@@ -18,10 +18,9 @@ export type LlmConfig = {
 };
 
 export function getLlmConfig(): LlmConfig {
-  const apiKey =
-    process.env.LLM_API_KEY?.trim() ||
-    process.env.OPENAI_API_KEY?.trim() ||
-    null;
+  const fromLlm = process.env.LLM_API_KEY?.trim() || '';
+  const fromOpenAi = process.env.OPENAI_API_KEY?.trim() || '';
+  const apiKey = fromLlm || fromOpenAi || null;
   const enabledEnv = process.env.LLM_ENABLED?.trim().toLowerCase();
   const enabled =
     enabledEnv === 'false' || enabledEnv === '0'

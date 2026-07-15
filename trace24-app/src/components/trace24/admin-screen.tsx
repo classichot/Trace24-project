@@ -389,17 +389,20 @@ export function AdminScreen() {
   }, [adminTab]);
 
   const runLlmAction = (action: 'review-signals' | 'propose-rules' | 'refine-brief') => {
-    if (!isRealAgency(scannedId)) return;
+    if (!scannedId || !isRealAgency(scannedId)) {
+      setLlmError('สแกนหน่วยงานข้อมูลจริงก่อน (เช่น egp-… หรือโพทะเล)');
+      return;
+    }
     setLlmBusy(action);
     setLlmError(null);
-    fetch(`/api/agencies/${scannedId}/llm`, {
+    fetch(`/api/agencies/${encodeURIComponent(scannedId)}/llm`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action, persist: true }),
     })
       .then(async (r) => {
         const data = await r.json().catch(() => ({}));
-        if (!r.ok) throw new Error(data.error || `HTTP ${r.status}`);
+        if (!r.ok) throw new Error(data.error || data.hint || `HTTP ${r.status}`);
         return data;
       })
       .then((data) => {
