@@ -325,16 +325,51 @@ export async function fetchGovSpendingContracts(
       (opts.agencyId ? loadContractsCache(opts.agencyId) : null) ||
       loadContractsCacheByKeyword(keyword);
     if (cached) {
-      const contracts = (cached.rows || [])
-        .map(mapRow)
-        .filter((c) => c.project_name && deptMatches(c.dept_name, keyword))
-        .slice(0, limit);
+      // Prefer a deeper slice from committed cache (local/Vercel) so large กรม
+      // agencies are not capped at the live CKAN default of ~50–80 rows.
+      const readSlice = (file: typeof cached, matchKw: string) => {
+        const cacheLimit = Math.max(
+          limit,
+          Math.min(400, file.count || (file.rows || []).length || 0)
+        );
+        const cacheKw = file.keyword || '';
+        const contracts = (file.rows || [])
+          .map(mapRow)
+          .filter(
+            (c) =>
+              c.project_name &&
+              (deptMatches(c.dept_name, matchKw) ||
+                (cacheKw && deptMatches(c.dept_name, cacheKw)))
+          )
+          .slice(0, cacheLimit);
+        return { contracts, cacheLimit, total: file.count || contracts.length };
+      };
+
+      let { contracts, total } = readSlice(cached, keyword);
+      let used = cached;
+      if (!contracts.length && cached.parentAgencyId) {
+        const parent = loadContractsCache(cached.parentAgencyId);
+        if (parent && (parent.count || (parent.rows || []).length)) {
+          const parentKw = cached.parentKeyword || parent.keyword || keyword;
+          const fromParent = readSlice(parent, parentKw);
+          if (fromParent.contracts.length) {
+            contracts = fromParent.contracts;
+            total = fromParent.total;
+            used = parent;
+            notes.push(
+              `contracts-cache parent ${parent.agencyId} (${parentKw}) — alias of ${cached.agencyId || keyword}`
+            );
+          }
+        }
+      }
       if (contracts.length) {
-        notes.push(`contracts-cache ${contracts.length} rows (${cached.fetchedAt})`);
+        notes.push(
+          `contracts-cache ${contracts.length}/${total || contracts.length} rows (${used.fetchedAt})`
+        );
         return {
           contracts,
-          packageId: cached.source || 'contracts-cache',
-          totalEstimate: cached.count || contracts.length,
+          packageId: used.source || 'contracts-cache',
+          totalEstimate: total || contracts.length,
           fetchNotes: notes,
         };
       }

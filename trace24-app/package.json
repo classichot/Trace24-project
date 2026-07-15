@@ -13,6 +13,7 @@
     "build-agency-catalog": "node scripts/build-agency-catalog.mjs",
     "cache-agency-contracts": "node scripts/cache-agency-contracts.mjs",
     "sync-contracts-cache": "node scripts/sync-contracts-cache.mjs",
+    "sync-missing-priority-caches": "node scripts/sync-missing-priority-caches.mjs",
     "build-all-contracts-caches": "node scripts/build-all-contracts-caches.mjs",
     "repair-contracts-winners": "node scripts/repair-contracts-cache-winners.mjs",
     "seed-papai-related": "node scripts/seed-papai-related.mjs",
