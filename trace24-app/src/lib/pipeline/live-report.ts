@@ -47,6 +47,27 @@ function parseMoney(s: string) {
   return Number.isFinite(n) ? n : 0;
 }
 
+/** Core place-name after stripping อปท. prefixes (ตะกั่วป่า ← เทศบาลเมืองตะกั่วป่า). */
+function agencyNameCore(name: string) {
+  return String(name || '')
+    .replace(
+      /เทศบาลตำบล|เทศบาลเมือง|เทศบาลนคร|เทศบาล|องค์การบริหารส่วนตำบล|อบต\.?|องค์การบริหารส่วนจังหวัด|อบจ\.?/g,
+      ''
+    )
+    .replace(/\s+/g, '')
+    .trim();
+}
+
+/** Match catalog alias names to egp-contact dept rows (and parent-alias caches). */
+function deptRelatedToAgency(dept: string, agencyName: string) {
+  if (!dept || !agencyName) return true;
+  if (dept === agencyName || dept.includes(agencyName) || agencyName.includes(dept)) return true;
+  const d = agencyNameCore(dept);
+  const a = agencyNameCore(agencyName);
+  if (a.length >= 2 && d.length >= 2 && (d === a || d.includes(a) || a.includes(d))) return true;
+  return false;
+}
+
 /** Turn govspending contracts into a TRACE24-shaped report usable by the UI. */
 export function enrichStubWithContracts(
   stub: ReturnType<typeof buildCatalogStubReport>,
@@ -77,14 +98,11 @@ export function enrichStubWithContracts(
 
   for (const c of contracts) {
     if (!c.project_name) continue;
-    // Prefer exact agency name match when available
+    // Prefer exact / core-name match (เทศบาลตะกั่วป่า ↔ เทศบาลเมืองตะกั่วป่า)
     const dept = c.dept_name || '';
     const keyword = stub.agency.th;
-    if (dept && dept !== keyword && !dept.includes(keyword) && !keyword.includes(dept)) {
-      // keep loose matches from CKAN q= but skip obvious other schools if exact siblings
-      if (keyword.length >= 8 && !dept.includes(keyword.slice(0, Math.min(12, keyword.length)))) {
-        continue;
-      }
+    if (dept && !deptRelatedToAgency(dept, keyword)) {
+      continue;
     }
 
     i += 1;
@@ -738,10 +756,11 @@ export async function buildAgencyReportFromCatalog(
         agencyId: agency.id,
       }
     );
-    // Prefer exact dept_name matches; when จังหวัด is known, keep only that province
+    // Prefer exact / core-name dept matches; when จังหวัด is known, keep only that province
     // (same name can exist in multiple provinces — e.g. เทศบาลตำบลป่าไผ่).
     const exact = contracts.filter((c) => c.dept_name === agency.th);
-    let use = exact.length ? exact : contracts;
+    const related = contracts.filter((c) => deptRelatedToAgency(c.dept_name, agency.th));
+    let use = exact.length ? exact : related.length ? related : contracts;
     if (agency.prov) {
       const byProv = use.filter((c) => !c.province || c.province === agency.prov);
       if (byProv.length) use = byProv;
