@@ -237,8 +237,10 @@ export function HomeScreen() {
                 lineHeight: 1.55,
               }}
             >
-              <div style={{ marginBottom: 8 }}>ไม่พบ「{q}」ในทะเบียนหน่วยจัดซื้อ</div>
-              <div style={{ color: '#8B8B85', marginBottom: 8 }}>ลองหน่วยงานที่มีรายงานครบ:</div>
+              <div style={{ marginBottom: 8 }}>ไม่พบ「{q}」ที่มีรายงานในแคชสัญญา</div>
+              <div style={{ color: '#8B8B85', marginBottom: 8 }}>
+                แสดงเฉพาะหน่วยงานที่สแกนแล้วมีข้อมูล — ลองชื่ออื่นหรือรายการด้านล่าง:
+              </div>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
                 {REAL_AGENCIES.map((a) => (
                   <span

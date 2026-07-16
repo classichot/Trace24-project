@@ -29,15 +29,27 @@ export async function GET(req: Request) {
   }
 
   if (q) {
-    const results = searchAgencyCatalog(q, { limit, includeSchools }).map((a) => {
-      const agency = enrichWithFeatured(a, REAL_AGENCIES);
-      return { ...agency, cached: agencyHasReport(agency.id, agency.real) };
+    // Oversample then keep only agencies that can produce a report (contracts-cache / curated).
+    // Empty catalog stubs (e.g. จังหวัดไม่ทราบ without cache) stay out of search.
+    const includeAll = url.searchParams.get('all') === '1';
+    const pool = searchAgencyCatalog(q, {
+      limit: includeAll ? limit : Math.max(limit * 12, 120),
+      includeSchools,
     });
+    const results = pool
+      .map((a) => {
+        const agency = enrichWithFeatured(a, REAL_AGENCIES);
+        const cached = agencyHasReport(agency.id, agency.real);
+        return { ...agency, cached };
+      })
+      .filter((a) => includeAll || a.cached)
+      .slice(0, limit);
     return Response.json({
       q,
       count: results.length,
       results,
       meta: getCatalogMeta(),
+      filter: includeAll ? 'all' : 'with_report',
     });
   }
 
