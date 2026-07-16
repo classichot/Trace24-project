@@ -1,7 +1,8 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { C, useTrace24 } from '@/context/trace24-context';
+import { callAgencyLlm } from '@/lib/llm-ui';
 import { sev } from '@/lib/utils';
 import { SeverityBadge } from './ui';
 import { GraphSvg, type GraphEdge } from './graph-svg';
@@ -25,7 +26,24 @@ export function GraphScreen() {
     setGraphFilter,
     setSelNodeId,
     go,
+    scannedId,
   } = useTrace24();
+
+  const [storyBusy, setStoryBusy] = useState(false);
+  const [story, setStory] = useState<{
+    story: string;
+    connections: string[];
+    investigateHints: string[];
+    caveat: string;
+    model?: string;
+  } | null>(null);
+  const [storyErr, setStoryErr] = useState<string | null>(null);
+
+  useEffect(() => {
+    setStory(null);
+    setStoryErr(null);
+    setStoryBusy(false);
+  }, [selNodeId]);
 
   const G = dataset.graph || { nodes: [], edges: [], details: {} };
   const layer = graphLayer;
@@ -329,6 +347,75 @@ export function GraphScreen() {
                 }}
               >
                 {gSelLinkLabel}
+              </div>
+            )}
+            <div
+              onClick={() => {
+                const agencyId = scannedId || muni.id;
+                if (!agencyId || storyBusy || !gSel) return;
+                setStoryBusy(true);
+                setStoryErr(null);
+                void callAgencyLlm<{
+                  story: string;
+                  connections: string[];
+                  investigateHints: string[];
+                  caveat: string;
+                  model?: string;
+                }>(agencyId, 'graph-story', {
+                  node: {
+                    typeLabel: gSel.typeLabel,
+                    label: gSel.label,
+                    sub: gSel.sub,
+                    facts: gSel.facts,
+                  },
+                  connections: gConns.map((c) => ({ label: c.label, rel: c.rel })),
+                }).then((out) => {
+                  setStoryBusy(false);
+                  if (!out.ok) {
+                    setStoryErr(out.error);
+                    return;
+                  }
+                  setStory(out.data);
+                });
+              }}
+              className="trace24-btn-dark"
+              style={{
+                marginTop: 12,
+                padding: '10px 14px',
+                fontSize: 13,
+                textAlign: 'center',
+                cursor: storyBusy ? 'wait' : 'pointer',
+                opacity: storyBusy ? 0.7 : 1,
+                userSelect: 'none',
+              }}
+            >
+              {storyBusy ? 'กำลังเล่าเรื่อง…' : 'AI เล่าเรื่องจากโหนดนี้'}
+            </div>
+            {storyErr && (
+              <div style={{ marginTop: 10, fontSize: 12.5, color: 'var(--accent)' }}>{storyErr}</div>
+            )}
+            {story && (
+              <div
+                style={{
+                  marginTop: 12,
+                  padding: '12px 14px',
+                  background: '#F6F6F3',
+                  fontSize: 12.5,
+                  lineHeight: 1.55,
+                }}
+              >
+                <div style={{ fontSize: 11, color: '#8B8B85', marginBottom: 6 }}>
+                  Graph story{story.model ? ` · ${story.model}` : ''}
+                </div>
+                <div>{story.story}</div>
+                {story.investigateHints?.length > 0 && (
+                  <div style={{ marginTop: 8, color: '#55554F' }}>
+                    {story.investigateHints.map((h) => (
+                      <div key={h}>· {h}</div>
+                    ))}
+                  </div>
+                )}
+                <div style={{ marginTop: 8, color: '#8A5A1C', fontSize: 12 }}>{story.caveat}</div>
               </div>
             )}
             <div style={{ flex: 1 }} />

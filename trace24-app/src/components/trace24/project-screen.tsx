@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useTrace24 } from '@/context/trace24-context';
+import { callAgencyLlm } from '@/lib/llm-ui';
 import { REVIEW_OPTIONS, sev } from '@/lib/utils';
 import { LoadingHint, RiskDisclaimer, SeverityBadge, selectStyle } from './ui';
 
@@ -97,6 +98,31 @@ export function ProjectScreen() {
   const [aiBusy, setAiBusy] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
   const [aiCompare, setAiCompare] = useState<PriceCompareAi | null>(null);
+  const [peerBusy, setPeerBusy] = useState(false);
+  const [peerErr, setPeerErr] = useState<string | null>(null);
+  const [peerNarrative, setPeerNarrative] = useState<{
+    headline: string;
+    narrative: string;
+    peerPoints: string[];
+    dataGaps: string[];
+    caveat: string;
+    model?: string;
+  } | null>(null);
+  const [announceBusy, setAnnounceBusy] = useState(false);
+  const [announceErr, setAnnounceErr] = useState<string | null>(null);
+  const [announceExtract, setAnnounceExtract] = useState<{
+    winner: string | null;
+    winnerTin: string | null;
+    awardAmount: string | null;
+    budgetAmount: string | null;
+    method: string | null;
+    announceDate: string | null;
+    unusualClauses: string[];
+    notes: string;
+    caveat: string;
+    url?: string;
+    model?: string;
+  } | null>(null);
 
   const projects = dataset.projects as unknown as Record<string, ProjectLike>;
   const projectKey =
@@ -110,6 +136,10 @@ export function ProjectScreen() {
     setAiCompare(null);
     setAiError(null);
     setAiBusy(false);
+    setPeerNarrative(null);
+    setPeerErr(null);
+    setAnnounceExtract(null);
+    setAnnounceErr(null);
   }, [projectKey, scannedId]);
 
   if (!pr0) {
@@ -322,23 +352,138 @@ export function ProjectScreen() {
               มีอัตราต่อหน่วยแล้วใช้เป็นหลัก · เทียบบาท/ลบ.ม. · บาท/กม. · บาท/ตร.ม.
             </h2>
           </div>
-          <button
-            type="button"
-            onClick={runAiCompare}
-            disabled={aiBusy || !scannedId}
-            style={{
-              fontSize: 13,
-              padding: '10px 16px',
-              border: '1px solid #111110',
-              background: aiBusy ? '#EEEEEA' : '#111110',
-              color: aiBusy ? '#55554F' : '#FBFBF9',
-              cursor: aiBusy || !scannedId ? 'default' : 'pointer',
-              fontFamily: 'inherit',
-            }}
-          >
-            {aiBusy ? 'กำลังวิเคราะห์…' : aiCompare ? 'วิเคราะห์อีกครั้ง' : 'ให้ AI วิเคราะห์'}
-          </button>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            <button
+              type="button"
+              onClick={runAiCompare}
+              disabled={aiBusy || !scannedId}
+              style={{
+                fontSize: 13,
+                padding: '10px 16px',
+                border: '1px solid #111110',
+                background: aiBusy ? '#EEEEEA' : '#111110',
+                color: aiBusy ? '#55554F' : '#FBFBF9',
+                cursor: aiBusy || !scannedId ? 'default' : 'pointer',
+                fontFamily: 'inherit',
+              }}
+            >
+              {aiBusy ? 'กำลังวิเคราะห์…' : aiCompare ? 'วิเคราะห์อีกครั้ง' : 'ให้ AI วิเคราะห์'}
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                if (!scannedId || !projectKey || peerBusy) return;
+                setPeerBusy(true);
+                setPeerErr(null);
+                void callAgencyLlm<{
+                  headline: string;
+                  narrative: string;
+                  peerPoints: string[];
+                  dataGaps: string[];
+                  caveat: string;
+                  model?: string;
+                }>(scannedId, 'peer-narrative', { projectId: projectKey }).then((out) => {
+                  setPeerBusy(false);
+                  if (!out.ok) {
+                    setPeerErr(out.error);
+                    return;
+                  }
+                  setPeerNarrative(out.data);
+                });
+              }}
+              disabled={peerBusy || !scannedId}
+              style={{
+                fontSize: 13,
+                padding: '10px 16px',
+                border: '1px solid #111110',
+                background: '#fff',
+                color: '#111110',
+                cursor: peerBusy || !scannedId ? 'default' : 'pointer',
+                fontFamily: 'inherit',
+              }}
+            >
+              {peerBusy ? 'กำลังเล่า…' : 'AI เล่าเทียบ peer'}
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                if (!scannedId || !projectKey || announceBusy) return;
+                setAnnounceBusy(true);
+                setAnnounceErr(null);
+                void callAgencyLlm<{
+                  winner: string | null;
+                  winnerTin: string | null;
+                  awardAmount: string | null;
+                  budgetAmount: string | null;
+                  method: string | null;
+                  announceDate: string | null;
+                  unusualClauses: string[];
+                  notes: string;
+                  caveat: string;
+                  url?: string;
+                  model?: string;
+                }>(scannedId, 'extract-announce', { projectId: projectKey }).then((out) => {
+                  setAnnounceBusy(false);
+                  if (!out.ok) {
+                    setAnnounceErr(out.error);
+                    return;
+                  }
+                  setAnnounceExtract(out.data);
+                });
+              }}
+              disabled={announceBusy || !scannedId}
+              style={{
+                fontSize: 13,
+                padding: '10px 16px',
+                border: '1px solid #111110',
+                background: '#fff',
+                color: '#111110',
+                cursor: announceBusy || !scannedId ? 'default' : 'pointer',
+                fontFamily: 'inherit',
+              }}
+            >
+              {announceBusy ? 'กำลังอ่านประกาศ…' : 'AI อ่านประกาศ e-GP'}
+            </button>
+          </div>
         </div>
+        {peerErr && (
+          <div style={{ marginTop: 12, fontSize: 13, color: 'var(--accent)' }}>{peerErr}</div>
+        )}
+        {peerNarrative && (
+          <div style={{ marginTop: 14, padding: '14px 16px', background: '#F6F6F3', fontSize: 13, lineHeight: 1.55 }}>
+            <div style={{ fontWeight: 600 }}>{peerNarrative.headline}</div>
+            <div style={{ marginTop: 8 }}>{peerNarrative.narrative}</div>
+            {peerNarrative.peerPoints?.map((p) => (
+              <div key={p} style={{ marginTop: 4, color: '#55554F' }}>
+                · {p}
+              </div>
+            ))}
+            <div style={{ marginTop: 8, fontSize: 12, color: '#8A5A1C' }}>{peerNarrative.caveat}</div>
+          </div>
+        )}
+        {announceErr && (
+          <div style={{ marginTop: 12, fontSize: 13, color: 'var(--accent)' }}>{announceErr}</div>
+        )}
+        {announceExtract && (
+          <div style={{ marginTop: 14, padding: '14px 16px', background: '#F6F6F3', fontSize: 13, lineHeight: 1.55 }}>
+            <div style={{ fontSize: 11, color: '#8B8B85', marginBottom: 6 }}>
+              สกัดจากประกาศ{announceExtract.model ? ` · ${announceExtract.model}` : ''}
+            </div>
+            <div>ผู้ชนะ: {announceExtract.winner || '—'}</div>
+            <div>เลขนิติบุคคล: {announceExtract.winnerTin || '—'}</div>
+            <div>ราคาที่ตกลง: {announceExtract.awardAmount || '—'}</div>
+            <div>วงเงิน/ราคากลางในเอกสาร: {announceExtract.budgetAmount || '—'}</div>
+            <div>วิธี: {announceExtract.method || '—'}</div>
+            <div>วันที่: {announceExtract.announceDate || '—'}</div>
+            {announceExtract.unusualClauses?.length > 0 && (
+              <div style={{ marginTop: 8 }}>
+                เงื่อนไขที่ควรดู: {announceExtract.unusualClauses.join(' · ')}
+              </div>
+            )}
+            {announceExtract.notes && <div style={{ marginTop: 6 }}>{announceExtract.notes}</div>}
+            <div style={{ marginTop: 8, fontSize: 12, color: '#8A5A1C' }}>{announceExtract.caveat}</div>
+          </div>
+        )}
         <div style={{ fontSize: 12.5, color: '#8B8B85', marginTop: 8, lineHeight: 1.5, maxWidth: 720 }}>
           เช่น ถนนคอนกรีต — ดึงความยาวแล้วเทียบค่าสร้างต่อกิโลเมตร ไม่ใช่แค่ราคารวมสัญญา · ไม่ใช่ราคากลางราชการ
         </div>

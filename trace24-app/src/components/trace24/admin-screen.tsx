@@ -5,6 +5,7 @@ import { adminWriteError, adminWriteHeaders, getAdminToken, setAdminToken } from
 import { isRealAgency } from '@/lib/agencies';
 import { useTrace24 } from '@/context/trace24-context';
 import { exportCaseReport } from '@/lib/export-case-report';
+import { callAgencyLlm } from '@/lib/llm-ui';
 import { REVIEW_OPTIONS, sev } from '@/lib/utils';
 import { SeverityBadge, inputStyle, selectStyle, RiskDisclaimer, LoadingHint } from './ui';
 import type { InvestigationPack, PipelineStatusResponse, HybridRagResult } from '@/lib/pipeline/types';
@@ -152,6 +153,15 @@ export function AdminScreen() {
   const [relatedDbdName, setRelatedDbdName] = useState('');
   const [exportMsg, setExportMsg] = useState<string | null>(null);
   const [exportBusy, setExportBusy] = useState(false);
+  const [draftBusy, setDraftBusy] = useState(false);
+  const [draftErr, setDraftErr] = useState<string | null>(null);
+  const [docDraft, setDocDraft] = useState<{
+    subject: string;
+    letterBody: string;
+    checklist: string[];
+    legalToneNote: string;
+    model?: string;
+  } | null>(null);
 
   const runExportReport = async () => {
     if (exportBusy) return;
@@ -1556,6 +1566,37 @@ export function AdminScreen() {
                     : ''}
                 </p>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginBottom: 14 }}>
+                  <div
+                    onClick={() => {
+                      if (!scannedId || draftBusy) return;
+                      setDraftBusy(true);
+                      setDraftErr(null);
+                      void callAgencyLlm<{
+                        subject: string;
+                        letterBody: string;
+                        checklist: string[];
+                        legalToneNote: string;
+                        model?: string;
+                      }>(scannedId, 'draft-request').then((out) => {
+                        setDraftBusy(false);
+                        if (!out.ok) {
+                          setDraftErr(out.error);
+                          return;
+                        }
+                        setDocDraft(out.data);
+                      });
+                    }}
+                    className="trace24-btn-dark"
+                    style={{
+                      padding: '10px 14px',
+                      fontSize: 12.5,
+                      cursor: draftBusy ? 'wait' : 'pointer',
+                      opacity: draftBusy ? 0.7 : 1,
+                      userSelect: 'none',
+                    }}
+                  >
+                    {draftBusy ? 'กำลังร่าง…' : 'AI ร่างหนังสือขอเอกสาร'}
+                  </div>
                   {(
                     [
                       ['refine-brief', 'ปรับสำนวน'],
@@ -1587,6 +1628,39 @@ export function AdminScreen() {
                 </div>
                 {llmError && (
                   <div style={{ fontSize: 12.5, color: 'var(--accent)', marginBottom: 12 }}>{llmError}</div>
+                )}
+                {draftErr && (
+                  <div style={{ fontSize: 12.5, color: 'var(--accent)', marginBottom: 12 }}>{draftErr}</div>
+                )}
+                {docDraft && (
+                  <div style={{ padding: '14px 16px', background: '#F6F6F3', marginBottom: 14, fontSize: 12.5, lineHeight: 1.6 }}>
+                    <div style={{ fontWeight: 600, marginBottom: 6 }}>
+                      ร่างหนังสือขอเอกสาร{docDraft.model ? ` · ${docDraft.model}` : ''}
+                    </div>
+                    <div style={{ fontWeight: 500 }}>{docDraft.subject}</div>
+                    <pre
+                      style={{
+                        margin: '12px 0 0',
+                        whiteSpace: 'pre-wrap',
+                        fontFamily: 'inherit',
+                        fontSize: 12.5,
+                        lineHeight: 1.6,
+                      }}
+                    >
+                      {docDraft.letterBody}
+                    </pre>
+                    {docDraft.checklist.length > 0 && (
+                      <div style={{ marginTop: 12 }}>
+                        <div style={{ fontWeight: 600, marginBottom: 4 }}>Checklist เอกสาร</div>
+                        {docDraft.checklist.map((c) => (
+                          <div key={c}>☐ {c}</div>
+                        ))}
+                      </div>
+                    )}
+                    {docDraft.legalToneNote && (
+                      <div style={{ marginTop: 10, color: '#8A5A1C' }}>{docDraft.legalToneNote}</div>
+                    )}
+                  </div>
                 )}
                 {llmBrief && (
                   <div style={{ padding: '14px 16px', background: '#F6F6F3', marginBottom: 14, fontSize: 12.5, lineHeight: 1.6 }}>
