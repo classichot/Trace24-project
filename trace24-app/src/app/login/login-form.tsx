@@ -76,7 +76,7 @@ export function LoginForm() {
       }}
     >
       <div style={{ width: '100%', maxWidth: 420 }}>
-        <div style={{ fontWeight: 700, fontSize: 18, letterSpacing: '.01em' }}>
+        <div style={{ fontWeight: 700, fontSize: 36, letterSpacing: '.01em', lineHeight: 1.1 }}>
           TRACE<span style={{ color: '#8B8B85' }}>24</span>
         </div>
         <h1 style={{ fontSize: 26, fontWeight: 500, margin: '18px 0 8px' }}>เข้าสู่ระบบเดโม</h1>
