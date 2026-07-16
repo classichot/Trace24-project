@@ -56,7 +56,7 @@ export function Nav() {
           </div>
           <div style={{ flex: 1 }} />
           <div className="trace24-nav-top__tabs">
-            {tabs.map((t) => (
+              {tabs.map((t) => (
               <div
                 key={t.id}
                 onClick={t.go}
@@ -76,6 +76,24 @@ export function Nav() {
                 {t.label}
               </div>
             ))}
+            <div
+              onClick={() => {
+                void fetch('/api/auth/logout', { method: 'POST' }).finally(() => {
+                  window.location.href = '/login';
+                });
+              }}
+              className="trace24-hover-text"
+              style={{
+                cursor: 'pointer',
+                fontSize: 12.5,
+                color: '#8B8B85',
+                marginLeft: 12,
+                whiteSpace: 'nowrap',
+              }}
+              title="ออกจากระบบเดโม"
+            >
+              ออกจากระบบ
+            </div>
           </div>
         </div>
       </div>

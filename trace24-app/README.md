@@ -29,7 +29,14 @@ Open [http://localhost:3000](http://localhost:3000)
 |----------|---------|
 | `OPENAI_API_KEY` or `LLM_API_KEY` | LLM assist (RAG phrasing, rule drafts) — does **not** set risk scores |
 | `TRACE24_ADMIN_TOKEN` | Required for Admin **write** APIs on Vercel; paste same value in Admin UI |
+| `TRACE24_DEMO_PASSWORD` | Shared demo login password (enables `/login` gate) |
+| `TRACE24_EMAIL_ALLOWLIST` | Comma-separated emails allowed to enter (optional; with or without password) |
+| `TRACE24_GATE_SECRET` | Optional cookie signing secret |
 | `OPEND_API_KEY` | Optional Open D enrich |
+
+**Access layers**
+1. **Demo gate** — if password and/or email allowlist is set, visitors must pass `/login` before any page/API
+2. **Admin token** — mutating Admin APIs still require `TRACE24_ADMIN_TOKEN` in the Admin UI
 
 On Vercel production, Admin mutating routes deny writes until `TRACE24_ADMIN_TOKEN` is set.
 
