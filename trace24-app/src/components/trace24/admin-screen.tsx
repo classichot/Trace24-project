@@ -580,20 +580,41 @@ export function AdminScreen() {
             ภายใน · จำกัดสิทธิ์
           </span>
         </div>
-        <div
-          onClick={() => void runExportReport()}
-          className="trace24-btn-dark"
-          style={{
-            padding: '11px 18px',
-            fontSize: 13,
-            cursor: exportBusy ? 'wait' : 'pointer',
-            opacity: exportBusy ? 0.7 : 1,
-            flex: 'none',
-            userSelect: 'none',
-          }}
-          title="ดาวน์โหลด Markdown และเปิดหน้าพิมพ์สำหรับบันทึก PDF"
-        >
-          {exportBusy ? 'กำลังส่งออก…' : 'ส่งออกรายงาน'}
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+          {scannedId ? (
+            <a
+              href={`/api/agencies/${encodeURIComponent(scannedId)}/audit-observations?format=html`}
+              target="_blank"
+              rel="noreferrer"
+              style={{
+                padding: '11px 18px',
+                fontSize: 13,
+                border: '1px solid #D8D8D2',
+                textDecoration: 'none',
+                color: 'inherit',
+                flex: 'none',
+                userSelect: 'none',
+              }}
+              title="ชุดสังเกตการณ์มูลค่าเงิน — งานตรวจ / สตง."
+            >
+              ชุดสังเกตการณ์ สตง.
+            </a>
+          ) : null}
+          <div
+            onClick={() => void runExportReport()}
+            className="trace24-btn-dark"
+            style={{
+              padding: '11px 18px',
+              fontSize: 13,
+              cursor: exportBusy ? 'wait' : 'pointer',
+              opacity: exportBusy ? 0.7 : 1,
+              flex: 'none',
+              userSelect: 'none',
+            }}
+            title="ดาวน์โหลด Markdown และเปิดหน้าพิมพ์สำหรับบันทึก PDF"
+          >
+            {exportBusy ? 'กำลังส่งออก…' : 'ส่งออกรายงาน'}
+          </div>
         </div>
       </div>
       {exportMsg && (

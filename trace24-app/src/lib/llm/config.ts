@@ -5,7 +5,7 @@
  * Env:
  *   LLM_API_KEY or OPENAI_API_KEY
  *   LLM_BASE_URL (default https://api.openai.com/v1)
- *   LLM_MODEL (default gpt-4o-mini)
+ *   LLM_MODEL (default gpt-4.1)
  *   LLM_ENABLED=true|false (default: on when key present)
  */
 
@@ -33,7 +33,7 @@ export function getLlmConfig(): LlmConfig {
     enabled,
     apiKey,
     baseUrl: (process.env.LLM_BASE_URL || 'https://api.openai.com/v1').replace(/\/$/, ''),
-    model: process.env.LLM_MODEL || 'gpt-4o-mini',
+    model: process.env.LLM_MODEL || 'gpt-4.1',
     timeoutMs: Number(process.env.LLM_TIMEOUT_MS || 45000),
   };
 }

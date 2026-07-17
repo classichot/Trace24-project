@@ -176,6 +176,27 @@ export function DashboardScreen() {
           >
             เปิดสำนวน / คิวงาน
           </div>
+          {agencyId ? (
+            <a
+              href={`/api/agencies/${encodeURIComponent(agencyId)}/audit-observations?format=html`}
+              target="_blank"
+              rel="noreferrer"
+              style={{
+                padding: '10px 16px',
+                fontSize: 13,
+                textAlign: 'center',
+                cursor: 'pointer',
+                userSelect: 'none',
+                border: '1px solid #D8D8D2',
+                textDecoration: 'none',
+                color: 'inherit',
+                display: 'block',
+              }}
+              title="ชุดสังเกตการณ์มูลค่าเงินสำหรับงานตรวจ / สตง."
+            >
+              ชุดสังเกตการณ์ สตง. (PDF)
+            </a>
+          ) : null}
         </div>
       </div>
 
