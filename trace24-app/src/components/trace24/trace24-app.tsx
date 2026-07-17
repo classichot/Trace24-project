@@ -11,6 +11,8 @@ import { GraphScreen } from './graph-screen';
 import { AdminScreen } from './admin-screen';
 import { InfoScreen } from './info-screen';
 import { PricesScreen } from './prices-screen';
+import { CasesScreen } from './cases-screen';
+import { OrgScreen } from './org-screen';
 
 export function Trace24App() {
   const { page } = useTrace24();
@@ -26,6 +28,8 @@ export function Trace24App() {
       {page === 'graph' && <GraphScreen />}
       {page === 'admin' && <AdminScreen />}
       {page === 'prices' && <PricesScreen />}
+      {page === 'cases' && <CasesScreen />}
+      {page === 'org' && <OrgScreen />}
       {(page === 'method' ||
         page === 'sources' ||
         page === 'corrections' ||

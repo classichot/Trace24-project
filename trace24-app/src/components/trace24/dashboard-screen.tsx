@@ -163,6 +163,19 @@ export function DashboardScreen() {
           >
             {briefBusy ? 'กำลังสรุป…' : 'AI สรุป 30 วินาที'}
           </div>
+          <div
+            onClick={() => go('cases')}
+            style={{
+              padding: '10px 16px',
+              fontSize: 13,
+              textAlign: 'center',
+              cursor: 'pointer',
+              userSelect: 'none',
+              border: '1px solid #111110',
+            }}
+          >
+            เปิดสำนวน / คิวงาน
+          </div>
         </div>
       </div>
 

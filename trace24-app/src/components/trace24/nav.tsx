@@ -5,9 +5,16 @@ import { Logo } from './ui';
 
 export function Nav() {
   const { page, muni, go, setAdminTab } = useTrace24();
-  const showNav = ['dashboard', 'project', 'contractor', 'graph', 'admin', 'prices'].includes(
-    page
-  );
+  const showNav = [
+    'dashboard',
+    'project',
+    'contractor',
+    'graph',
+    'admin',
+    'prices',
+    'cases',
+    'org',
+  ].includes(page);
   if (!showNav) return null;
 
   const tabs = [
@@ -24,6 +31,13 @@ export function Nav() {
       short: 'กราฟ',
       active: page === 'graph',
       go: () => go('graph'),
+    },
+    {
+      id: 'cases',
+      label: 'คิวงาน',
+      short: 'คิว',
+      active: page === 'cases' || page === 'org',
+      go: () => go('cases'),
     },
     {
       id: 'prices',

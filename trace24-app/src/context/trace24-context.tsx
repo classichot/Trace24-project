@@ -37,6 +37,8 @@ export type Page =
   | 'graph'
   | 'admin'
   | 'prices'
+  | 'cases'
+  | 'org'
   | 'method'
   | 'sources'
   | 'corrections'
@@ -81,6 +83,7 @@ type Trace24State = {
   liveDataset: Trace24Dataset | null;
   datasetLoading: boolean;
   datasetError: string | null;
+  selCaseId: string | null;
 };
 
 type Trace24ContextValue = Trace24State & {
@@ -97,6 +100,7 @@ type Trace24ContextValue = Trace24State & {
   setGraphFilter: (f: GraphFilter) => void;
   setGraphLayer: (l: GraphLayer) => void;
   setAdminTab: (t: AdminTab) => void;
+  setSelCaseId: (id: string | null) => void;
   setProjectReview: (projectId: string, value: string) => void;
   setErDecision: (id: string, decision: string) => void;
   setReviewState: (key: string, value: string) => void;
@@ -138,6 +142,7 @@ const INITIAL: Trace24State = {
   liveDataset: null,
   datasetLoading: false,
   datasetError: null,
+  selCaseId: null,
 };
 
 function mockDataset(id: string | null): Trace24Dataset {
@@ -319,6 +324,7 @@ export function Trace24Provider({ children }: { children: ReactNode }) {
     setGraphFilter: (f) => setState((s) => ({ ...s, graphFilter: f })),
     setGraphLayer: (l) => setState((s) => ({ ...s, graphLayer: l })),
     setAdminTab: (t) => setState((s) => ({ ...s, adminTab: t })),
+    setSelCaseId: (id) => setState((s) => ({ ...s, selCaseId: id })),
     setProjectReview: (projectId, value) =>
       setState((s) => ({
         ...s,
