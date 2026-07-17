@@ -272,7 +272,7 @@ export function CasesScreen() {
                     padding: '10px 14px',
                     fontSize: 13,
                     textDecoration: 'none',
-                    color: 'inherit',
+                    color: '#fbfbf9',
                     display: 'inline-block',
                   }}
                 >

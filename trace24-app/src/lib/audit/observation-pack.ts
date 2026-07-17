@@ -22,6 +22,12 @@ export type MoneyObservation = {
   fy: string;
   text: string;
   suggestedCheck: string;
+  /** AI: why this item looks suspicious for money oversight */
+  suspicionWhy?: string;
+  /** AI: plausible non-corrupt explanation */
+  innocentAlternative?: string;
+  /** AI: what to verify next */
+  whatToVerify?: string;
 };
 
 export type AuditObservationPack = {
@@ -41,10 +47,14 @@ export type AuditObservationPack = {
   observations: MoneyObservation[];
   topWinners: { name: string; total: string; shareHint?: string }[];
   documentRequests: string[];
+  /** AI executive narrative across the pack */
+  aiNarrative?: string;
+  aiModel?: string;
+  aiError?: string;
 };
 
 const DISCLAIMER =
-  'ชุดสังเกตการณ์นี้จัดลำดับประเด็นมูลค่าเงินจากข้อมูลจัดซื้อจัดจ้างสาธารณะเพื่อประกอบการตรวจของ สตง./ผู้ตรวจสอบ — ไม่ใช่ข้อสรุปการทุจริตหรือความผิด และไม่ใช่รายงานการตรวจเงินแผ่นดินอย่างเป็นทางการ';
+  'ชุดสังเกตการณ์นี้จัดลำดับประเด็นมูลค่าเงินจากข้อมูลจัดซื้อจัดจ้างสาธารณะเพื่อประกอบการตรวจและสอบสวน — ไม่ใช่ข้อสรุปการทุจริตหรือความผิด และไม่ใช่รายงานอย่างเป็นทางการของหน่วยงานที่มีอำนาจ';
 
 function sectionForTag(tag: string): MoneyObservation['section'] | null {
   const t = String(tag || '');
@@ -84,7 +94,7 @@ function moneyTag(tag: string) {
   return sectionForTag(tag) != null;
 }
 
-/** Build สตง-oriented money observation pack from an agency report. */
+/** Build money observation pack for oversight / investigation workflows. */
 export function buildAuditObservationPack(
   agencyId: string,
   report: PipelineReportLike

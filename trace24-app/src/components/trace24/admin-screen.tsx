@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { adminWriteError, adminWriteHeaders, getAdminToken, setAdminToken } from '@/lib/admin-client';
 import { isRealAgency } from '@/lib/agencies';
 import { useTrace24 } from '@/context/trace24-context';
+import { openAuditObservationPack } from '@/lib/audit-ui';
 import { exportCaseReport } from '@/lib/export-case-report';
 import { callAgencyLlm } from '@/lib/llm-ui';
 import { REVIEW_OPTIONS, sev } from '@/lib/utils';
@@ -154,6 +155,8 @@ export function AdminScreen() {
   const [relatedDbdName, setRelatedDbdName] = useState('');
   const [exportMsg, setExportMsg] = useState<string | null>(null);
   const [exportBusy, setExportBusy] = useState(false);
+  const [auditBusy, setAuditBusy] = useState(false);
+  const [auditErr, setAuditErr] = useState<string | null>(null);
   const [draftBusy, setDraftBusy] = useState(false);
   const [draftErr, setDraftErr] = useState<string | null>(null);
   const [docDraft, setDocDraft] = useState<{
@@ -582,23 +585,29 @@ export function AdminScreen() {
         </div>
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
           {scannedId ? (
-            <a
-              href={`/api/agencies/${encodeURIComponent(scannedId)}/audit-observations?format=html`}
-              target="_blank"
-              rel="noreferrer"
+            <div
+              onClick={() => {
+                if (auditBusy || !scannedId) return;
+                setAuditBusy(true);
+                setAuditErr(null);
+                void openAuditObservationPack(scannedId).then((out) => {
+                  setAuditBusy(false);
+                  if (!out.ok) setAuditErr(out.error);
+                });
+              }}
               style={{
                 padding: '11px 18px',
                 fontSize: 13,
                 border: '1px solid #D8D8D2',
-                textDecoration: 'none',
-                color: 'inherit',
                 flex: 'none',
                 userSelect: 'none',
+                cursor: auditBusy ? 'wait' : 'pointer',
+                opacity: auditBusy ? 0.7 : 1,
               }}
-              title="ชุดสังเกตการณ์มูลค่าเงิน — งานตรวจ / สตง."
+              title="สร้างชุดสังเกตการณ์ + AI อธิบายความน่าสงสัยของแต่ละประเด็น"
             >
-              ชุดสังเกตการณ์ สตง.
-            </a>
+              {auditBusy ? 'AI กำลังอธิบาย…' : 'ชุดสังเกตการณ์มูลค่าเงิน'}
+            </div>
           ) : null}
           <div
             onClick={() => void runExportReport()}
@@ -617,8 +626,10 @@ export function AdminScreen() {
           </div>
         </div>
       </div>
-      {exportMsg && (
-        <div style={{ marginTop: 10, fontSize: 12.5, color: '#55554F', lineHeight: 1.5 }}>{exportMsg}</div>
+      {(exportMsg || auditErr) && (
+        <div style={{ marginTop: 10, fontSize: 12.5, color: auditErr ? 'var(--accent)' : '#55554F', lineHeight: 1.5 }}>
+          {auditErr || exportMsg}
+        </div>
       )}
 
       <div

@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { D, useTrace24 } from '@/context/trace24-context';
+import { openAuditObservationPack } from '@/lib/audit-ui';
 import { callAgencyLlm } from '@/lib/llm-ui';
 import { sev } from '@/lib/utils';
 import { RiskDisclaimer, SeverityBadge } from './ui';
@@ -35,6 +36,17 @@ export function DashboardScreen() {
   const [explainBusy, setExplainBusy] = useState<string | null>(null);
   const [explains, setExplains] = useState<Record<string, SignalExplain>>({});
   const [explainErr, setExplainErr] = useState<string | null>(null);
+  const [auditBusy, setAuditBusy] = useState(false);
+  const [auditErr, setAuditErr] = useState<string | null>(null);
+
+  const runAuditPack = async () => {
+    if (!agencyId || auditBusy) return;
+    setAuditBusy(true);
+    setAuditErr(null);
+    const out = await openAuditObservationPack(agencyId);
+    setAuditBusy(false);
+    if (!out.ok) setAuditErr(out.error);
+  };
 
   const runBrief = async () => {
     if (!agencyId || briefBusy) return;
@@ -177,26 +189,25 @@ export function DashboardScreen() {
             เปิดสำนวน / คิวงาน
           </div>
           {agencyId ? (
-            <a
-              href={`/api/agencies/${encodeURIComponent(agencyId)}/audit-observations?format=html`}
-              target="_blank"
-              rel="noreferrer"
+            <div
+              onClick={() => void runAuditPack()}
               style={{
                 padding: '10px 16px',
                 fontSize: 13,
                 textAlign: 'center',
-                cursor: 'pointer',
+                cursor: auditBusy ? 'wait' : 'pointer',
                 userSelect: 'none',
                 border: '1px solid #D8D8D2',
-                textDecoration: 'none',
-                color: 'inherit',
-                display: 'block',
+                opacity: auditBusy ? 0.7 : 1,
               }}
-              title="ชุดสังเกตการณ์มูลค่าเงินสำหรับงานตรวจ / สตง."
+              title="สร้างชุดสังเกตการณ์ + AI อธิบายความน่าสงสัยของแต่ละประเด็น"
             >
-              ชุดสังเกตการณ์ สตง. (PDF)
-            </a>
+              {auditBusy ? 'AI กำลังอธิบาย…' : 'ชุดสังเกตการณ์มูลค่าเงิน (PDF)'}
+            </div>
           ) : null}
+          {auditErr && (
+            <div style={{ fontSize: 12, color: 'var(--accent)', textAlign: 'center' }}>{auditErr}</div>
+          )}
         </div>
       </div>
 

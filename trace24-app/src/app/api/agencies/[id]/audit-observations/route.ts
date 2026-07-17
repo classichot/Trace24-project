@@ -1,9 +1,10 @@
 import { isRealAgency } from '@/lib/agencies';
+import { enrichObservationPackWithAi } from '@/lib/audit/observation-ai';
 import { buildAuditObservationHtml } from '@/lib/audit/observation-html';
 import { buildAuditObservationPack } from '@/lib/audit/observation-pack';
 import { resolveAgencyReport } from '@/lib/pipeline/resolve-report';
 
-export const maxDuration = 60;
+export const maxDuration = 90;
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -25,9 +26,17 @@ export async function GET(req: Request, ctx: Ctx) {
       );
     }
 
-    const pack = buildAuditObservationPack(id, report);
+    let pack = buildAuditObservationPack(id, report);
     const { searchParams } = new URL(req.url);
     const format = (searchParams.get('format') || 'json').toLowerCase();
+    const useAi =
+      searchParams.get('ai') === '1' ||
+      searchParams.get('ai') === 'true' ||
+      searchParams.get('explain') === '1';
+
+    if (useAi) {
+      pack = await enrichObservationPackWithAi(pack);
+    }
 
     if (format === 'html') {
       return new Response(buildAuditObservationHtml(pack), {
