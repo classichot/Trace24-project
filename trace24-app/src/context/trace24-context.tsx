@@ -84,6 +84,8 @@ type Trace24State = {
   datasetLoading: boolean;
   datasetError: string | null;
   selCaseId: string | null;
+  /** When true, Cases screen should create a case for the current agency once */
+  pendingOpenCase: boolean;
 };
 
 type Trace24ContextValue = Trace24State & {
@@ -101,6 +103,7 @@ type Trace24ContextValue = Trace24State & {
   setGraphLayer: (l: GraphLayer) => void;
   setAdminTab: (t: AdminTab) => void;
   setSelCaseId: (id: string | null) => void;
+  setPendingOpenCase: (v: boolean) => void;
   setProjectReview: (projectId: string, value: string) => void;
   setErDecision: (id: string, decision: string) => void;
   setReviewState: (key: string, value: string) => void;
@@ -143,6 +146,7 @@ const INITIAL: Trace24State = {
   datasetLoading: false,
   datasetError: null,
   selCaseId: null,
+  pendingOpenCase: false,
 };
 
 function mockDataset(id: string | null): Trace24Dataset {
@@ -325,6 +329,7 @@ export function Trace24Provider({ children }: { children: ReactNode }) {
     setGraphLayer: (l) => setState((s) => ({ ...s, graphLayer: l })),
     setAdminTab: (t) => setState((s) => ({ ...s, adminTab: t })),
     setSelCaseId: (id) => setState((s) => ({ ...s, selCaseId: id })),
+    setPendingOpenCase: (v) => setState((s) => ({ ...s, pendingOpenCase: v })),
     setProjectReview: (projectId, value) =>
       setState((s) => ({
         ...s,

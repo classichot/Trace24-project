@@ -25,7 +25,7 @@ type SignalExplain = {
 };
 
 export function DashboardScreen() {
-  const { muni, dataset, go, scannedId } = useTrace24();
+  const { muni, dataset, go, scannedId, setPendingOpenCase } = useTrace24();
   const { meta } = dataset;
   const agencyId = scannedId || muni.id;
 
@@ -176,7 +176,10 @@ export function DashboardScreen() {
             {briefBusy ? 'กำลังสรุป…' : 'AI สรุป 30 วินาที'}
           </div>
           <div
-            onClick={() => go('cases')}
+            onClick={() => {
+              setPendingOpenCase(true);
+              go('cases');
+            }}
             style={{
               padding: '10px 16px',
               fontSize: 13,
@@ -185,6 +188,7 @@ export function DashboardScreen() {
               userSelect: 'none',
               border: '1px solid #111110',
             }}
+            title="เปิดสำนวนใหม่ของหน่วยงานนี้ในคิวงาน"
           >
             เปิดสำนวน / คิวงาน
           </div>

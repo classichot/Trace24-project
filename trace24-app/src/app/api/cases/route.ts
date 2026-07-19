@@ -1,6 +1,8 @@
-import { adminUnauthorizedResponse, assertAdminWrite } from '@/lib/admin-auth';
 import { createCase, listCases } from '@/lib/cases/store';
 import type { CasePriority } from '@/lib/cases/types';
+
+/** Case create/list — protected by demo login gate (middleware), not Admin token.
+ *  Admin token remains for related-party / rules writes only. */
 
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
@@ -13,9 +15,6 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
-  const gate = assertAdminWrite(req);
-  if (!gate.ok) return adminUnauthorizedResponse(gate);
-
   const body = (await req.json().catch(() => ({}))) as {
     agencyId?: string;
     agencyName?: string;

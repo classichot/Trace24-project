@@ -1,8 +1,9 @@
-import { adminUnauthorizedResponse, assertAdminWrite } from '@/lib/admin-auth';
 import { getCase, patchCase } from '@/lib/cases/store';
 import type { CasePriority, CaseStatus } from '@/lib/cases/types';
 
 type Ctx = { params: Promise<{ id: string }> };
+
+/** Case read/update — demo login gate only (see middleware). */
 
 export async function GET(_req: Request, ctx: Ctx) {
   const { id } = await ctx.params;
@@ -12,9 +13,6 @@ export async function GET(_req: Request, ctx: Ctx) {
 }
 
 export async function PATCH(req: Request, ctx: Ctx) {
-  const gate = assertAdminWrite(req);
-  if (!gate.ok) return adminUnauthorizedResponse(gate);
-
   const { id } = await ctx.params;
   const body = (await req.json().catch(() => ({}))) as {
     status?: CaseStatus;

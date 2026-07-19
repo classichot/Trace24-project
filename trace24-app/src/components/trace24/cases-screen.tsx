@@ -1,8 +1,7 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTrace24 } from '@/context/trace24-context';
-import { adminWriteError, adminWriteHeaders } from '@/lib/admin-client';
 import { CASE_STATUSES, type CasePriority, type CaseStatus, type OversightCase } from '@/lib/cases/types';
 
 type QueuePayload = {
@@ -11,8 +10,19 @@ type QueuePayload = {
   byAssignee: { assignee: string; count: number }[];
 };
 
+const jsonHeaders = { 'Content-Type': 'application/json' };
+
 export function CasesScreen() {
-  const { go, scannedId, muni, dataset, selCaseId, setSelCaseId } = useTrace24();
+  const {
+    go,
+    scannedId,
+    muni,
+    dataset,
+    selCaseId,
+    setSelCaseId,
+    pendingOpenCase,
+    setPendingOpenCase,
+  } = useTrace24();
   const [queue, setQueue] = useState<QueuePayload | null>(null);
   const [selected, setSelected] = useState<OversightCase | null>(null);
   const [err, setErr] = useState<string | null>(null);
@@ -21,29 +31,37 @@ export function CasesScreen() {
   const [assigneeDraft, setAssigneeDraft] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [msg, setMsg] = useState<string | null>(null);
+  const openingRef = useRef(false);
 
   const loadQueue = useCallback(async () => {
-    setErr(null);
     const qs = statusFilter ? `?status=${encodeURIComponent(statusFilter)}` : '';
-    const res = await fetch(`/api/org/queue${qs}`);
-    const data = (await res.json()) as QueuePayload & { error?: string };
-    if (!res.ok) {
-      setErr(data.error || `HTTP ${res.status}`);
-      return;
+    try {
+      const res = await fetch(`/api/org/queue${qs}`);
+      const data = (await res.json()) as QueuePayload & { error?: string };
+      if (!res.ok) {
+        setErr(data.error || `โหลดคิวไม่สำเร็จ (HTTP ${res.status})`);
+        return;
+      }
+      setQueue(data);
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : 'โหลดคิวไม่สำเร็จ');
     }
-    setQueue(data);
   }, [statusFilter]);
 
   const loadCase = useCallback(async (id: string) => {
-    const res = await fetch(`/api/cases/${encodeURIComponent(id)}`);
-    const data = (await res.json()) as { case?: OversightCase; error?: string };
-    if (!res.ok || !data.case) {
-      setErr(data.error || 'โหลดสำนวนไม่สำเร็จ');
-      return;
+    try {
+      const res = await fetch(`/api/cases/${encodeURIComponent(id)}`);
+      const data = (await res.json()) as { case?: OversightCase; error?: string };
+      if (!res.ok || !data.case) {
+        setErr(data.error || 'โหลดสำนวนไม่สำเร็จ');
+        return;
+      }
+      setSelected(data.case);
+      setAssigneeDraft(data.case.assignee || '');
+      setSelCaseId(data.case.id);
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : 'โหลดสำนวนไม่สำเร็จ');
     }
-    setSelected(data.case);
-    setAssigneeDraft(data.case.assignee || '');
-    setSelCaseId(data.case.id);
   }, [setSelCaseId]);
 
   useEffect(() => {
@@ -54,71 +72,112 @@ export function CasesScreen() {
     if (selCaseId) void loadCase(selCaseId);
   }, [selCaseId, loadCase]);
 
-  const openFromAgency = async () => {
+  const openFromAgency = useCallback(async () => {
     const agencyId = scannedId || muni.id;
-    if (!agencyId || busy) return;
+    if (!agencyId || busy || openingRef.current) return;
+    openingRef.current = true;
     setBusy(true);
     setMsg(null);
     setErr(null);
-    const tags = (dataset.relatedParty?.matches || [])
-      .map((m) => m.ruleId)
-      .filter(Boolean)
-      .slice(0, 8) as string[];
-    const caseSummary =
-      typeof dataset.caseFile?.summary === 'string' ? dataset.caseFile.summary : '';
-    const res = await fetch('/api/cases', {
-      method: 'POST',
-      headers: adminWriteHeaders(),
-      body: JSON.stringify({
-        agencyId,
-        agencyName: muni.th,
-        province: muni.prov,
-        agencyType: muni.tshort || muni.type,
-        title: `สำนวนตรวจ — ${muni.th}`,
-        summary: caseSummary || 'เปิดจากแดชบอร์ดหน่วยงานเพื่อติดตามในคิวงานองค์กร',
-        priority: 'High' as CasePriority,
-        signalTags: tags,
-        openedBy: 'ผู้ใช้เดโม',
-      }),
-    });
-    const data = (await res.json()) as { case?: OversightCase; error?: string; hint?: string };
-    setBusy(false);
-    if (!res.ok) {
-      setErr(await adminWriteError(res, data));
-      return;
-    }
-    if (data.case) {
-      setMsg(`เปิดสำนวนแล้ว: ${data.case.id}`);
-      setSelected(data.case);
-      setSelCaseId(data.case.id);
-      setAssigneeDraft(data.case.assignee || '');
+    try {
+      const tags = (dataset.relatedParty?.matches || [])
+        .map((m) => m.ruleId)
+        .filter(Boolean)
+        .slice(0, 8) as string[];
+      const caseSummary =
+        typeof dataset.caseFile?.summary === 'string' ? dataset.caseFile.summary : '';
+      const res = await fetch('/api/cases', {
+        method: 'POST',
+        headers: jsonHeaders,
+        body: JSON.stringify({
+          agencyId,
+          agencyName: muni.th,
+          province: muni.prov,
+          agencyType: muni.tshort || muni.type,
+          title: `สำนวนตรวจ — ${muni.th}`,
+          summary: caseSummary || 'เปิดจากแดชบอร์ดหน่วยงานเพื่อติดตามในคิวงานองค์กร',
+          priority: 'High' as CasePriority,
+          signalTags: tags,
+          openedBy: 'ผู้ใช้เดโม',
+        }),
+      });
+      const data = (await res.json().catch(() => ({}))) as {
+        case?: OversightCase;
+        error?: string;
+        hint?: string;
+      };
+      if (!res.ok) {
+        setErr(data.error || data.hint || `เปิดสำนวนไม่สำเร็จ (HTTP ${res.status})`);
+        return;
+      }
+      if (!data.case) {
+        setErr('เปิดสำนวนแล้วแต่เซิร์ฟเวอร์ไม่ส่งข้อมูลกลับ');
+        return;
+      }
+      const created = data.case;
+      setMsg(`เปิดสำนวนแล้ว: ${created.id} · ${created.agencyName}`);
+      setSelected(created);
+      setSelCaseId(created.id);
+      setAssigneeDraft(created.assignee || '');
+      // Optimistic queue update (Vercel /tmp may not be visible on another instance yet)
+      setQueue((q) => {
+        const open = [created, ...(q?.open || []).filter((c) => c.id !== created.id)];
+        const closed = (q?.closed || []).filter((c) => c.id !== created.id);
+        return {
+          open,
+          closed,
+          byAssignee: q?.byAssignee || [],
+        };
+      });
       void loadQueue();
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : 'เปิดสำนวนไม่สำเร็จ');
+    } finally {
+      setBusy(false);
+      openingRef.current = false;
     }
-  };
+  }, [scannedId, muni, dataset, busy, setSelCaseId, loadQueue]);
+
+  useEffect(() => {
+    if (!pendingOpenCase) return;
+    setPendingOpenCase(false);
+    void openFromAgency();
+  }, [pendingOpenCase, setPendingOpenCase, openFromAgency]);
 
   const patch = async (body: Record<string, unknown>) => {
     if (!selected || busy) return false;
     setBusy(true);
     setErr(null);
     setMsg(null);
-    const res = await fetch(`/api/cases/${encodeURIComponent(selected.id)}`, {
-      method: 'PATCH',
-      headers: adminWriteHeaders(),
-      body: JSON.stringify(body),
-    });
-    const data = (await res.json()) as { case?: OversightCase; error?: string; hint?: string };
-    setBusy(false);
-    if (!res.ok) {
-      setErr(await adminWriteError(res, data));
+    try {
+      const res = await fetch(`/api/cases/${encodeURIComponent(selected.id)}`, {
+        method: 'PATCH',
+        headers: jsonHeaders,
+        body: JSON.stringify(body),
+      });
+      const data = (await res.json().catch(() => ({}))) as {
+        case?: OversightCase;
+        error?: string;
+        hint?: string;
+      };
+      if (!res.ok) {
+        setErr(data.error || data.hint || `บันทึกไม่สำเร็จ (HTTP ${res.status})`);
+        return false;
+      }
+      if (data.case) {
+        setSelected(data.case);
+        setMsg('บันทึกแล้ว');
+        void loadQueue();
+        return true;
+      }
+      setErr('บันทึกแล้วแต่เซิร์ฟเวอร์ไม่ส่งข้อมูลกลับ');
       return false;
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : 'บันทึกไม่สำเร็จ');
+      return false;
+    } finally {
+      setBusy(false);
     }
-    if (data.case) {
-      setSelected(data.case);
-      setMsg('บันทึกแล้ว');
-      void loadQueue();
-      return true;
-    }
-    return false;
   };
 
   const items = [...(queue?.open || []), ...(queue?.closed || [])];
@@ -173,7 +232,17 @@ export function CasesScreen() {
       </div>
 
       {(err || msg) && (
-        <div style={{ marginTop: 16, fontSize: 13, color: err ? 'var(--accent)' : '#55554F' }}>
+        <div
+          style={{
+            marginTop: 16,
+            padding: '12px 14px',
+            fontSize: 13.5,
+            lineHeight: 1.5,
+            color: err ? '#6B2D1F' : '#33332E',
+            background: err ? '#F8EDE8' : '#F6F6F3',
+            borderTop: `2px solid ${err ? 'var(--accent)' : '#111110'}`,
+          }}
+        >
           {err || msg}
         </div>
       )}
