@@ -94,12 +94,27 @@ function moneyTag(tag: string) {
   return sectionForTag(tag) != null;
 }
 
+/** Resolve contractor id (c1) → display name from report.contractors. */
+function winnerDisplayName(
+  winnerKey: string | null | undefined,
+  contractors: PipelineReportLike['contractors']
+): string {
+  const key = String(winnerKey || '').trim();
+  if (!key || key === '—') return '—';
+  const named = contractors?.[key]?.name?.trim();
+  if (named) return named;
+  // Already a company name (not an internal id like c12)
+  if (!/^c\d+$/i.test(key)) return key;
+  return key;
+}
+
 /** Build money observation pack for oversight / investigation workflows. */
 export function buildAuditObservationPack(
   agencyId: string,
   report: PipelineReportLike
 ): AuditObservationPack {
   const agency = report.agency;
+  const contractors = report.contractors;
   const observations: MoneyObservation[] = [];
   let i = 0;
 
@@ -141,7 +156,7 @@ export function buildAuditObservationPack(
         severity: String(a.sevKey || 'Medium'),
         projectId: pid,
         projectName: String(pr.name || pid),
-        winner: String(pr.winner || '—'),
+        winner: winnerDisplayName(pr.winner, contractors),
         award: String(pr.award || '—'),
         budget: String(pr.budget || '—'),
         fy: String(prExtra.fy || '—'),

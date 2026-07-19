@@ -383,8 +383,8 @@ export function DashboardScreen() {
             <div
               style={{
                 display: 'grid',
-                gridTemplateColumns: '104px 1fr 96px 88px 118px',
-                gap: 14,
+                gridTemplateColumns: '96px 1fr minmax(120px, 0.9fr) 88px 80px 110px',
+                gap: 12,
                 padding: '10px 0',
                 borderBottom: '1px solid #E4E4E0',
                 fontSize: 11,
@@ -393,6 +393,7 @@ export function DashboardScreen() {
             >
               <div>โครงการ</div>
               <div>รายละเอียด</div>
+              <div>ผู้ชนะการประมูล</div>
               <div>ราคาที่ตกลง</div>
               <div>วิธี</div>
               <div>สัญญาณ</div>
@@ -404,9 +405,17 @@ export function DashboardScreen() {
             )}
             {(dataset.priorityOrder || []).map((id) => {
               const projects = dataset.projects as typeof D.projects;
-              const p = projects[id as keyof typeof projects];
+              const p = projects[id as keyof typeof projects] as (typeof D.projects)[keyof typeof D.projects] & {
+                winner?: string | null;
+              };
               if (!p) return null;
               const s = sev(p.sevKey);
+              const winnerKey = (p.winner || '').trim();
+              const contractors = dataset.contractors as Record<string, { name?: string }> | undefined;
+              const winnerName =
+                (winnerKey && contractors?.[winnerKey]?.name) ||
+                (winnerKey && !/^c\d+$/i.test(winnerKey) ? winnerKey : '') ||
+                '—';
               return (
                 <div
                   key={id}
@@ -414,8 +423,8 @@ export function DashboardScreen() {
                   className="trace24-hover-row"
                   style={{
                     display: 'grid',
-                    gridTemplateColumns: '104px 1fr 96px 88px 118px',
-                    gap: 14,
+                    gridTemplateColumns: '96px 1fr minmax(120px, 0.9fr) 88px 80px 110px',
+                    gap: 12,
                     padding: '14px 0',
                     borderBottom: '1px solid #EEEEEA',
                     cursor: 'pointer',
@@ -424,6 +433,19 @@ export function DashboardScreen() {
                 >
                   <div style={{ fontSize: 12.5, color: '#55554F' }}>{p.code}</div>
                   <div style={{ fontSize: 13.5, lineHeight: 1.45, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</div>
+                  <div
+                    style={{
+                      fontSize: 12.5,
+                      color: '#33332E',
+                      lineHeight: 1.4,
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap',
+                    }}
+                    title={winnerName}
+                  >
+                    {winnerName}
+                  </div>
                   <div style={{ fontSize: 13 }}>{p.award}</div>
                   <div style={{ fontSize: 12, color: '#55554F' }}>{p.methodShort}</div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
