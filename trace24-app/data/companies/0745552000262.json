@@ -1,0 +1,50 @@
+{
+  "tin": "0745552000262",
+  "name": "บริษัท วี.อาร์. คอมพิวเตอร์ เซอร์วิส จำกัด",
+  "aliases": [],
+  "directors": [],
+  "registeredAt": null,
+  "registeredCapital": null,
+  "sources": [
+    {
+      "kind": "contracts-cache",
+      "fetchedAt": "2026-07-19T14:38:38.891Z",
+      "note": "seed from 262 contract rows · 28 agencies"
+    }
+  ],
+  "seenAgencyIds": [
+    "egp-001416500",
+    "egp-0502",
+    "egp-0803",
+    "egp-0904",
+    "egp-1202",
+    "egp-1503",
+    "egp-1507",
+    "egp-1508",
+    "egp-2102",
+    "egp-2740101",
+    "egp-4740202",
+    "egp-5730302",
+    "egp-5740102",
+    "egp-5740103",
+    "egp-5740302",
+    "egp-6740104",
+    "egp-6740105",
+    "egp-6740106",
+    "egp-6740107",
+    "egp-6740203",
+    "egp-6740205",
+    "egp-6740207",
+    "egp-6740301",
+    "egp-6740302",
+    "egp-6740303",
+    "egp-6740304",
+    "egp-6740306",
+    "egp-6740307"
+  ],
+  "contractWinCount": 262,
+  "createdAt": "2026-07-19T14:38:38.891Z",
+  "updatedAt": "2026-07-19T14:38:38.891Z",
+  "confidence": "draft",
+  "note": "Open-DBD stub: TIN from e-GP/contracts-cache. Enrich via open refs; verify later with BDEX."
+}

@@ -1,0 +1,52 @@
+{
+  "tin": "0125567041143",
+  "name": "บริษัท ไชยชนะยนต์ จำกัด",
+  "aliases": [],
+  "directors": [],
+  "registeredAt": null,
+  "registeredCapital": null,
+  "sources": [
+    {
+      "kind": "contracts-cache",
+      "fetchedAt": "2026-07-19T14:38:38.891Z",
+      "note": "seed from 531 contract rows · 30 agencies"
+    }
+  ],
+  "seenAgencyIds": [
+    "egp-001154200",
+    "egp-4120101",
+    "egp-5120101",
+    "egp-5120202",
+    "egp-5120302",
+    "egp-5120501",
+    "egp-5130101",
+    "egp-6120102",
+    "egp-6120103",
+    "egp-6120201",
+    "egp-6120202",
+    "egp-6120203",
+    "egp-6120204",
+    "egp-6120301",
+    "egp-6120302",
+    "egp-6120304",
+    "egp-6120306",
+    "egp-6120402",
+    "egp-6120404",
+    "egp-6120406",
+    "egp-6120407",
+    "egp-6120503",
+    "egp-6120601",
+    "egp-6120602",
+    "egp-6120603",
+    "egp-6120605",
+    "egp-6120606",
+    "egp-6120607",
+    "egp-6130506",
+    "nakornnont"
+  ],
+  "contractWinCount": 531,
+  "createdAt": "2026-07-19T14:38:38.891Z",
+  "updatedAt": "2026-07-19T14:38:38.891Z",
+  "confidence": "draft",
+  "note": "Open-DBD stub: TIN from e-GP/contracts-cache. Enrich via open refs; verify later with BDEX."
+}

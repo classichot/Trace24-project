@@ -1,0 +1,35 @@
+{
+  "tin": "0113560003350",
+  "name": "ห้างหุ้นส่วนจำกัด ธานี แอนด์ วสันเซอร์วิส",
+  "aliases": [],
+  "directors": [],
+  "registeredAt": null,
+  "registeredCapital": null,
+  "sources": [
+    {
+      "kind": "contracts-cache",
+      "fetchedAt": "2026-07-19T14:38:38.891Z",
+      "note": "seed from 268 contract rows · 13 agencies"
+    }
+  ],
+  "seenAgencyIds": [
+    "egp-001481700",
+    "egp-4110401",
+    "egp-4110402",
+    "egp-5110501",
+    "egp-5110502",
+    "egp-6110403",
+    "egp-6110404",
+    "egp-6110405",
+    "egp-6110406",
+    "egp-6110501",
+    "egp-6110502",
+    "egp-6110503",
+    "egp-6110504"
+  ],
+  "contractWinCount": 268,
+  "createdAt": "2026-07-19T14:38:38.891Z",
+  "updatedAt": "2026-07-19T14:38:38.891Z",
+  "confidence": "draft",
+  "note": "Open-DBD stub: TIN from e-GP/contracts-cache. Enrich via open refs; verify later with BDEX."
+}

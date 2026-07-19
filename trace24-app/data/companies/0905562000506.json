@@ -1,0 +1,47 @@
+{
+  "tin": "0905562000506",
+  "name": "บริษัท ระโนด ไอที แอนด์ เซอร์วิส จำกัด",
+  "aliases": [],
+  "directors": [],
+  "registeredAt": null,
+  "registeredCapital": null,
+  "sources": [
+    {
+      "kind": "contracts-cache",
+      "fetchedAt": "2026-07-19T14:38:38.891Z",
+      "note": "seed from 260 contract rows · 25 agencies"
+    }
+  ],
+  "seenAgencyIds": [
+    "egp-0705",
+    "egp-1506",
+    "egp-5801303",
+    "egp-5900701",
+    "egp-5900702",
+    "egp-6801304",
+    "egp-6801606",
+    "egp-6801609",
+    "egp-6801610",
+    "egp-6801902",
+    "egp-6801904",
+    "egp-6900203",
+    "egp-6900204",
+    "egp-6900701",
+    "egp-6900702",
+    "egp-6900703",
+    "egp-6900704",
+    "egp-6900705",
+    "egp-6900706",
+    "egp-6900708",
+    "egp-6900710",
+    "egp-6900711",
+    "egp-6900801",
+    "egp-6900802",
+    "egp-6900803"
+  ],
+  "contractWinCount": 260,
+  "createdAt": "2026-07-19T14:38:38.891Z",
+  "updatedAt": "2026-07-19T14:38:38.891Z",
+  "confidence": "draft",
+  "note": "Open-DBD stub: TIN from e-GP/contracts-cache. Enrich via open refs; verify later with BDEX."
+}

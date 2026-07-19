@@ -1,0 +1,52 @@
+{
+  "tin": "0663554000587",
+  "name": "บีบี บุ๊ค แอนด์ สเตชั่นเนอรี่",
+  "aliases": [],
+  "directors": [],
+  "registeredAt": null,
+  "registeredCapital": null,
+  "sources": [
+    {
+      "kind": "contracts-cache",
+      "fetchedAt": "2026-07-19T14:38:38.891Z",
+      "note": "seed from 263 contract rows · 30 agencies"
+    }
+  ],
+  "seenAgencyIds": [
+    "egp-0703",
+    "egp-0711",
+    "egp-1503",
+    "egp-2033",
+    "egp-4660401",
+    "egp-5660502",
+    "egp-5660503",
+    "egp-5660504",
+    "egp-5661102",
+    "egp-6660404",
+    "egp-6660406",
+    "egp-6660502",
+    "egp-6660503",
+    "egp-6660505",
+    "egp-6660507",
+    "egp-6660508",
+    "egp-6660601",
+    "egp-6660602",
+    "egp-6660603",
+    "egp-6660604",
+    "egp-6660605",
+    "egp-6660606",
+    "egp-6660607",
+    "egp-6660609",
+    "egp-6660611",
+    "egp-6660801",
+    "egp-6661103",
+    "egp-6661104",
+    "egp-e15084607",
+    "phothale"
+  ],
+  "contractWinCount": 263,
+  "createdAt": "2026-07-19T14:38:38.891Z",
+  "updatedAt": "2026-07-19T14:38:38.891Z",
+  "confidence": "draft",
+  "note": "Open-DBD stub: TIN from e-GP/contracts-cache. Enrich via open refs; verify later with BDEX."
+}

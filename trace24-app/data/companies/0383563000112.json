@@ -1,0 +1,45 @@
+{
+  "tin": "0383563000112",
+  "name": "ห้างหุ้นส่วนจำกัด บุตรอินทร์",
+  "aliases": [],
+  "directors": [],
+  "registeredAt": null,
+  "registeredCapital": null,
+  "sources": [
+    {
+      "kind": "contracts-cache",
+      "fetchedAt": "2026-07-19T14:38:38.891Z",
+      "note": "seed from 274 contract rows · 23 agencies"
+    }
+  ],
+  "seenAgencyIds": [
+    "egp-001416500",
+    "egp-0711",
+    "egp-0718",
+    "egp-0804",
+    "egp-1503",
+    "egp-2102",
+    "egp-5430402",
+    "egp-5430601",
+    "egp-5431101",
+    "egp-5431501",
+    "egp-6430303",
+    "egp-6430401",
+    "egp-6430601",
+    "egp-6430602",
+    "egp-6430603",
+    "egp-6430604",
+    "egp-6430605",
+    "egp-6430606",
+    "egp-6430607",
+    "egp-6431002",
+    "egp-6431004",
+    "egp-6431303",
+    "egp-6431501"
+  ],
+  "contractWinCount": 274,
+  "createdAt": "2026-07-19T14:38:38.891Z",
+  "updatedAt": "2026-07-19T14:38:38.891Z",
+  "confidence": "draft",
+  "note": "Open-DBD stub: TIN from e-GP/contracts-cache. Enrich via open refs; verify later with BDEX."
+}

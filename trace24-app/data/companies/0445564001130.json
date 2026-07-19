@@ -1,0 +1,40 @@
+{
+  "tin": "0445564001130",
+  "name": "บริษัท ธนาภัณฑ์ 2021 จำกัด",
+  "aliases": [],
+  "directors": [],
+  "registeredAt": null,
+  "registeredCapital": null,
+  "sources": [
+    {
+      "kind": "contracts-cache",
+      "fetchedAt": "2026-07-19T14:38:38.891Z",
+      "note": "seed from 272 contract rows · 18 agencies"
+    }
+  ],
+  "seenAgencyIds": [
+    "egp-2033",
+    "egp-5440801",
+    "egp-6302702",
+    "egp-6440711",
+    "egp-6440801",
+    "egp-6440802",
+    "egp-6440803",
+    "egp-6440806",
+    "egp-6440807",
+    "egp-6440808",
+    "egp-6440809",
+    "egp-6440813",
+    "egp-6440814",
+    "egp-6441102",
+    "egp-6441103",
+    "egp-6441105",
+    "egp-6441107",
+    "egp-6450207"
+  ],
+  "contractWinCount": 272,
+  "createdAt": "2026-07-19T14:38:38.891Z",
+  "updatedAt": "2026-07-19T14:38:38.891Z",
+  "confidence": "draft",
+  "note": "Open-DBD stub: TIN from e-GP/contracts-cache. Enrich via open refs; verify later with BDEX."
+}

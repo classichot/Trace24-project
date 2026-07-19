@@ -6,6 +6,8 @@ import {
   emptyRelatedPack,
   type RelatedPartyPack,
 } from '@/lib/pipeline/related-party';
+import { syncRelatedCompaniesToMaster } from '@/lib/companies/bridge';
+import { companyMasterStats } from '@/lib/companies/store';
 import {
   getOrEmptyRelatedPack,
   saveRelatedPartyPack,
@@ -42,6 +44,9 @@ export async function GET(
         'พร้อมตรวจเมื่อมีทำเนียบ + กรรมการ'
       : 'ยังไม่มีรายงานหน่วยงาน — บันทึกทำเนียบได้ก่อนแล้วค่อยสแกน',
     dbdHint: 'https://data.dbd.go.th/',
+    companyMaster: companyMasterStats(),
+    strategy:
+      'Open-DBD: เลขนิติบุคคลเป็น PK → เชื่อมจัดซื้อจัดจ้าง → ACT AI · BDEX API เป็นขั้นถัดไป · ไม่ scrape DBD DataWarehouse เป็นหลัก',
     ethics:
       'นามสกุลร่วมเป็น lead ให้สอบสวนเท่านั้น — ไม่ใช่ข้อพิสูจน์เครือญาติหรือการทุจริต · ชื่อเต็มยกระดับความมั่นใจ',
   });
@@ -70,6 +75,8 @@ export async function PUT(
     note: body.note || base.note,
   });
 
+  const synced = syncRelatedCompaniesToMaster(pack);
+
   const baseReport = await resolveAgencyReport(id);
   const report = baseReport ? applyRelatedPartyToReport(baseReport, pack) : null;
   const matches = report ? detectRelatedPartyMatches(report) : [];
@@ -78,7 +85,9 @@ export async function PUT(
     ok: true,
     pack,
     matches,
+    companyMasterSynced: synced,
+    companyMaster: companyMasterStats(),
     ethics:
-      'บันทึกแล้ว — สแกนหน่วยงานใหม่เพื่อให้แดชบอร์ดและกราฟสะท้อนสัญญาณ R5/R13 (นามสกุล = lead ไม่ใช่ข้อพิสูจน์)',
+      'บันทึกแล้ว — sync เข้า company master (TIN) แล้ว · สแกนหน่วยงานใหม่เพื่อให้แดชบอร์ดสะท้อน R5/R13',
   });
 }

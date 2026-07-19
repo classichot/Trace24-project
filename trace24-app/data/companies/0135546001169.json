@@ -1,0 +1,40 @@
+{
+  "tin": "0135546001169",
+  "name": "บริษัท สมเจริญชัยเซอร์วิส จำกัด",
+  "aliases": [],
+  "directors": [],
+  "registeredAt": null,
+  "registeredCapital": null,
+  "sources": [
+    {
+      "kind": "contracts-cache",
+      "fetchedAt": "2026-07-19T14:38:38.891Z",
+      "note": "seed from 408 contract rows · 18 agencies"
+    }
+  ],
+  "seenAgencyIds": [
+    "egp-001116800",
+    "egp-0607",
+    "egp-2120101",
+    "egp-3120601",
+    "egp-4130202",
+    "egp-4130301",
+    "egp-4130302",
+    "egp-5130101",
+    "egp-5130103",
+    "egp-5130104",
+    "egp-6120604",
+    "egp-6120605",
+    "egp-6130101",
+    "egp-6130105",
+    "egp-6130108",
+    "egp-6130109",
+    "egp-6130110",
+    "egp-6130701"
+  ],
+  "contractWinCount": 408,
+  "createdAt": "2026-07-19T14:38:38.891Z",
+  "updatedAt": "2026-07-19T14:38:38.891Z",
+  "confidence": "draft",
+  "note": "Open-DBD stub: TIN from e-GP/contracts-cache. Enrich via open refs; verify later with BDEX."
+}

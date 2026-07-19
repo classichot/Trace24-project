@@ -1,0 +1,24 @@
+{
+  "tin": "0105545032303",
+  "name": "บริษัท ไอดัก จำกัด",
+  "aliases": [],
+  "directors": [],
+  "registeredAt": null,
+  "registeredCapital": null,
+  "sources": [
+    {
+      "kind": "contracts-cache",
+      "fetchedAt": "2026-07-19T14:38:38.891Z",
+      "note": "seed from 291 contract rows · 2 agencies"
+    }
+  ],
+  "seenAgencyIds": [
+    "egp-0705",
+    "egp-1503"
+  ],
+  "contractWinCount": 291,
+  "createdAt": "2026-07-19T14:38:38.891Z",
+  "updatedAt": "2026-07-19T14:38:38.891Z",
+  "confidence": "draft",
+  "note": "Open-DBD stub: TIN from e-GP/contracts-cache. Enrich via open refs; verify later with BDEX."
+}

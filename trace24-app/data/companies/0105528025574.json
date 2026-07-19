@@ -1,0 +1,37 @@
+{
+  "tin": "0105528025574",
+  "name": "บริษัท กิบไทย จำกัด",
+  "aliases": [],
+  "directors": [],
+  "registeredAt": null,
+  "registeredCapital": null,
+  "sources": [
+    {
+      "kind": "contracts-cache",
+      "fetchedAt": "2026-07-19T14:38:38.891Z",
+      "note": "seed from 301 contract rows · 15 agencies"
+    }
+  ],
+  "seenAgencyIds": [
+    "egp-001225400",
+    "egp-001418600",
+    "egp-001418800",
+    "egp-002357500",
+    "egp-0705",
+    "egp-0706",
+    "egp-0709",
+    "egp-0718",
+    "egp-0909",
+    "egp-0912",
+    "egp-1903",
+    "egp-2103",
+    "egp-2104",
+    "egp-2106",
+    "egp-2109"
+  ],
+  "contractWinCount": 301,
+  "createdAt": "2026-07-19T14:38:38.891Z",
+  "updatedAt": "2026-07-19T14:38:38.891Z",
+  "confidence": "draft",
+  "note": "Open-DBD stub: TIN from e-GP/contracts-cache. Enrich via open refs; verify later with BDEX."
+}

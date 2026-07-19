@@ -1,0 +1,53 @@
+{
+  "tin": "0107544000108",
+  "name": "บริษัท ปตท. จำกัด(มหาชน)",
+  "aliases": [],
+  "directors": [],
+  "registeredAt": null,
+  "registeredCapital": null,
+  "sources": [
+    {
+      "kind": "contracts-cache",
+      "fetchedAt": "2026-07-19T14:38:38.891Z",
+      "note": "seed from 343 contract rows · 31 agencies"
+    }
+  ],
+  "seenAgencyIds": [
+    "egp-001418800",
+    "egp-001431100",
+    "egp-001442100",
+    "egp-001521400",
+    "egp-002357500",
+    "egp-0102",
+    "egp-0201",
+    "egp-0303",
+    "egp-0305",
+    "egp-0607",
+    "egp-0703",
+    "egp-0705",
+    "egp-0706",
+    "egp-0718",
+    "egp-0721",
+    "egp-0803",
+    "egp-0806",
+    "egp-0807",
+    "egp-0902",
+    "egp-1506",
+    "egp-1607",
+    "egp-2106",
+    "egp-2107",
+    "egp-2109",
+    "egp-2900101",
+    "egp-3100001",
+    "egp-3300101",
+    "egp-3730101",
+    "egp-3901101",
+    "egp-5700801",
+    "egp-6650405"
+  ],
+  "contractWinCount": 343,
+  "createdAt": "2026-07-19T14:38:38.891Z",
+  "updatedAt": "2026-07-19T14:38:38.891Z",
+  "confidence": "draft",
+  "note": "Open-DBD stub: TIN from e-GP/contracts-cache. Enrich via open refs; verify later with BDEX."
+}

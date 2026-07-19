@@ -1,0 +1,31 @@
+{
+  "tin": "0125541004313",
+  "name": "วี.เค. ไฮเทค",
+  "aliases": [],
+  "directors": [],
+  "registeredAt": null,
+  "registeredCapital": null,
+  "sources": [
+    {
+      "kind": "contracts-cache",
+      "fetchedAt": "2026-07-19T14:38:38.891Z",
+      "note": "seed from 262 contract rows · 9 agencies"
+    }
+  ],
+  "seenAgencyIds": [
+    "egp-1603",
+    "egp-6120204",
+    "egp-6120302",
+    "egp-6120405",
+    "egp-6120406",
+    "egp-6120407",
+    "egp-6120501",
+    "egp-6120505",
+    "egp-6120606"
+  ],
+  "contractWinCount": 262,
+  "createdAt": "2026-07-19T14:38:38.891Z",
+  "updatedAt": "2026-07-19T14:38:38.891Z",
+  "confidence": "draft",
+  "note": "Open-DBD stub: TIN from e-GP/contracts-cache. Enrich via open refs; verify later with BDEX."
+}

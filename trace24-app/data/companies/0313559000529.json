@@ -1,0 +1,48 @@
+{
+  "tin": "0313559000529",
+  "name": "ห้างหุ้นส่วนจำกัดบุรีรัมย์คอมพิวเตอร์ คูเมือง",
+  "aliases": [],
+  "directors": [],
+  "registeredAt": null,
+  "registeredCapital": null,
+  "sources": [
+    {
+      "kind": "contracts-cache",
+      "fetchedAt": "2026-07-19T14:38:38.891Z",
+      "note": "seed from 292 contract rows · 26 agencies"
+    }
+  ],
+  "seenAgencyIds": [
+    "egp-001416500",
+    "egp-0708",
+    "egp-2102",
+    "egp-5310201",
+    "egp-5310202",
+    "egp-5310901",
+    "egp-5312201",
+    "egp-6301702",
+    "egp-6302901",
+    "egp-6302902",
+    "egp-6302904",
+    "egp-6310103",
+    "egp-6310105",
+    "egp-6310201",
+    "egp-6310202",
+    "egp-6310203",
+    "egp-6310204",
+    "egp-6310205",
+    "egp-6310207",
+    "egp-6310902",
+    "egp-6310905",
+    "egp-6310906",
+    "egp-6311009",
+    "egp-6311302",
+    "egp-6311904",
+    "egp-6312203"
+  ],
+  "contractWinCount": 292,
+  "createdAt": "2026-07-19T14:38:38.891Z",
+  "updatedAt": "2026-07-19T14:38:38.891Z",
+  "confidence": "draft",
+  "note": "Open-DBD stub: TIN from e-GP/contracts-cache. Enrich via open refs; verify later with BDEX."
+}

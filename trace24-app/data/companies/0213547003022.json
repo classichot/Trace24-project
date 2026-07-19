@@ -1,0 +1,53 @@
+{
+  "tin": "0213547003022",
+  "name": "ห้างหุ้นส่วนจำกัด แกลงคอมพิวเตอร์ แอนด์ เซอร์วิส",
+  "aliases": [],
+  "directors": [],
+  "registeredAt": null,
+  "registeredCapital": null,
+  "sources": [
+    {
+      "kind": "contracts-cache",
+      "fetchedAt": "2026-07-19T14:38:38.891Z",
+      "note": "seed from 280 contract rows · 31 agencies"
+    }
+  ],
+  "seenAgencyIds": [
+    "egp-001438500",
+    "egp-0907",
+    "egp-2210101",
+    "egp-3021200501",
+    "egp-5210101",
+    "egp-5210102",
+    "egp-5210301",
+    "egp-5210302",
+    "egp-5210303",
+    "egp-5210304",
+    "egp-5210305",
+    "egp-5210306",
+    "egp-5210401",
+    "egp-5220901",
+    "egp-6210103",
+    "egp-6210104",
+    "egp-6210106",
+    "egp-6210301",
+    "egp-6210302",
+    "egp-6210306",
+    "egp-6210307",
+    "egp-6210308",
+    "egp-6210310",
+    "egp-6210401",
+    "egp-6210402",
+    "egp-6210701",
+    "egp-6210703",
+    "egp-6220801",
+    "egp-6220803",
+    "egp-6220805",
+    "egp-6220903"
+  ],
+  "contractWinCount": 280,
+  "createdAt": "2026-07-19T14:38:38.891Z",
+  "updatedAt": "2026-07-19T14:38:38.891Z",
+  "confidence": "draft",
+  "note": "Open-DBD stub: TIN from e-GP/contracts-cache. Enrich via open refs; verify later with BDEX."
+}

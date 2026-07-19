@@ -1,0 +1,41 @@
+{
+  "tin": "0125562027304",
+  "name": "บริษัท ออลกู๊ด56 จำกัด",
+  "aliases": [],
+  "directors": [],
+  "registeredAt": null,
+  "registeredCapital": null,
+  "sources": [
+    {
+      "kind": "contracts-cache",
+      "fetchedAt": "2026-07-19T14:38:38.891Z",
+      "note": "seed from 268 contract rows · 19 agencies"
+    }
+  ],
+  "seenAgencyIds": [
+    "egp-001225400",
+    "egp-001416500",
+    "egp-0702",
+    "egp-0708",
+    "egp-0803",
+    "egp-0907",
+    "egp-0912",
+    "egp-1506",
+    "egp-1508",
+    "egp-1702",
+    "egp-1703",
+    "egp-1704",
+    "egp-1705",
+    "egp-2033",
+    "egp-2102",
+    "egp-2104",
+    "egp-3100001",
+    "egp-6120507",
+    "egp-a002"
+  ],
+  "contractWinCount": 268,
+  "createdAt": "2026-07-19T14:38:38.891Z",
+  "updatedAt": "2026-07-19T14:38:38.891Z",
+  "confidence": "draft",
+  "note": "Open-DBD stub: TIN from e-GP/contracts-cache. Enrich via open refs; verify later with BDEX."
+}

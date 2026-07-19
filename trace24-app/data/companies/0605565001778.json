@@ -1,0 +1,50 @@
+{
+  "tin": "0605565001778",
+  "name": "บริษัท มอแดนคอมพ์ จำกัด",
+  "aliases": [],
+  "directors": [],
+  "registeredAt": null,
+  "registeredCapital": null,
+  "sources": [
+    {
+      "kind": "contracts-cache",
+      "fetchedAt": "2026-07-19T14:38:38.891Z",
+      "note": "seed from 256 contract rows · 28 agencies"
+    }
+  ],
+  "seenAgencyIds": [
+    "egp-001433200",
+    "egp-0201",
+    "egp-0303",
+    "egp-0703",
+    "egp-0708",
+    "egp-0807",
+    "egp-1302",
+    "egp-1505",
+    "egp-1603",
+    "egp-2600101",
+    "egp-3600101",
+    "egp-4600301",
+    "egp-5600401",
+    "egp-5600701",
+    "egp-6600106",
+    "egp-6600113",
+    "egp-6600114",
+    "egp-6600207",
+    "egp-6600401",
+    "egp-6600503",
+    "egp-6600506",
+    "egp-6600508",
+    "egp-6600603",
+    "egp-6600809",
+    "egp-6600905",
+    "egp-6601301",
+    "egp-6610203",
+    "egp-6610408"
+  ],
+  "contractWinCount": 256,
+  "createdAt": "2026-07-19T14:38:38.891Z",
+  "updatedAt": "2026-07-19T14:38:38.891Z",
+  "confidence": "draft",
+  "note": "Open-DBD stub: TIN from e-GP/contracts-cache. Enrich via open refs; verify later with BDEX."
+}

@@ -146,6 +146,14 @@ export function AdminScreen() {
   const [relatedCoverage, setRelatedCoverage] = useState('');
   const [relatedMsg, setRelatedMsg] = useState<string | null>(null);
   const [relatedBusy, setRelatedBusy] = useState(false);
+  const [companyMasterStats, setCompanyMasterStats] = useState<{
+    total: number;
+    withDirectors: number;
+    withAddress: number;
+    bdexVerified: number;
+    strategy?: string;
+  } | null>(null);
+  const [companySyncBusy, setCompanySyncBusy] = useState(false);
   const [relatedFetchBusy, setRelatedFetchBusy] = useState(false);
   const [relatedDirectorsBusy, setRelatedDirectorsBusy] = useState(false);
   const [relatedAgeBusy, setRelatedAgeBusy] = useState(false);
@@ -310,6 +318,7 @@ export function AdminScreen() {
         setRelatedMatches(d.matches || []);
         setRelatedCoverage(d.coverage || '');
         setRelatedMsg(d.ethics || null);
+        if (d.companyMaster) setCompanyMasterStats(d.companyMaster);
       })
       .catch((e: Error) => setRelatedMsg(e.message))
       .finally(() => setRelatedBusy(false));
@@ -855,10 +864,80 @@ export function AdminScreen() {
           {relatedDirectorsBusy && (
             <LoadingHint
               label="กำลังดึงกรรมการจากหลายแหล่ง"
-              hint="DataForThai → Creden → e-GP/เอกสารผู้ชนะ → DBD · ถ้าบล็อกให้วางข้อความจาก sourceUrl"
+              hint="company master (TIN) → DataForThai → Creden → e-GP → DBD(รอง)"
               style={{ marginBottom: 12 }}
             />
           )}
+          <div
+            style={{
+              marginBottom: 16,
+              padding: '14px 16px',
+              background: '#F6F6F3',
+              borderTop: '2px solid #111110',
+            }}
+          >
+            <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 6 }}>Open-DBD · Company master (TIN)</div>
+            <div style={{ fontSize: 12.5, color: '#55554F', lineHeight: 1.55, marginBottom: 10 }}>
+              เลขนิติบุคคลเป็น Primary Key · seed จาก contracts-cache · เชื่อมจัดซื้อจัดจ้าง + ACT AI ·
+              ยื่น BDEX ทีหลังเพื่อยืนยันรายตัว · ไม่ scrape DBD DataWarehouse เป็นหลัก
+            </div>
+            {companyMasterStats && (
+              <div style={{ fontSize: 12.5, color: '#33332E', marginBottom: 10 }}>
+                ใน master: {companyMasterStats.total.toLocaleString('th-TH')} บริษัท · มีกรรมการ{' '}
+                {companyMasterStats.withDirectors.toLocaleString('th-TH')} · มีที่อยู่{' '}
+                {companyMasterStats.withAddress.toLocaleString('th-TH')} · BDEX{' '}
+                {companyMasterStats.bdexVerified}
+              </div>
+            )}
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              <div
+                onClick={() => {
+                  if (!scannedId || !isRealAgency(scannedId) || companySyncBusy) return;
+                  setCompanySyncBusy(true);
+                  setRelatedMsg(null);
+                  fetch(`/api/agencies/${encodeURIComponent(scannedId)}/companies/sync`, {
+                    method: 'POST',
+                    headers: adminWriteHeaders(),
+                    body: '{}',
+                  })
+                    .then(async (r) => {
+                      const d = await r.json();
+                      if (!r.ok) throw new Error(await adminWriteError(r, d));
+                      if (d.companyMaster) setCompanyMasterStats(d.companyMaster);
+                      setRelatedMsg(
+                        `sync company master แล้ว · pack ${d.companiesInPack} บริษัท · เขียน TIN ${d.companyMasterSynced}`
+                      );
+                      if (d.pack) setRelatedPackJson(JSON.stringify(d.pack, null, 2));
+                    })
+                    .catch((e: Error) => setRelatedMsg(e.message))
+                    .finally(() => setCompanySyncBusy(false));
+                }}
+                className="trace24-btn-dark"
+                style={{
+                  padding: '9px 14px',
+                  fontSize: 12.5,
+                  cursor: companySyncBusy ? 'wait' : 'pointer',
+                  opacity: companySyncBusy ? 0.7 : 1,
+                }}
+              >
+                {companySyncBusy ? 'กำลัง sync…' : 'Sync ผู้ชนะ → company master'}
+              </div>
+              <a
+                href="/api/companies?limit=40"
+                target="_blank"
+                rel="noreferrer"
+                style={{
+                  padding: '9px 14px',
+                  fontSize: 12.5,
+                  border: '1px solid #D8D8D2',
+                  textDecoration: 'none',
+                  color: 'inherit',
+                }}
+              >
+                ดู /api/companies
+              </a>
+            </div>
+          </div>
           {relatedAgeBusy && (
             <LoadingHint
               label="กำลังดึงวันจดทะเบียนจาก DataForThai"
@@ -891,18 +970,14 @@ export function AdminScreen() {
             </div>
           )}
           <div style={{ fontSize: 12.5, color: '#8B8B85', marginBottom: 8, lineHeight: 1.55 }}>
-            ดึงทำเนียบ/เจ้าหน้าที่จากเว็บ · กรรมการไล่แหล่ง DataForThai → Creden → e-GP/เอกสารผู้ชนะ → DBD ·
-            วันจดทะเบียนจาก DataForThai ·{' '}
+            กรรมการ: company master (TIN) → DataForThai → Creden → e-GP → DBD warehouse (รอง) · วันจดทะเบียนจาก
+            DataForThai ·{' '}
+            <a href="https://data.dbd.go.th/" target="_blank" rel="noreferrer" style={{ color: '#55554F' }}>
+              Open-DBD
+            </a>
+            {' · '}
             <a href="https://www.dataforthai.com/" target="_blank" rel="noreferrer" style={{ color: '#55554F' }}>
               dataforthai
-            </a>
-            {' · '}
-            <a href="https://data.creden.co/" target="_blank" rel="noreferrer" style={{ color: '#55554F' }}>
-              creden
-            </a>
-            {' · '}
-            <a href="https://datawarehouse.dbd.go.th/" target="_blank" rel="noreferrer" style={{ color: '#55554F' }}>
-              dbd
             </a>
           </div>
           <div
@@ -916,8 +991,7 @@ export function AdminScreen() {
               border: '1px solid #E8DFD0',
             }}
           >
-            ข้อมูลกรรมการ/ผู้ถือหุ้นมาจากแหล่งสาธารณะ — เป็น draft ให้ตรวจสอบกับแหล่งทางการ (DBD / บอจ.5)
-            ก่อนใช้เป็นหลักฐาน
+            Draft จากแหล่งเปิด — ยืนยันทางการด้วย BDEX / บอจ.5 เมื่อเข้าถึงได้ · ไม่ใช้ scrape DataWarehouse เป็นหลัก
           </div>
           <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap', alignItems: 'center' }}>
             <input

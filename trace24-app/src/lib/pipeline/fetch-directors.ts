@@ -2,16 +2,20 @@
  * Multi-source director/shareholder fetch for winning contractors.
  *
  * Cascade (stop on first useful hit per company):
- *   1) DataForThai
+ *   0) Company master (Open-DBD–shaped, TIN PK) — no scrape
+ *   1) DataForThai (open reference)
  *   2) Creden
  *   3) e-GP winner announce + linked contract/doc URLs from the report
- *   4) DBD public profile
+ *   4) DBD public profile — fallback only (HTML may change)
  * Fallback: paste text from any sourceUrl in the related tab.
  *
  * Never invent names. Always treat results as draft from public sources.
+ * Preferred long-term: Open-DBD dump + BDEX API — not warehouse scraping.
  */
 import 'server-only';
 
+import { companyToRelated } from '@/lib/companies/bridge';
+import { loadCompany, upsertCompany } from '@/lib/companies/store';
 import { chatCompletion, parseJsonLoose } from '@/lib/llm/client';
 import { getLlmConfig } from '@/lib/llm/config';
 import { candidateAnnounceUrls } from './announce-enrich';
@@ -31,6 +35,7 @@ const TIN_RE = /^\d{13}$/;
 const PERSON_RE = /(นาย|นางสาว|นาง|ว่าที่)\s*[\u0E00-\u0E7F.]+\s+[\u0E00-\u0E7F.]+/;
 
 export type DirectorSourceKind =
+  | 'company_master'
   | 'dataforthai'
   | 'creden'
   | 'egp'
@@ -39,7 +44,7 @@ export type DirectorSourceKind =
   | 'paste';
 
 export const PUBLIC_SOURCE_DISCLAIMER =
-  'ข้อมูลกรรมการ/ผู้ถือหุ้นมาจากแหล่งสาธารณะ (DataForThai · Creden · e-GP/เอกสารผู้ชนะ · DBD) — เป็น draft ให้ตรวจสอบกับแหล่งทางการ (DBD / บอจ.5) ก่อนใช้เป็นหลักฐาน';
+  'ข้อมูลกรรมการ/ผู้ถือหุ้นมาจาก company master (TIN) + แหล่งเปิด (DataForThai · Creden · e-GP) — DBD warehouse scrape เป็นทางเลือกรอง · ยืนยันทางการผ่าน BDEX/บอจ.5 เมื่อพร้อม';
 
 export type WinnerCandidate = {
   name: string;
@@ -123,6 +128,8 @@ function looksLikeLoginOrBlocked(html: string, text: string): boolean {
 
 function sourceLabel(kind: DirectorSourceKind): string {
   switch (kind) {
+    case 'company_master':
+      return 'Company master (TIN / Open-DBD)';
     case 'dataforthai':
       return 'DataForThai';
     case 'creden':
@@ -132,7 +139,7 @@ function sourceLabel(kind: DirectorSourceKind): string {
     case 'contract_doc':
       return 'เอกสารผู้ชนะ/สัญญา';
     case 'dbd':
-      return 'DBD';
+      return 'DBD (fallback)';
     case 'paste':
       return 'ข้อความที่วาง';
   }
@@ -593,7 +600,23 @@ export async function fetchDirectorsForAgency(opts: {
   for (const w of winners) {
     let hit: PageHit | null = null;
 
-    // 1) DataForThai
+    // 0) Company master (Open-DBD path) — prefer cached TIN record
+    if (w.tin) {
+      const master = loadCompany(w.tin);
+      if (master?.directors?.length) {
+        companies.push(companyToRelated(master));
+        extractedCount += master.directors.length;
+        hitKinds.add('company_master');
+        sources.push({
+          url: master.sources.find((s) => s.url)?.url || `company-master:${w.tin}`,
+          ok: true,
+          kind: 'company_master',
+        });
+        continue;
+      }
+    }
+
+    // 1) DataForThai (open reference — not DBD warehouse scrape)
     if (w.tin && !hit) {
       const dft = await tryHtmlSource({
         url: dataforthaiProfileUrl(w.tin),
@@ -685,23 +708,52 @@ export async function fetchDirectorsForAgency(opts: {
       hitKinds.add(hit.kind);
     }
 
-    companies.push({
+    const record: RelatedCompanyRecord = {
       tin: w.tin || undefined,
       name: w.name,
       address: hit?.address,
       directors: hit?.people || [],
       sourceUrl: hit?.sourceUrl || preferredSourceUrl(w),
       fetchedAt: new Date().toISOString(),
-    });
+    };
+    companies.push(record);
+
+    // Write back into TIN company master (Open-DBD path)
+    if (w.tin && (record.directors.length > 0 || record.address)) {
+      upsertCompany({
+        tin: w.tin,
+        name: w.name,
+        address: record.address,
+        directors: record.directors,
+        sources: [
+          {
+            kind:
+              hit?.kind === 'dbd'
+                ? 'dbd-open'
+                : hit?.kind === 'creden'
+                  ? 'creden'
+                  : hit?.kind === 'dataforthai'
+                    ? 'dataforthai'
+                    : hit?.kind === 'egp' || hit?.kind === 'contract_doc'
+                      ? 'egp'
+                      : 'related-pack',
+            url: record.sourceUrl,
+            fetchedAt: record.fetchedAt || new Date().toISOString(),
+            note: 'enriched via director fetch cascade',
+          },
+        ],
+        confidence: hit?.kind === 'dbd' ? 'draft' : 'open_dbd',
+      });
+    }
   }
 
   const withPeople = companies.filter((c) => c.directors.length > 0).length;
   const kindNote = hitKinds.size
     ? `แหล่งที่สำเร็จ: ${[...hitKinds].map(sourceLabel).join(' · ')}`
-    : 'ยังสกัดกรรมการอัตโนมัติไม่ได้ (DataForThai มักโดน Cloudflare · Creden มักปิดชื่อฟรี · DBD มัก 404/บล็อกจากคลาวด์)';
+    : 'ยังสกัดกรรมการอัตโนมัติไม่ได้ — ใช้ company master / วางข้อความจากแหล่งเปิด (อย่าพึ่ง scrape DBD warehouse)';
 
   const noteParts = [
-    `ไล่แหล่ง DataForThai → Creden → e-GP/เอกสารผู้ชนะ → DBD · เตรียม ${companies.length} ผู้ชนะ`,
+    `ลำดับ: company master (TIN) → DataForThai → Creden → e-GP → DBD(รอง) · เตรียม ${companies.length} ผู้ชนะ`,
     withPeople
       ? `สกัดได้ ${withPeople} บริษัท (${extractedCount} รายชื่อ) · ${kindNote}`
       : kindNote,

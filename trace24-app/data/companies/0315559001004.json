@@ -1,0 +1,43 @@
+{
+  "tin": "0315559001004",
+  "name": "บริษัท ชัยพัฒนาศึกษาภัณฑ์ จำกัด",
+  "aliases": [],
+  "directors": [],
+  "registeredAt": null,
+  "registeredCapital": null,
+  "sources": [
+    {
+      "kind": "contracts-cache",
+      "fetchedAt": "2026-07-19T14:38:38.891Z",
+      "note": "seed from 257 contract rows · 21 agencies"
+    }
+  ],
+  "seenAgencyIds": [
+    "egp-001416500",
+    "egp-0909",
+    "egp-2102",
+    "egp-5310401",
+    "egp-5310602",
+    "egp-5310603",
+    "egp-5310604",
+    "egp-5310803",
+    "egp-5310804",
+    "egp-5311201",
+    "egp-5312001",
+    "egp-5312301",
+    "egp-5312302",
+    "egp-5312303",
+    "egp-6310404",
+    "egp-6310601",
+    "egp-6310602",
+    "egp-6310603",
+    "egp-6311204",
+    "egp-6312001",
+    "egp-6312002"
+  ],
+  "contractWinCount": 257,
+  "createdAt": "2026-07-19T14:38:38.891Z",
+  "updatedAt": "2026-07-19T14:38:38.891Z",
+  "confidence": "draft",
+  "note": "Open-DBD stub: TIN from e-GP/contracts-cache. Enrich via open refs; verify later with BDEX."
+}

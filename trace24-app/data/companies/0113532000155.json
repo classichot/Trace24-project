@@ -1,0 +1,50 @@
+{
+  "tin": "0113532000155",
+  "name": "ห้างหุ้นส่วนจำกัด พระสมุทรพิมพ์ดีด",
+  "aliases": [],
+  "directors": [],
+  "registeredAt": null,
+  "registeredCapital": null,
+  "sources": [
+    {
+      "kind": "contracts-cache",
+      "fetchedAt": "2026-07-19T14:38:38.891Z",
+      "note": "seed from 480 contract rows · 28 agencies"
+    }
+  ],
+  "seenAgencyIds": [
+    "egp-0711",
+    "egp-3100001",
+    "egp-4110101",
+    "egp-4110402",
+    "egp-5110103",
+    "egp-5110105",
+    "egp-5110401",
+    "egp-6110101",
+    "egp-6110103",
+    "egp-6110104",
+    "egp-6110201",
+    "egp-6110204",
+    "egp-6110205",
+    "egp-6110301",
+    "egp-6110303",
+    "egp-6110304",
+    "egp-6110305",
+    "egp-6110402",
+    "egp-6110403",
+    "egp-6110404",
+    "egp-6110405",
+    "egp-6110406",
+    "egp-6110501",
+    "egp-6110502",
+    "egp-6110504",
+    "egp-6110603",
+    "egp-6120102",
+    "egp-6240405"
+  ],
+  "contractWinCount": 480,
+  "createdAt": "2026-07-19T14:38:38.891Z",
+  "updatedAt": "2026-07-19T14:38:38.891Z",
+  "confidence": "draft",
+  "note": "Open-DBD stub: TIN from e-GP/contracts-cache. Enrich via open refs; verify later with BDEX."
+}

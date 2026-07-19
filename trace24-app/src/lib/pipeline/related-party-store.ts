@@ -3,6 +3,10 @@ import 'server-only';
 import fs from 'fs';
 import path from 'path';
 import {
+  enrichRelatedPackFromCompanyMaster,
+  seedPackCompaniesFromReport,
+} from '@/lib/companies/bridge';
+import {
   applyRelatedPartyToReport,
   emptyRelatedPack,
   type RelatedPartyPack,
@@ -72,12 +76,17 @@ export function saveRelatedPartyPack(agencyId: string, pack: RelatedPartyPack): 
   return next;
 }
 
-/** Apply stored related-party pack (or empty) onto a report. */
+/** Apply company master (TIN) + related-party pack onto a report. */
 export function withRelatedPartyOverlay(report: PipelineReportLike): ReturnType<
   typeof applyRelatedPartyToReport
 > {
   const agencyId = report.agency?.id || '';
-  const pack = agencyId ? loadRelatedPartyPack(agencyId) : null;
+  let pack = agencyId ? loadRelatedPartyPack(agencyId) : null;
+  if (!pack && agencyId) pack = emptyRelatedPack(agencyId);
+  if (pack) {
+    pack = seedPackCompaniesFromReport(pack, report);
+    pack = enrichRelatedPackFromCompanyMaster(pack);
+  }
   return applyRelatedPartyToReport(report, pack);
 }
 

@@ -1,0 +1,44 @@
+{
+  "tin": "0125543008693",
+  "name": "บริษัท ไซเบอร์ ไดรฟ์ คอมพิวเตอร์ จำกัด",
+  "aliases": [],
+  "directors": [],
+  "registeredAt": null,
+  "registeredCapital": null,
+  "sources": [
+    {
+      "kind": "contracts-cache",
+      "fetchedAt": "2026-07-19T14:38:38.891Z",
+      "note": "seed from 387 contract rows · 22 agencies"
+    }
+  ],
+  "seenAgencyIds": [
+    "egp-5120201",
+    "egp-5130101",
+    "egp-5130502",
+    "egp-6120202",
+    "egp-6120203",
+    "egp-6120302",
+    "egp-6120402",
+    "egp-6120405",
+    "egp-6120406",
+    "egp-6120604",
+    "egp-6120606",
+    "egp-6130103",
+    "egp-6130105",
+    "egp-6130106",
+    "egp-6130108",
+    "egp-6130110",
+    "egp-6130501",
+    "egp-6130504",
+    "egp-6130701",
+    "egp-6130703",
+    "egp-6130706",
+    "egp-6130709"
+  ],
+  "contractWinCount": 387,
+  "createdAt": "2026-07-19T14:38:38.891Z",
+  "updatedAt": "2026-07-19T14:38:38.891Z",
+  "confidence": "draft",
+  "note": "Open-DBD stub: TIN from e-GP/contracts-cache. Enrich via open refs; verify later with BDEX."
+}

@@ -1,0 +1,23 @@
+{
+  "tin": "0345558000403",
+  "name": "บริษัท สำนักพิมพ์ อมตะ จำกัด",
+  "aliases": [],
+  "directors": [],
+  "registeredAt": null,
+  "registeredCapital": null,
+  "sources": [
+    {
+      "kind": "contracts-cache",
+      "fetchedAt": "2026-07-19T14:38:38.891Z",
+      "note": "seed from 318 contract rows · 1 agencies"
+    }
+  ],
+  "seenAgencyIds": [
+    "egp-2033"
+  ],
+  "contractWinCount": 318,
+  "createdAt": "2026-07-19T14:38:38.891Z",
+  "updatedAt": "2026-07-19T14:38:38.891Z",
+  "confidence": "draft",
+  "note": "Open-DBD stub: TIN from e-GP/contracts-cache. Enrich via open refs; verify later with BDEX."
+}
