@@ -119,20 +119,24 @@ export function buildUiEntityGraph(input: {
   projectIds.forEach((pid, i) => {
     const p = projects[pid];
     const y = 80 + i * ((480 - 80) / Math.max(1, projectIds.length - 1 || 1));
+    const projectName = String(p.name || '').trim();
     nodes.push({
       id: pid,
       type: 'project',
       x: 340,
       y: projectIds.length === 1 ? 280 : y,
-      label: p.code || pid,
+      // Prefer project name in graph + connection list (not bare e-GP code)
+      label: shortLabel(projectName || p.code || pid, 22),
     });
     edges.push(['muni', pid, 'จัดจ้าง', false]);
     details[pid] = {
       typeLabel: 'โครงการ',
-      label: `${p.code || pid} · ${truncate(p.name || '', 48)}`,
-      sub: [p.award, p.method, p.year].filter(Boolean).join(' · ') || '—',
+      label: projectName || p.code || pid,
+      sub: [p.code ? `รหัส ${p.code}` : null, p.award, p.method, p.year]
+        .filter(Boolean)
+        .join(' · ') || '—',
       facts: [
-        truncate(p.name || '—', 100),
+        projectName ? truncate(projectName, 100) : '—',
         p.winner && contractors[p.winner]
           ? `ผู้ชนะ: ${contractors[p.winner].name}`
           : p.winnerId && contractors[p.winnerId]

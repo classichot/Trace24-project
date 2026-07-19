@@ -1,6 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import { chunkText } from './extract';
+import { contractorDisplayName, projectDisplayLabel } from './normalize';
 import type { PipelineReportLike } from './types';
 
 export type VectorPassage = {
@@ -110,7 +111,8 @@ export function passagesFromReport(agencyId: string, report: PipelineReportLike)
   });
 
   for (const [pid, pr] of Object.entries(report.projects || {})) {
-    const base = `${pr.code} ${pr.name} ${pr.methodShort || ''} award ${pr.award || ''} budget ${pr.budget || ''}`;
+    const winnerName = contractorDisplayName(pr.winner, report.contractors);
+    const base = `${projectDisplayLabel(pr)} ผู้ชนะ ${winnerName} ${pr.methodShort || ''} award ${pr.award || ''} budget ${pr.budget || ''}`;
     for (const [ci, chunk] of chunkText(base, 360, 40).entries()) {
       out.push({
         id: `proj-${pid}-${ci}`,
@@ -125,7 +127,7 @@ export function passagesFromReport(agencyId: string, report: PipelineReportLike)
       out.push({
         id: `alert-${pid}-${ai}`,
         agencyId,
-        text: `${alert.tag} ${alert.title} ${alert.explain} ${alert.innocent}`,
+        text: `${projectDisplayLabel(pr)} · ผู้ชนะ ${winnerName} · ${alert.tag} ${alert.title} ${alert.explain} ${alert.innocent}`,
         sourceUrl: alert.evidence?.[0] || pr._sourceUrl || null,
         entityIds: [`project:${pid}`],
         kind: 'risk_alert',

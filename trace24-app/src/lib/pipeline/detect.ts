@@ -1,6 +1,12 @@
 import { detectSupplierConcentration } from './graph';
 import { detectMissingInformation } from './facts';
-import { methodBucket, parseBaht } from './normalize';
+import {
+  contractorDisplayName,
+  enrichAlertTitle,
+  methodBucket,
+  parseBaht,
+  projectDisplayLabel,
+} from './normalize';
 import { relatedMatchesToSignals, detectRelatedPartyMatches } from './related-party';
 import type { PipelineReportLike, RiskSignal } from './types';
 
@@ -19,14 +25,17 @@ export function runRuleEngine(report: PipelineReportLike): RiskSignal[] {
   const projects = Object.entries(report.projects || {});
 
   for (const [pid, pr] of projects) {
+    const projectLabel = projectDisplayLabel(pr);
+    const winnerName = contractorDisplayName(pr.winner, report.contractors);
     for (const [i, a] of (pr.alerts || []).entries()) {
       const ruleId = a.tag?.split('·')[0]?.trim() || `R?`;
+      const title = enrichAlertTitle(a.title, pr, report.contractors);
       signals.push(
         baseSignal({
           id: `sig-${pid}-${i}`,
           ruleId,
           category: a.tag || 'rule',
-          title: a.title,
+          title,
           severity: (a.sevKey as RiskSignal['severity']) || 'Low',
           score: a.sevKey === 'High' ? 0.85 : a.sevKey === 'Medium' ? 0.55 : 0.25,
           confidence: confFromText(a.conf),
@@ -35,8 +44,8 @@ export function runRuleEngine(report: PipelineReportLike): RiskSignal[] {
           innocentExplanation: a.innocent,
           evidenceRefs: a.evidence || [],
           facts: [
-            `โครงการ ${pr.code || pid}`,
-            pr.winner ? `ผู้ชนะที่บันทึก: ${pr.winner}` : 'ยังไม่มีผู้ชนะในชุดข้อมูล',
+            `โครงการ「${projectLabel}」`,
+            pr.winner ? `ผู้ชนะ: ${winnerName}` : 'ยังไม่มีผู้ชนะในชุดข้อมูล',
             pr.award && pr.award !== '—' ? `ราคา: ${pr.award}` : 'ยังไม่มีราคา',
           ],
           kind: 'process',
@@ -207,7 +216,9 @@ export function runSimilarityHints(report: PipelineReportLike): RiskSignal[] {
             explanation: `ความคล้ายโทเคน ~${Math.round(sim * 100)}% ระหว่างโครงการสองรายการ`,
             innocentExplanation: 'หน่วยงานอาจใช้แม่แบบชื่อโครงการมาตรฐาน',
             evidenceRefs: [],
-            facts: [`คู่โครงการ ${sample[i].id} ↔ ${sample[j].id}`],
+            facts: [
+              `คู่โครงการ「${projectDisplayLabel(report.projects?.[sample[i].id])}」↔「${projectDisplayLabel(report.projects?.[sample[j].id])}」`,
+            ],
             kind: 'network',
           })
         );

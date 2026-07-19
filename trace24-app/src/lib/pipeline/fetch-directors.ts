@@ -126,6 +126,23 @@ function looksLikeLoginOrBlocked(html: string, text: string): boolean {
   return false;
 }
 
+/** Creden hides director/shareholder names behind login (section titles remain public). */
+function looksLikeCredenLoginWall(html: string, text: string): boolean {
+  const blob = `${html.slice(0, 8000)}\n${text.slice(0, 6000)}`;
+  const paywall =
+    /ดูฟรี\.\.!?\s*เมื่อคุณเข้าสู่ระบบ|กรุณาเข้าสู่ระบบก่อนการใช้งาน|Sign in with Creden/i.test(blob);
+  if (!paywall) return false;
+  // Headings like "กรรมการและผู้มีอำนาจ" stay visible; names do not
+  const hasPersonName = PERSON_RE.test(text);
+  return !hasPersonName;
+}
+
+function credenAuthHeaders(): Record<string, string> {
+  const cookie = process.env.CREDEN_COOKIE?.trim() || process.env.CREDEN_SESSION?.trim();
+  if (!cookie) return {};
+  return { Cookie: cookie };
+}
+
 function sourceLabel(kind: DirectorSourceKind): string {
   switch (kind) {
     case 'company_master':
@@ -267,7 +284,10 @@ export function collectWinnerCandidates(
   return out;
 }
 
-async function fetchPage(url: string): Promise<{
+async function fetchPage(
+  url: string,
+  extraHeaders?: Record<string, string>
+): Promise<{
   ok: boolean;
   status: number;
   html: string;
@@ -277,7 +297,7 @@ async function fetchPage(url: string): Promise<{
   const timer = setTimeout(() => controller.abort(), 18000);
   try {
     const res = await fetch(url, {
-      headers: UA,
+      headers: { ...UA, ...(extraHeaders || {}) },
       redirect: 'follow',
       signal: controller.signal,
     });
@@ -290,6 +310,17 @@ async function fetchPage(url: string): Promise<{
   } finally {
     clearTimeout(timer);
   }
+}
+
+/** Creden company profile URLs to try (public HTML; directors usually need login). */
+export function credenCandidateUrls(tin: string): string[] {
+  const t = tin.replace(/\D/g, '');
+  if (!TIN_RE.test(t)) return [];
+  return [
+    `https://data.creden.co/company/general/${t}`,
+    `https://data.creden.co/company/director/${t}`,
+    `https://data.creden.co/company/shareholder/${t}`,
+  ];
 }
 
 function heuristicPeople(text: string, sourceUrl: string, kind: DirectorSourceKind): CompanyPerson[] {
@@ -422,8 +453,9 @@ async function tryHtmlSource(opts: {
   sources: FetchDirectorsResult['sources'];
   /** Skip LLM if page text lacks person/role cues (saves budget). */
   requireCue?: boolean;
+  extraHeaders?: Record<string, string>;
 }): Promise<PageHit | null> {
-  const got = await fetchPage(opts.url);
+  const got = await fetchPage(opts.url, opts.extraHeaders);
   opts.sources.push({
     url: opts.url,
     ok: got.ok,
@@ -434,8 +466,16 @@ async function tryHtmlSource(opts: {
   });
   if (!got.ok || !got.html) return null;
   const text = htmlToText(got.html);
-  if (looksLikeLoginOrBlocked(got.html, text) || text.length < 80) {
-    return { people: [], sourceUrl: opts.url, kind: opts.kind, model: null, blocked: true };
+  const credenWall =
+    opts.kind === 'creden' && looksLikeCredenLoginWall(got.html, text);
+  if (credenWall || looksLikeLoginOrBlocked(got.html, text) || text.length < 80) {
+    return {
+      people: [],
+      sourceUrl: opts.url,
+      kind: opts.kind,
+      model: null,
+      blocked: true,
+    };
   }
   if (opts.requireCue !== false) {
     if (!/(กรรมการ|ผู้ถือหุ้น|ผู้มีอำนาจ|หุ้นส่วนผู้จัดการ|กรรมการผู้จัดการ)/.test(text) && !PERSON_RE.test(text)) {
@@ -451,6 +491,37 @@ async function tryHtmlSource(opts: {
     kind: opts.kind,
     model: extracted.model,
   };
+}
+
+async function tryCredenSources(opts: {
+  tin: string;
+  companyName: string;
+  sources: FetchDirectorsResult['sources'];
+}): Promise<PageHit | null> {
+  const headers = credenAuthHeaders();
+  let blocked = false;
+  for (const url of credenCandidateUrls(opts.tin)) {
+    const hit = await tryHtmlSource({
+      url,
+      kind: 'creden',
+      companyName: opts.companyName,
+      tin: opts.tin,
+      sources: opts.sources,
+      extraHeaders: headers,
+    });
+    if (hit?.blocked) blocked = true;
+    if (hit?.people.length) return hit;
+  }
+  if (blocked) {
+    return {
+      people: [],
+      sourceUrl: credenProfileUrl(opts.tin),
+      kind: 'creden',
+      model: null,
+      blocked: true,
+    };
+  }
+  return null;
 }
 
 async function tryEgpPlainSource(opts: {
@@ -561,7 +632,13 @@ export async function fetchDirectorsForAgency(opts: {
   limit?: number;
   /** Optional forced TIN list to try even if not in report */
   extraTins?: { tin: string; name?: string }[];
+  /**
+   * `creden` = Creden-only path for winner directors (uses CREDEN_COOKIE when set).
+   * `all` (default) = full cascade.
+   */
+  preferSource?: 'creden' | 'all';
 }): Promise<FetchDirectorsResult> {
+  const preferCreden = opts.preferSource === 'creden';
   const winners = collectWinnerCandidates(opts.report, opts.limit ?? 8);
   for (const extra of opts.extraTins || []) {
     const tin = String(extra.tin || '').replace(/\D/g, '');
@@ -597,6 +674,10 @@ export async function fetchDirectorsForAgency(opts: {
   let extractedCount = 0;
   const hitKinds = new Set<DirectorSourceKind>();
 
+  const hasCredenCookie = Boolean(
+    process.env.CREDEN_COOKIE?.trim() || process.env.CREDEN_SESSION?.trim()
+  );
+
   for (const w of winners) {
     let hit: PageHit | null = null;
 
@@ -616,8 +697,19 @@ export async function fetchDirectorsForAgency(opts: {
       }
     }
 
+    // Creden-only mode (dedicated feature)
+    if (preferCreden && w.tin) {
+      const creden = await tryCredenSources({
+        tin: w.tin,
+        companyName: w.name,
+        sources,
+      });
+      if (creden?.blocked) scrapeBlocked = true;
+      if (creden?.people.length) hit = creden;
+    }
+
     // 1) DataForThai (open reference — not DBD warehouse scrape)
-    if (w.tin && !hit) {
+    if (!preferCreden && w.tin && !hit) {
       const dft = await tryHtmlSource({
         url: dataforthaiProfileUrl(w.tin),
         kind: 'dataforthai',
@@ -629,13 +721,11 @@ export async function fetchDirectorsForAgency(opts: {
       if (dft?.people.length) hit = dft;
     }
 
-    // 2) Creden
-    if (w.tin && !hit) {
-      const creden = await tryHtmlSource({
-        url: credenProfileUrl(w.tin),
-        kind: 'creden',
-        companyName: w.name,
+    // 2) Creden (full cascade)
+    if (!preferCreden && w.tin && !hit) {
+      const creden = await tryCredenSources({
         tin: w.tin,
+        companyName: w.name,
         sources,
       });
       if (creden?.blocked) scrapeBlocked = true;
@@ -643,7 +733,7 @@ export async function fetchDirectorsForAgency(opts: {
     }
 
     // 3) e-GP announces
-    if (!hit) {
+    if (!preferCreden && !hit) {
       for (const url of w.egpUrls || []) {
         const egp = await tryEgpPlainSource({
           url,
@@ -660,7 +750,7 @@ export async function fetchDirectorsForAgency(opts: {
     }
 
     // 3b) linked contract / attachment URLs from report timeline
-    if (!hit) {
+    if (!preferCreden && !hit) {
       for (const url of w.docUrls || []) {
         const doc = /\.pdf($|\?)/i.test(url)
           ? null // PDF bytes need extract pipeline; skip silent fail for now
@@ -681,7 +771,7 @@ export async function fetchDirectorsForAgency(opts: {
     }
 
     // 4) DBD
-    if (w.tin && !hit) {
+    if (!preferCreden && w.tin && !hit) {
       const dbdUrls = [
         dbdProfileUrl(w.tin),
         `https://datawarehouse.dbd.go.th/company/companyProfile/${w.tin}`,
@@ -713,7 +803,9 @@ export async function fetchDirectorsForAgency(opts: {
       name: w.name,
       address: hit?.address,
       directors: hit?.people || [],
-      sourceUrl: hit?.sourceUrl || preferredSourceUrl(w),
+      sourceUrl:
+        hit?.sourceUrl ||
+        (preferCreden && w.credenUrl ? w.credenUrl : preferredSourceUrl(w)),
       fetchedAt: new Date().toISOString(),
     };
     companies.push(record);
@@ -750,18 +842,26 @@ export async function fetchDirectorsForAgency(opts: {
   const withPeople = companies.filter((c) => c.directors.length > 0).length;
   const kindNote = hitKinds.size
     ? `แหล่งที่สำเร็จ: ${[...hitKinds].map(sourceLabel).join(' · ')}`
-    : 'ยังสกัดกรรมการอัตโนมัติไม่ได้ — ใช้ company master / วางข้อความจากแหล่งเปิด (อย่าพึ่ง scrape DBD warehouse)';
+    : preferCreden
+      ? 'Creden ล็อกชื่อกรรมการไว้หลังเข้าสู่ระบบ — เปิดลิงก์ Creden แล้ววางข้อความ หรือตั้ง CREDEN_COOKIE'
+      : 'ยังสกัดกรรมการอัตโนมัติไม่ได้ — ใช้ company master / วางข้อความจากแหล่งเปิด (อย่าพึ่ง scrape DBD warehouse)';
 
   const noteParts = [
-    `ลำดับ: company master (TIN) → DataForThai → Creden → e-GP → DBD(รอง) · เตรียม ${companies.length} ผู้ชนะ`,
+    preferCreden
+      ? `โหมด Creden · ผู้ชนะ ${companies.length} ราย${hasCredenCookie ? ' · มี CREDEN_COOKIE' : ' · ไม่มี CREDEN_COOKIE'}`
+      : `ลำดับ: company master (TIN) → DataForThai → Creden → e-GP → DBD(รอง) · เตรียม ${companies.length} ผู้ชนะ`,
     withPeople
       ? `สกัดได้ ${withPeople} บริษัท (${extractedCount} รายชื่อ) · ${kindNote}`
       : kindNote,
   ];
   if (scrapeBlocked || !withPeople) {
     const sampleLinks = winners
-      .slice(0, 3)
-      .flatMap((w) => publicSourceLinks(w))
+      .slice(0, 5)
+      .flatMap((w) =>
+        preferCreden
+          ? [w.credenUrl || (w.tin ? credenProfileUrl(w.tin) : '')].filter(Boolean)
+          : publicSourceLinks(w)
+      )
       .filter((u, i, arr) => arr.indexOf(u) === i)
       .slice(0, 6);
     noteParts.push(

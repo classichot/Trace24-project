@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useTrace24 } from '@/context/trace24-context';
 import { callAgencyLlm } from '@/lib/llm-ui';
+import { enrichAlertTitle } from '@/lib/pipeline/normalize';
 import { REVIEW_OPTIONS, sev } from '@/lib/utils';
 import { LoadingHint, RiskDisclaimer, SeverityBadge, selectStyle } from './ui';
 
@@ -637,12 +638,13 @@ export function ProjectScreen() {
             )}
             {alerts.map((a, i) => {
               const s = sev(a.sevKey);
+              const alertTitle = enrichAlertTitle(a.title, pr0, contractors);
               return (
                 <div key={i} style={{ border: '1px solid #E4E4E0', background: '#fff', padding: '22px 24px' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 12, flexWrap: 'wrap' }}>
                     <div style={{ display: 'flex', alignItems: 'baseline', gap: 12, flexWrap: 'wrap' }}>
                       <span style={{ fontSize: 10.5, letterSpacing: '.06em', color: '#8B8B85' }}>{a.tag}</span>
-                      <span style={{ fontSize: 15, fontWeight: 600 }}>{a.title}</span>
+                      <span style={{ fontSize: 15, fontWeight: 600 }}>{alertTitle}</span>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                       <span style={{ fontSize: 11.5, color: '#8B8B85' }}>{a.conf}</span>

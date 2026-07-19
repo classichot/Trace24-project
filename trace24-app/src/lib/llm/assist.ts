@@ -5,6 +5,7 @@ import type { InvestigationPack, PipelineReportLike, RiskSignal } from '@/lib/pi
 const GUARDRAILS = `You assist TRACE24, a Thai municipal procurement integrity tool.
 Rules:
 - Never invent URLs, contract IDs, winners, or amounts not present in the provided evidence.
+- Always refer to projects and companies by Thai names from the evidence — never by internal ids like c1/c2 or bare e-GP numeric codes alone.
 - Risk scores and red-flag severity must remain driven by deterministic rules — you may explain, prioritize questions, and propose rule drafts only.
 - Write in Thai unless the user asks otherwise.
 - Distinguish: สัญญาณที่อธิบายได้ vs ข้อกล่าวหา — never claim proven corruption.
@@ -82,6 +83,7 @@ export async function reviewSignalsWithLlm(
     score: s.score,
     explanation: s.explanation,
     innocent: s.innocentExplanation,
+    facts: (s.facts || []).slice(0, 4),
   }));
 
   const result = await chatCompletion(

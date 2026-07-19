@@ -1,4 +1,4 @@
-import { normalizeCompanyName, parseBaht } from './normalize';
+import { normalizeCompanyName, parseBaht, projectDisplayLabel } from './normalize';
 import type { GraphEdge, NormalizedEntity, PipelineReportLike, TemporalGraph } from './types';
 
 /**
@@ -36,7 +36,7 @@ export function buildTemporalGraph(report: PipelineReportLike): TemporalGraph {
     nodes.push({
       id: `project:${pid}`,
       type: 'project',
-      label: pr.name.slice(0, 80),
+      label: projectDisplayLabel(pr, { maxName: 80 }),
       attrs: {
         code: pr.code,
         award: pr.award || '—',

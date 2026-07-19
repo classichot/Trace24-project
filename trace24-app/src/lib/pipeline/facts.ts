@@ -1,3 +1,4 @@
+import { contractorDisplayName, projectDisplayLabel } from './normalize';
 import type {
   AnalyticalConclusion,
   EvidenceClaim,
@@ -17,12 +18,15 @@ export function buildFactRecords(
 ): FactRecord[] {
   const facts: FactRecord[] = [];
   const now = new Date().toISOString();
+  const contractors = report.contractors;
 
   for (const [pid, pr] of Object.entries(report.projects || {})) {
+    const projectLabel = projectDisplayLabel(pr, { maxName: 56 });
     if (pr.winner) {
+      const winnerName = contractorDisplayName(pr.winner, contractors);
       facts.push({
         id: `fact-winner-${pid}`,
-        statement: `โครงการ ${pr.code || pid} ประกาศผู้ชนะเป็น「${pr.winner}」`,
+        statement: `โครงการ「${projectLabel}」ประกาศผู้ชนะเป็น「${winnerName}」`,
         claimIds: [],
         evidenceRefs: pr._sourceUrl ? [pr._sourceUrl] : [],
         entityIds: [`project:${pid}`, `company:${pr.winner}`],
@@ -33,7 +37,7 @@ export function buildFactRecords(
     if (pr.award && pr.award !== '—') {
       facts.push({
         id: `fact-award-${pid}`,
-        statement: `โครงการ ${pr.code || pid} มีราคาตกลง/งบที่บันทึก = ${pr.award}`,
+        statement: `โครงการ「${projectLabel}」มีราคาตกลง/งบที่บันทึก = ${pr.award}`,
         claimIds: [],
         evidenceRefs: pr._sourceUrl ? [pr._sourceUrl] : [],
         entityIds: [`project:${pid}`],
@@ -44,7 +48,7 @@ export function buildFactRecords(
     if (pr.methodShort) {
       facts.push({
         id: `fact-method-${pid}`,
-        statement: `โครงการ ${pr.code || pid} ใช้วิธี「${pr.methodShort}」`,
+        statement: `โครงการ「${projectLabel}」ใช้วิธี「${pr.methodShort}」`,
         claimIds: [],
         evidenceRefs: pr._sourceUrl ? [pr._sourceUrl] : [],
         entityIds: [`project:${pid}`],

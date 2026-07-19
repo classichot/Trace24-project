@@ -280,7 +280,9 @@ export function buildPriceComparePayload(
         method: p.method || p.methodShort || '—',
         fy: p.fy || '—',
         pct: p.pct || '—',
-        winnerName: p.winner ? contractors[p.winner]?.name || p.winner : '—',
+        winnerName: p.winner
+          ? contractors[p.winner]?.name?.trim() || (/^c\d+$/i.test(p.winner) ? '—' : p.winner)
+          : '—',
         lengthKm: pq.lengthKm,
         areaM2: pq.areaM2,
         unitRateLabel,
@@ -311,7 +313,9 @@ export function buildPriceComparePayload(
         (bm && typeof bm.vsMedianPct === 'number'
           ? `${bm.vsMedianPct >= 0 ? '+' : ''}${bm.vsMedianPct.toFixed(1)}%`
           : '—'),
-      winnerName: winnerId ? contractors[winnerId]?.name || winnerId : '—',
+      winnerName: winnerId
+        ? contractors[winnerId]?.name?.trim() || (/^c\d+$/i.test(winnerId) ? '—' : winnerId)
+        : '—',
       winnerId: winnerId || '',
       alerts: (project.alerts || []).slice(0, 6).map((a) => ({
         tag: a.tag || '',
@@ -357,6 +361,9 @@ export async function comparePriceWithLlm(
   payload: PriceComparePayload
 ): Promise<PriceCompareResult | { error: string }> {
   const disclosure = assessDisclosureGaps(payload);
+  // Omit internal contractor ids (c1…) from the LLM context — names only
+  const { winnerId: _winnerId, ...projectForLlm } = payload.project;
+  const llmPayload = { ...payload, project: projectForLlm };
   const result = await chatCompletion(
     [
       { role: 'system', content: GUARDRAILS },
@@ -366,6 +373,7 @@ export async function comparePriceWithLlm(
 กฎหลัก: ถ้ามีอัตราต่อหน่วย (unitRate / compareMode=unit) ต้องใช้เป็นตัวเปรียบเทียบหลักใน headline และ marketPosition — ราคารวมทั้งสัญญาเป็นบริบทรองเท่านั้น
 ตัวอย่าง: หินคลุก — เทียบ บาท/ลบ.ม. · ถนน — เทียบ บาท/กม. หรือ บาท/ตร.ม. ไม่ใช่แค่ราคารวม
 ใช้เฉพาะข้อมูลด้านล่าง — ห้ามแต่งตัวเลข/ผู้ชนะ/URL/ปริมาณ
+อ้างชื่อบริษัทและชื่อโครงการจากข้อมูล — ห้ามอ้างรหัสภายในอย่างเดียว
 ย้ำเสมอว่าค่ากลางตลาดจากแคชสัญญา ≠ ราคากลางราชการ
 ถ้า parse ปริมาณจากชื่ออาจคลาดเคลื่อน (ความกว้างต่างกัน / ไม่มีหนา) ให้ระบุใน caveats
 
@@ -376,7 +384,7 @@ export async function comparePriceWithLlm(
 - อย่าลดน้ำหนักช่องว่างข้อมูลเป็นเพียง "ข้อแม้ทางเทคนิค" — ให้ถือเป็นสัญญาณปิดบังข้อมูลจนกว่าจะมีเอกสารครบ
 
 ข้อมูล:
-${JSON.stringify(payload, null, 2)}
+${JSON.stringify(llmPayload, null, 2)}
 
 ตอบเป็น JSON เท่านั้น:
 {

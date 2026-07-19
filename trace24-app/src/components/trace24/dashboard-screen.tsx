@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { D, useTrace24 } from '@/context/trace24-context';
 import { openAuditObservationPack } from '@/lib/audit-ui';
 import { callAgencyLlm } from '@/lib/llm-ui';
+import { enrichAlertTitle } from '@/lib/pipeline/normalize';
 import { sev } from '@/lib/utils';
 import { RiskDisclaimer, SeverityBadge } from './ui';
 
@@ -102,22 +103,25 @@ export function DashboardScreen() {
     });
   }
 
+  const contractors = dataset.contractors as Record<string, { name?: string }> | undefined;
   for (const id of (dataset.priorityOrder || []).slice(0, 6)) {
     const projects = dataset.projects as typeof D.projects;
-    const p = projects[id as keyof typeof projects];
+    const p = projects[id as keyof typeof projects] as (typeof D.projects)[keyof typeof D.projects] & {
+      winner?: string | null;
+      code?: string;
+      name?: string;
+      alerts?: { tag?: string; title?: string; explain?: string; sevKey?: string }[];
+    };
     if (!p?.alerts) continue;
     for (const a of p.alerts.slice(0, 2)) {
-      const alert = a as {
-        tag?: string;
-        title?: string;
-        explain?: string;
-        sevKey?: string;
-      };
+      const alert = a;
+      const title =
+        enrichAlertTitle(alert.title, p, contractors) || alert.tag || 'สัญญาณ';
       signalRows.push({
         key: `p-${id}-${alert.tag || alert.title}`,
         ruleId: alert.tag || 'R?',
-        title: alert.title || alert.tag || 'สัญญาณ',
-        explanation: alert.explain || alert.title || '',
+        title,
+        explanation: alert.explain || title,
         severity: alert.sevKey,
         projectName: p.name,
       });
@@ -206,7 +210,7 @@ export function DashboardScreen() {
               }}
               title="สร้างชุดสังเกตการณ์ + AI อธิบายความน่าสงสัยของแต่ละประเด็น"
             >
-              {auditBusy ? 'AI กำลังอธิบาย…' : 'ชุดสังเกตการณ์มูลค่าเงิน (PDF)'}
+              {auditBusy ? 'AI กำลังอธิบาย…' : 'สรุปประเด็นตั้งต้นเพื่อพิจารณาสืบสวน'}
             </div>
           ) : null}
           {auditErr && (

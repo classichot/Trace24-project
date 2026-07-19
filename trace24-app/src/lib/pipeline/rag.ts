@@ -150,9 +150,12 @@ export function hybridGraphRag(
       facts.push(`เอกสาร「${n.label}」วันที่ ${n.attrs.when || '—'} · ${n.attrs.url || ''}`);
     }
   }
+  const labelById = new Map(nodes.map((n) => [n.id, n.label]));
   for (const e of edges.filter((x) => x.since).slice(0, 5)) {
+    const fromLabel = labelById.get(e.from) || e.from;
+    const toLabel = labelById.get(e.to) || e.to;
     facts.push(
-      `ความสัมพันธ์「${e.rel}」${e.from} → ${e.to} ตั้งแต่ ${e.since}${e.until ? ` ถึง ${e.until}` : ''}`
+      `ความสัมพันธ์「${e.rel}」${fromLabel} → ${toLabel} ตั้งแต่ ${e.since}${e.until ? ` ถึง ${e.until}` : ''}`
     );
   }
   for (const c of citations.filter((x) => x.kind !== 'risk_alert').slice(0, 4)) {

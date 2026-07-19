@@ -8,6 +8,7 @@ import {
   detectMissingInformation,
 } from './facts';
 import { buildTemporalGraph } from './graph';
+import { contractorDisplayName, enrichAlertTitle, projectDisplayLabel } from './normalize';
 import { hybridGraphRag } from './rag';
 import { resolveEntities } from './resolve';
 import { buildAlerts, scoreRisks } from './risk';
@@ -148,10 +149,18 @@ function buildLeads(
     .filter(([, p]) => p.sevKey === 'High')
     .slice(0, 5);
   for (const [pid, pr] of highProjects) {
+    const projectLabel = projectDisplayLabel(pr, { maxName: 40 });
+    const winnerName = contractorDisplayName(pr.winner, report.contractors);
+    const alertWhy =
+      enrichAlertTitle(pr.alerts?.[0]?.title, pr, report.contractors) ||
+      'มีสัญญาณระดับสูง — ต้องแยกข้อเท็จจริงจากข้อสรุป';
     leads.push({
       id: `lead-proj-${pid}`,
-      question: `ทำไมโครงการ ${pr.code} จึงถูกจัดลำดับความเสี่ยงสูง?`,
-      why: pr.alerts?.[0]?.title || 'มีสัญญาณระดับสูง — ต้องแยกข้อเท็จจริงจากข้อสรุป',
+      question: `ทำไมโครงการ「${projectLabel}」จึงถูกจัดลำดับความเสี่ยงสูง?`,
+      why:
+        winnerName !== '—' && !alertWhy.includes(winnerName)
+          ? `${alertWhy} · ผู้ชนะ: ${winnerName}`
+          : alertWhy,
       missingDocuments: ['TOR', 'ราคากลาง', 'รายชื่อผู้เสนอราคา', 'เอกสารตรวจรับ'],
       nextActions: [
         'เปิด Hybrid Graph RAG ด้วยชื่อโครงการ',

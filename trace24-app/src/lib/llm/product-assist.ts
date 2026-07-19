@@ -4,11 +4,13 @@
  */
 
 import { chatCompletion, parseJsonLoose } from './client';
+import { contractorDisplayName, projectDisplayLabel } from '@/lib/pipeline/normalize';
 import type { InvestigationPack, PipelineReportLike } from '@/lib/pipeline/types';
 
 const GUARDRAILS = `You assist TRACE24, a Thai municipal procurement integrity tool.
 Rules:
 - Never invent URLs, contract IDs, winners, amounts, or document quotes not in the evidence.
+- Always refer to projects and companies by their Thai names from the evidence — never by internal ids like c1/c2 or bare e-GP numeric codes alone.
 - Risk scores stay from deterministic rules — you only explain, prioritize, and draft.
 - Write in Thai unless asked otherwise.
 - Distinguish สัญญาณ / lead / presumption from ข้อกล่าวหา — never claim proven corruption.
@@ -27,6 +29,16 @@ export async function dashboardBriefWithLlm(
   pack: InvestigationPack,
   report: PipelineReportLike
 ): Promise<DashboardBrief | { error: string }> {
+  const highProjects = Object.entries(report.projects || {})
+    .filter(([, p]) => p.sevKey === 'High')
+    .slice(0, 5)
+    .map(([, p]) => ({
+      project: projectDisplayLabel(p, { maxName: 56 }),
+      winner: contractorDisplayName(p.winner, report.contractors),
+      award: p.award || '—',
+      alert: p.alerts?.[0]?.title || null,
+    }));
+
   const payload = {
     agency: report.agency?.th,
     loc: report.agency?.web,
@@ -39,14 +51,23 @@ export async function dashboardBriefWithLlm(
       title: s.title,
       severity: s.severity,
       explanation: s.explanation.slice(0, 220),
+      facts: (s.facts || []).slice(0, 4),
     })),
+    highRiskProjects: highProjects,
     related: (report.relatedParty?.matches || []).slice(0, 4).map((m) => ({
       ruleId: m.ruleId,
       matchType: m.matchType,
       explanation: m.explanation.slice(0, 180),
     })),
-    leads: pack.leads.slice(0, 4).map((l) => l.question),
-    topContractors: (report.topContractors || []).slice(0, 5),
+    leads: pack.leads.slice(0, 4).map((l) => ({
+      question: l.question,
+      why: l.why,
+    })),
+    topContractors: (report.topContractors || []).slice(0, 5).map((t) => ({
+      name: t.name,
+      contracts: t.n,
+      value: t.value,
+    })),
   };
 
   const result = await chatCompletion(

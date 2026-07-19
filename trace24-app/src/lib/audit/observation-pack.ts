@@ -1,5 +1,6 @@
 import 'server-only';
 
+import { contractorDisplayName, projectDisplayLabel } from '@/lib/pipeline/normalize';
 import type { PipelineReportLike } from '@/lib/pipeline/types';
 
 export type MoneyObservation = {
@@ -94,20 +95,6 @@ function moneyTag(tag: string) {
   return sectionForTag(tag) != null;
 }
 
-/** Resolve contractor id (c1) → display name from report.contractors. */
-function winnerDisplayName(
-  winnerKey: string | null | undefined,
-  contractors: PipelineReportLike['contractors']
-): string {
-  const key = String(winnerKey || '').trim();
-  if (!key || key === '—') return '—';
-  const named = contractors?.[key]?.name?.trim();
-  if (named) return named;
-  // Already a company name (not an internal id like c12)
-  if (!/^c\d+$/i.test(key)) return key;
-  return key;
-}
-
 /** Build money observation pack for oversight / investigation workflows. */
 export function buildAuditObservationPack(
   agencyId: string,
@@ -154,9 +141,9 @@ export function buildAuditObservationPack(
         section,
         ruleTag: tag.split(/[·•]/)[0]?.trim() || tag,
         severity: String(a.sevKey || 'Medium'),
-        projectId: pid,
-        projectName: String(pr.name || pid),
-        winner: winnerDisplayName(pr.winner, contractors),
+        projectId: String(pr.code || pid),
+        projectName: projectDisplayLabel(pr, { maxName: 72 }),
+        winner: contractorDisplayName(pr.winner, contractors),
         award: String(pr.award || '—'),
         budget: String(pr.budget || '—'),
         fy: String(prExtra.fy || '—'),

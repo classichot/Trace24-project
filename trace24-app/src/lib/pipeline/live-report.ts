@@ -22,6 +22,7 @@ import {
   severityFromVsMedian,
   type WorkCategoryId,
 } from './price-benchmark';
+import { contractorDisplayName, projectDisplayLabel } from './normalize';
 import { buildUiClusters } from './ui-clusters';
 import { buildUiEntityGraph } from './ui-entity-graph';
 
@@ -370,15 +371,16 @@ export function enrichStubWithContracts(
       p.sevKey = p.sevKey === 'High' || cluster.severity === 'High' ? 'High' : cluster.severity;
       p.ind = (p.ind || 0) + 1;
       p.alerts = p.alerts || [];
+      const r6Name = contractorDisplayName(cluster.winnerId, contractors);
       p.alerts.push({
         tag: 'R6 · กระบวนการ',
-        title: `อาจมีการแบ่งซื้อแบ่งจ้าง / ซอยสัญญา (${cluster.projectIds.length} สัญญาชื่อคล้าย ผู้ชนะรายเดียว)`,
+        title: `อาจมีการแบ่งซื้อแบ่งจ้าง / ซอยสัญญา (${cluster.projectIds.length} สัญญาชื่อคล้าย · ผู้ชนะ: ${r6Name})`,
         sevKey: cluster.severity,
         conf: `n=${cluster.projectIds.length} · ปีงบ ${cluster.fy}`,
         facts: [
           ['จำนวนสัญญาในกลุ่ม', String(cluster.projectIds.length)],
           ['มูลค่ารวมกลุ่ม', formatBaht(cluster.totalAward)],
-          ['ผู้ชนะ', contractors[cluster.winnerId]?.name || cluster.winnerId],
+          ['ผู้ชนะ', contractorDisplayName(cluster.winnerId, contractors)],
           ['ปีงบ', cluster.fy],
         ],
         explain:
@@ -391,19 +393,20 @@ export function enrichStubWithContracts(
       for (const otherId of peerIds) {
         if (otherId === pid) continue;
         const other = projects[otherId] as { code?: string; name?: string };
-        const label = `${other?.code || otherId} · ${(other?.name || '').slice(0, 48)}`;
+        const label = projectDisplayLabel(other, { maxName: 48 });
         if (!p.related.some((r) => r[0] === otherId)) {
           p.related.push([otherId, label, 'สัญญาชื่อคล้าย · ผู้ชนะเดียวกัน (R6)']);
         }
       }
     }
     const co = contractors[cluster.winnerId];
+    const r6Winner = contractorDisplayName(cluster.winnerId, contractors);
     if (co) {
       co.risks = co.risks || [];
       if (!co.risks.some((r) => r.tag?.startsWith('R6'))) {
         co.risks.push({
           tag: 'R6 · กระบวนการ',
-          text: `ชนะ ${cluster.projectIds.length} สัญญาชื่องานคล้ายกัน (มูลค่ารวมกลุ่ม ~${formatBaht(cluster.totalAward)}) — สัญญาณอาจซอยสัญญา`,
+          text: `${r6Winner} ชนะ ${cluster.projectIds.length} สัญญาชื่องานคล้ายกัน (มูลค่ารวมกลุ่ม ~${formatBaht(cluster.totalAward)}) — สัญญาณอาจซอยสัญญา`,
           sevKey: cluster.severity,
         });
       }
@@ -428,7 +431,7 @@ export function enrichStubWithContracts(
   for (const slot of byWinnerFy.values()) {
     const n = slot.pids.length;
     if (n <= 5) continue; // เกิน 5 เท่านั้น
-    const winnerName = contractors[slot.winnerId]?.name || slot.winnerId;
+    const winnerName = contractorDisplayName(slot.winnerId, contractors);
     for (const pid of slot.pids) {
       const p = projects[pid] as {
         sevKey?: string;
@@ -451,7 +454,7 @@ export function enrichStubWithContracts(
       p.alerts = p.alerts || [];
       p.alerts.push({
         tag: 'R1 · การแข่งขัน',
-        title: `ผู้รับจ้างรายเดียวชนะเกิน 5 สัญญาในปีงบ ${slot.fy} จากหน่วยงานนี้ (${n} สัญญา)`,
+        title: `${winnerName} ชนะเกิน 5 สัญญาในปีงบ ${slot.fy} จากหน่วยงานนี้ (${n} สัญญา)`,
         sevKey: 'High',
         conf: `n=${n} · ปีงบ ${slot.fy}`,
         facts: [
@@ -473,7 +476,7 @@ export function enrichStubWithContracts(
       if (!co.risks.some((r) => r.tag?.startsWith('R1') && r.text.includes('เกิน 5 สัญญา'))) {
         co.risks.push({
           tag: 'R1 · การแข่งขัน',
-          text: `ชนะ ${n} สัญญาในปีงบ ${slot.fy} จากหน่วยงานนี้ (เกินเกณฑ์ 5 สัญญา/ปี) · มูลค่ารวม ~${formatBaht(slot.total)}`,
+          text: `${winnerName} ชนะ ${n} สัญญาในปีงบ ${slot.fy} จากหน่วยงานนี้ (เกินเกณฑ์ 5 สัญญา/ปี) · มูลค่ารวม ~${formatBaht(slot.total)}`,
           sevKey: 'High',
         });
       }
@@ -712,7 +715,7 @@ export function enrichStubWithContracts(
         .slice(0, 8)
         .map(([, p]) => {
           const proj = p as { code?: string; name?: string; award?: string };
-          return [String(proj.code || proj.name || 'โครงการ'), String(proj.award || '—'), false] as [
+          return [projectDisplayLabel(proj, { maxName: 56 }), String(proj.award || '—'), false] as [
             string,
             string,
             boolean,

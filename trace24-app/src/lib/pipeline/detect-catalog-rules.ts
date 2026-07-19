@@ -449,7 +449,7 @@ export function detectCatalogRules(
         sevKey: sev,
         conf: `n=${list.length} · fy=${fy}`,
         facts: [
-          ['ผู้ชนะ', co?.name || winnerId],
+          ['ผู้ชนะ', co?.name?.trim() || (/^c\d+$/i.test(winnerId) ? 'ผู้รับจ้าง (ยังไม่ระบุชื่อ)' : winnerId)],
           ['ปีงบ', fy],
           ['จำนวนสัญญา (วิธีจำกัด)', String(list.length)],
           ['มูลค่ารวม', formatBaht(total)],
@@ -499,7 +499,7 @@ export function detectCatalogRules(
           sevKey: sev,
           conf: `share=${share.toFixed(2)} · fy=${fy}`,
           facts: [
-            ['ผู้ชนะ', co?.name || winnerId],
+            ['ผู้ชนะ', co?.name?.trim() || (/^c\d+$/i.test(winnerId) ? 'ผู้รับจ้าง (ยังไม่ระบุชื่อ)' : winnerId)],
             ['ปีงบ', fy],
             ['มูลค่าของผู้ชนะ', formatBaht(w.value)],
             ['มูลค่ารวมปีงบ (หน่วยงาน)', formatBaht(slot.total)],
@@ -548,7 +548,7 @@ export function detectCatalogRules(
         sevKey: sev,
         conf: `fys=${fys.join(',')} · n=${slot.projects.length}`,
         facts: [
-          ['ผู้ชนะ', co?.name || winnerId],
+          ['ผู้ชนะ', co?.name?.trim() || (/^c\d+$/i.test(winnerId) ? 'ผู้รับจ้าง (ยังไม่ระบุชื่อ)' : winnerId)],
           ['หมวดงาน', catId],
           ['ปีงบที่ชนะ', fys.join(', ')],
           ['จำนวนสัญญา', String(slot.projects.length)],
@@ -626,7 +626,7 @@ export function detectCatalogRules(
         sevKey: list.length >= 5 ? 'High' : 'Medium',
         conf: `n=${list.length} · fy=${fy}`,
         facts: [
-          ['ผู้ชนะ', co?.name || winnerId],
+          ['ผู้ชนะ', co?.name?.trim() || (/^c\d+$/i.test(winnerId) ? 'ผู้รับจ้าง (ยังไม่ระบุชื่อ)' : winnerId)],
           ['ปีงบ', fy],
           ['สัญญา ส.ค.–ก.ย.', String(list.length)],
           ['มูลค่ารวม', formatBaht(list.reduce((s, p) => s + (p.awardN || 0), 0))],
@@ -674,7 +674,7 @@ export function detectCatalogRules(
           sevKey: sev,
           conf: `firstFy=${latestFy} · n=${slot.n}`,
           facts: [
-            ['ผู้ชนะ', co?.name || winnerId],
+            ['ผู้ชนะ', co?.name?.trim() || (/^c\d+$/i.test(winnerId) ? 'ผู้รับจ้าง (ยังไม่ระบุชื่อ)' : winnerId)],
             ['ปีงบที่ปรากฏ (ชุดนี้)', latestFy],
             ['จำนวนสัญญา', String(slot.n)],
             ['มูลค่ารวม', formatBaht(slot.value)],
@@ -716,7 +716,7 @@ export function detectCatalogRules(
           sevKey: sev,
           conf: `soft=${list.length}`,
           facts: [
-            ['ผู้ชนะ', co?.name || winnerId],
+            ['ผู้ชนะ', co?.name?.trim() || (/^c\d+$/i.test(winnerId) ? 'ผู้รับจ้าง (ยังไม่ระบุชื่อ)' : winnerId)],
             ['จำนวนสัญญาประเภทอ่อน', String(list.length)],
             ['มูลค่ารวม', formatBaht(total)],
             ['ตัวอย่างชื่อ', list.slice(0, 2).map((p) => p.name).join(' · ')],
@@ -810,7 +810,7 @@ export function detectCatalogRules(
         sevKey: sev,
         conf: `n=${list.length}`,
         facts: [
-          ['ผู้ชนะ', co?.name || winnerId],
+          ['ผู้ชนะ', co?.name?.trim() || (/^c\d+$/i.test(winnerId) ? 'ผู้รับจ้าง (ยังไม่ระบุชื่อ)' : winnerId)],
           ['จำนวนสัญญา', String(list.length)],
           ['มูลค่ารวม', formatBaht(list.reduce((s, p) => s + (p.awardN || 0), 0))],
         ],
@@ -866,7 +866,7 @@ export function detectCatalogRules(
             sevKey: swaps >= 3 ? 'High' : 'Medium',
             conf: `swaps=${swaps}`,
             facts: [
-              ['ผู้เกี่ยวข้อง', co?.name || winnerId],
+              ['ผู้เกี่ยวข้อง', co?.name?.trim() || (/^c\d+$/i.test(winnerId) ? 'ผู้รับจ้าง (ยังไม่ระบุชื่อ)' : winnerId)],
               ['จำนวนปีคู่ที่สลับอันดับ 1', String(swaps)],
               ['สัญญาของผู้รับจ้างนี้', String(theirs.length)],
             ],
@@ -911,7 +911,7 @@ export function detectCatalogRules(
         sevKey: sev,
         conf: `n=${list.length} · ${ym}`,
         facts: [
-          ['ผู้ชนะ', co?.name || winnerId],
+          ['ผู้ชนะ', co?.name?.trim() || (/^c\d+$/i.test(winnerId) ? 'ผู้รับจ้าง (ยังไม่ระบุชื่อ)' : winnerId)],
           ['เดือนประกาศ', ym],
           ['จำนวนสัญญา', String(list.length)],
           ['มูลค่ารวม', formatBaht(total)],

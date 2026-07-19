@@ -6,6 +6,7 @@ import type { AuditObservationPack, MoneyObservation } from './observation-pack'
 const GUARDRAILS = `You assist TRACE24 for Thai public-procurement oversight (สตง. ปปช. ปปท. ตำรวจ สอบสวน).
 Rules:
 - Never invent amounts, winners, project IDs, or URLs not in the input.
+- Always name companies and projects by the Thai names in the input — do not refer only to numeric e-GP codes or internal ids.
 - Explain suspicion as investigation leads — never claim proven corruption.
 - Write in Thai. Be concrete: what looks odd, why it matters for money oversight, what would clear it.
 - Market medians ≠ official CGD ราคากลาง — say so when prices are involved.
@@ -48,8 +49,8 @@ export async function enrichObservationPackWithAi(
       section: o.section,
       ruleTag: o.ruleTag,
       severity: o.severity,
-      projectName: o.projectName,
-      projectId: o.projectId,
+      project: o.projectName,
+      egpCode: o.projectId !== '—' ? o.projectId : undefined,
       winner: o.winner,
       award: o.award,
       budget: o.budget,

@@ -117,13 +117,16 @@ export function GraphScreen() {
         .map((e) => {
           const otherId = (e[0] === activeNodeId ? e[1] : e[0]) as string;
           const other = nodeById[otherId];
+          const fromDetails = details[otherId]?.label;
+          // Prefer detail title (project/company name) over bare node id/code
+          const label = fromDetails || other?.label || otherId;
           return {
-            label: other?.label || otherId,
+            label,
             rel: e[2] as string,
             go: () => setSelNodeId(otherId),
           };
         }),
-    [edges, activeNodeId, nodeById, setSelNodeId]
+    [edges, activeNodeId, nodeById, details, setSelNodeId]
   );
 
   const gSelLinkLabel =

@@ -30,6 +30,8 @@ export async function POST(
     pasteTin?: string;
     pasteName?: string;
     extraTins?: { tin: string; name?: string }[];
+    /** `creden` = fetch winner directors from Creden only */
+    preferSource?: 'creden' | 'all';
   };
 
   const pack = getOrEmptyRelatedPack(id);
@@ -67,7 +69,7 @@ export async function POST(
     });
   }
 
-  // Mode B: winners from report — DataForThai → Creden → e-GP/docs → DBD
+  // Mode B: winners from report — Creden-only or full cascade
   const report = await resolveAgencyReport(id, { fetchContracts: true });
   if (!report) {
     return Response.json({ error: 'Agency report unavailable' }, { status: 503 });
@@ -77,6 +79,7 @@ export async function POST(
     report,
     limit: body.limit || 8,
     extraTins: body.extraTins,
+    preferSource: body.preferSource === 'creden' ? 'creden' : 'all',
   });
 
   const companies =

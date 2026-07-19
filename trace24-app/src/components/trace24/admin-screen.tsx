@@ -385,7 +385,9 @@ export function AdminScreen() {
       .finally(() => setRelatedFetchBusy(false));
   };
 
-  const fetchDirectorsFromDbd = (mode: 'winners' | 'paste' = 'winners') => {
+  const fetchDirectorsFromDbd = (
+    mode: 'winners' | 'paste' | 'creden' = 'winners'
+  ) => {
     if (!isRealAgency(scannedId)) return;
     setRelatedDirectorsBusy(true);
     setRelatedMsg(null);
@@ -397,7 +399,9 @@ export function AdminScreen() {
             pasteTin: relatedDbdTin.trim() || undefined,
             pasteName: relatedDbdName.trim() || undefined,
           }
-        : { merge: true, limit: 10 };
+        : mode === 'creden'
+          ? { merge: true, limit: 12, preferSource: 'creden' as const }
+          : { merge: true, limit: 10 };
     fetch(`/api/agencies/${encodeURIComponent(scannedId)}/related/fetch-directors`, {
       method: 'POST',
       headers: adminWriteHeaders(),
@@ -415,6 +419,14 @@ export function AdminScreen() {
           (s: number, c: { directors?: unknown[] }) => s + (c.directors?.length || 0),
           0
         );
+        const first = (d.companies || []).find(
+          (c: { tin?: string; name?: string; directors?: unknown[] }) =>
+            !(c.directors && c.directors.length) && (c.tin || c.name)
+        ) as { tin?: string; name?: string } | undefined;
+        if (mode === 'creden' && first) {
+          if (first.tin) setRelatedDbdTin(first.tin);
+          if (first.name) setRelatedDbdName(first.name);
+        }
         setRelatedMsg(
           `${d.note || ''}${d.model ? ` · model ${d.model}` : ''} · draft ${nCo} บริษัท / ${nDir} รายชื่อ — ตรวจแก้แล้วกดบันทึก${
             d.disclaimer ? ` · ${d.disclaimer}` : ''
@@ -615,7 +627,7 @@ export function AdminScreen() {
               }}
               title="สร้างชุดสังเกตการณ์ + AI อธิบายความน่าสงสัยของแต่ละประเด็น"
             >
-              {auditBusy ? 'AI กำลังอธิบาย…' : 'ชุดสังเกตการณ์มูลค่าเงิน'}
+              {auditBusy ? 'AI กำลังอธิบาย…' : 'สรุปประเด็นตั้งต้นเพื่อพิจารณาสืบสวน'}
             </div>
           ) : null}
           <div
@@ -1021,6 +1033,26 @@ export function AdminScreen() {
               )}
             </div>
             <div
+              onClick={relatedAnyBusy ? undefined : () => fetchDirectorsFromDbd('creden')}
+              className="trace24-btn-outline"
+              style={{
+                padding: '10px 16px',
+                fontSize: 13,
+                opacity: relatedAnyBusy || !isRealAgency(scannedId) ? 0.55 : 1,
+                cursor: relatedDirectorsBusy ? 'wait' : 'pointer',
+                userSelect: 'none',
+              }}
+            >
+              {relatedDirectorsBusy ? (
+                <span className="trace24-btn-busy">
+                  <span className="trace24-scan-spin trace24-scan-spin--sm" aria-hidden />
+                  กำลังดึง Creden
+                </span>
+              ) : (
+                'ดึงกรรมการจาก Creden'
+              )}
+            </div>
+            <div
               onClick={relatedAnyBusy ? undefined : () => fetchDirectorsFromDbd('winners')}
               className="trace24-btn-outline"
               style={{
@@ -1070,8 +1102,10 @@ export function AdminScreen() {
             }}
           >
             <div style={{ fontSize: 12.5, color: '#55554F', marginBottom: 8, lineHeight: 1.5 }}>
-              ถ้าเว็บบล็อกเซิร์ฟเวอร์: เปิดลิงก์ใน JSON (`sourceUrl` — DataForThai / Creden / DBD) → คัดลอกส่วนกรรมการ/ผู้ถือหุ้น
-              (หรือจาก e-GP / เอกสารแนบผู้ชนะ / บอจ.5) มาวางที่นี่ → กดสกัด · ข้อมูลจากแหล่งสาธารณะ ตรวจกับแหล่งทางการอีกครั้ง
+              Creden ล็อกชื่อกรรมการหลัง login — กด「ดึงกรรมการจาก Creden」แล้วเปิด `sourceUrl` ใน draft → เข้าสู่ระบบ Creden →
+              คัดลอกส่วนกรรมการ/ผู้ถือหุ้นมาวางที่นี่ → กดสกัด · หรือตั้ง env{' '}
+              <code style={{ fontSize: 11 }}>CREDEN_COOKIE</code> บน Vercel เพื่อดึงอัตโนมัติหลังล็อกอิน ·
+              แหล่งอื่น: DataForThai / DBD / e-GP / บอจ.5
             </div>
             <div style={{ display: 'flex', gap: 8, marginBottom: 8, flexWrap: 'wrap' }}>
               <input

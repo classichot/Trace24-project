@@ -1,5 +1,5 @@
 import { detectSupplierConcentration } from '../graph';
-import { methodBucket, parseBaht } from '../normalize';
+import { contractorDisplayName, methodBucket, parseBaht } from '../normalize';
 import type { PipelineReportLike, RiskSignal } from '../types';
 import { listProposals } from './store';
 import type { ExecutableRule, ProposedRule } from './types';
@@ -75,7 +75,7 @@ export function evaluateExecutableRule(
       if (!best || n > best.n) best = { id, n };
     }
     if (!best || best.n < minCount) return null;
-    const name = report.contractors?.[best.id]?.name || best.id;
+    const name = contractorDisplayName(best.id, report.contractors);
     const score = Math.min(1, best.n / Math.max(minCount * 2, 1));
     return {
       id: `sig-dyn-${proposal.id}`,
