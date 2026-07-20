@@ -4,10 +4,12 @@ import { useEffect, useState } from 'react';
 import { adminWriteError, adminWriteHeaders, getAdminToken, setAdminToken } from '@/lib/admin-client';
 import { isRealAgency } from '@/lib/agencies';
 import { useTrace24 } from '@/context/trace24-context';
-import { openAuditObservationPack } from '@/lib/audit-ui';
+import { fetchAuditObservationPack } from '@/lib/audit-ui';
+import type { AuditObservationPack } from '@/lib/audit/observation-types';
 import { exportCaseReport } from '@/lib/export-case-report';
 import { callAgencyLlm } from '@/lib/llm-ui';
 import { REVIEW_OPTIONS, sev } from '@/lib/utils';
+import { ObservationPackPanel } from './observation-pack-panel';
 import { SeverityBadge, inputStyle, selectStyle, RiskDisclaimer, LoadingHint } from './ui';
 import type { InvestigationPack, PipelineStatusResponse, HybridRagResult } from '@/lib/pipeline/types';
 
@@ -165,6 +167,7 @@ export function AdminScreen() {
   const [exportBusy, setExportBusy] = useState(false);
   const [auditBusy, setAuditBusy] = useState(false);
   const [auditErr, setAuditErr] = useState<string | null>(null);
+  const [auditPack, setAuditPack] = useState<AuditObservationPack | null>(null);
   const [draftBusy, setDraftBusy] = useState(false);
   const [draftErr, setDraftErr] = useState<string | null>(null);
   const [docDraft, setDocDraft] = useState<{
@@ -581,6 +584,9 @@ export function AdminScreen() {
         boxSizing: 'border-box',
       }}
     >
+      {auditPack && (
+        <ObservationPackPanel pack={auditPack} onClose={() => setAuditPack(null)} />
+      )}
       <div
         style={{
           display: 'flex',
@@ -611,9 +617,13 @@ export function AdminScreen() {
                 if (auditBusy || !scannedId) return;
                 setAuditBusy(true);
                 setAuditErr(null);
-                void openAuditObservationPack(scannedId).then((out) => {
+                void fetchAuditObservationPack(scannedId).then((out) => {
                   setAuditBusy(false);
-                  if (!out.ok) setAuditErr(out.error);
+                  if (!out.ok) {
+                    setAuditErr(out.error);
+                    return;
+                  }
+                  setAuditPack(out.pack);
                 });
               }}
               style={{
@@ -625,7 +635,7 @@ export function AdminScreen() {
                 cursor: auditBusy ? 'wait' : 'pointer',
                 opacity: auditBusy ? 0.7 : 1,
               }}
-              title="สร้างชุดสังเกตการณ์ + AI อธิบายความน่าสงสัยของแต่ละประเด็น"
+              title="สร้างสรุปประเด็นบนเว็บ + AI อธิบาย — ส่งออก PDF / ข้อความ / Word ได้หลังแสดงผล"
             >
               {auditBusy ? 'AI กำลังอธิบาย…' : 'สรุปประเด็นตั้งต้นเพื่อพิจารณาสืบสวน'}
             </div>

@@ -1,7 +1,7 @@
 import 'server-only';
 
 import { chatCompletion, parseJsonLoose } from '@/lib/llm/client';
-import type { AuditObservationPack, MoneyObservation } from './observation-pack';
+import type { AuditObservationPack, MoneyObservation } from './observation-types';
 
 const GUARDRAILS = `You assist TRACE24 for Thai public-procurement oversight (สตง. ปปช. ปปท. ตำรวจ สอบสวน).
 Rules:

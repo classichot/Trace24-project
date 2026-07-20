@@ -2,10 +2,12 @@
 
 import { useState } from 'react';
 import { D, useTrace24 } from '@/context/trace24-context';
-import { openAuditObservationPack } from '@/lib/audit-ui';
+import { fetchAuditObservationPack } from '@/lib/audit-ui';
+import type { AuditObservationPack } from '@/lib/audit/observation-types';
 import { callAgencyLlm } from '@/lib/llm-ui';
 import { enrichAlertTitle } from '@/lib/pipeline/normalize';
 import { sev } from '@/lib/utils';
+import { ObservationPackPanel } from './observation-pack-panel';
 import { RiskDisclaimer, SeverityBadge } from './ui';
 
 type DashBrief = {
@@ -39,14 +41,19 @@ export function DashboardScreen() {
   const [explainErr, setExplainErr] = useState<string | null>(null);
   const [auditBusy, setAuditBusy] = useState(false);
   const [auditErr, setAuditErr] = useState<string | null>(null);
+  const [auditPack, setAuditPack] = useState<AuditObservationPack | null>(null);
 
   const runAuditPack = async () => {
     if (!agencyId || auditBusy) return;
     setAuditBusy(true);
     setAuditErr(null);
-    const out = await openAuditObservationPack(agencyId);
+    const out = await fetchAuditObservationPack(agencyId);
     setAuditBusy(false);
-    if (!out.ok) setAuditErr(out.error);
+    if (!out.ok) {
+      setAuditErr(out.error);
+      return;
+    }
+    setAuditPack(out.pack);
   };
 
   const runBrief = async () => {
@@ -208,7 +215,7 @@ export function DashboardScreen() {
                 border: '1px solid #D8D8D2',
                 opacity: auditBusy ? 0.7 : 1,
               }}
-              title="สร้างชุดสังเกตการณ์ + AI อธิบายความน่าสงสัยของแต่ละประเด็น"
+              title="สร้างสรุปประเด็นบนเว็บ + AI อธิบาย — ส่งออก PDF / ข้อความ / Word ได้หลังแสดงผล"
             >
               {auditBusy ? 'AI กำลังอธิบาย…' : 'สรุปประเด็นตั้งต้นเพื่อพิจารณาสืบสวน'}
             </div>
@@ -218,6 +225,10 @@ export function DashboardScreen() {
           )}
         </div>
       </div>
+
+      {auditPack && (
+        <ObservationPackPanel pack={auditPack} onClose={() => setAuditPack(null)} />
+      )}
 
       {(brief || briefErr) && (
         <div

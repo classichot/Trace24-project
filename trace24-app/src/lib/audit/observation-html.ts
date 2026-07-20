@@ -1,4 +1,5 @@
-import type { AuditObservationPack } from './observation-pack';
+import type { AuditObservationPack } from './observation-types';
+import { OBSERVATION_PACK_TITLE } from './observation-types';
 
 function esc(s: string) {
   return String(s || '')
@@ -8,7 +9,7 @@ function esc(s: string) {
     .replace(/"/g, '&quot;');
 }
 
-/** Printable money observation workpaper for oversight agencies. */
+/** Printable / PDF workpaper (also used for Word HTML export). */
 export function buildAuditObservationHtml(pack: AuditObservationPack): string {
   const bySec = Object.entries(pack.summary.bySection)
     .map(([k, v]) => `<li>${esc(k)} — ${v} ประเด็น</li>`)
@@ -85,7 +86,7 @@ export function buildAuditObservationHtml(pack: AuditObservationPack): string {
 <html lang="th">
 <head>
 <meta charset="utf-8"/>
-<title>ชุดสังเกตการณ์มูลค่าเงิน — ${esc(pack.agencyName)}</title>
+<title>${esc(OBSERVATION_PACK_TITLE)} — ${esc(pack.agencyName)}</title>
 <style>
   @page { margin: 16mm; }
   body { font-family: "TH Sarabun New", "Sarabun", "Noto Sans Thai", sans-serif; font-size: 15px; color: #111; line-height: 1.4; max-width: 960px; margin: 0 auto; padding: 20px; }
@@ -107,7 +108,7 @@ export function buildAuditObservationHtml(pack: AuditObservationPack): string {
 </head>
 <body>
   <div class="actions"><button onclick="window.print()">พิมพ์ / บันทึก PDF</button></div>
-  <p class="meta">TRACE24 · ชุดสังเกตการณ์มูลค่าเงิน (งานตรวจ / สอบสวน)</p>
+  <p class="meta">TRACE24 · ${esc(OBSERVATION_PACK_TITLE)}</p>
   <h1>${esc(pack.agencyName)}</h1>
   <p class="meta">${esc(pack.agencyId)}${pack.province ? ` · จ.${esc(pack.province)}` : ''}${
     pack.agencyType ? ` · ${esc(pack.agencyType)}` : ''

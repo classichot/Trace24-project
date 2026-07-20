@@ -2,57 +2,9 @@ import 'server-only';
 
 import { contractorDisplayName, projectDisplayLabel } from '@/lib/pipeline/normalize';
 import type { PipelineReportLike } from '@/lib/pipeline/types';
+import type { AuditObservationPack, MoneyObservation } from './observation-types';
 
-export type MoneyObservation = {
-  id: string;
-  section:
-    | 'ใกล้เพดานงบ'
-    | 'ค่ากลางตลาด'
-    | 'กระจุกมูลค่าปีงบ'
-    | 'เร่งใช้เงินปลายปี'
-    | 'ซอยสัญญา/แยกงวด'
-    | 'วิธีจัดหา'
-    | 'อื่นๆ ด้านมูลค่า';
-  ruleTag: string;
-  severity: string;
-  projectId: string;
-  projectName: string;
-  winner: string;
-  award: string;
-  budget: string;
-  fy: string;
-  text: string;
-  suggestedCheck: string;
-  /** AI: why this item looks suspicious for money oversight */
-  suspicionWhy?: string;
-  /** AI: plausible non-corrupt explanation */
-  innocentAlternative?: string;
-  /** AI: what to verify next */
-  whatToVerify?: string;
-};
-
-export type AuditObservationPack = {
-  generatedAt: string;
-  agencyId: string;
-  agencyName: string;
-  province: string;
-  agencyType: string;
-  disclaimer: string;
-  summary: {
-    projectCount: number;
-    observationCount: number;
-    bySection: Record<string, number>;
-    highCount: number;
-    totalAwardLabel: string;
-  };
-  observations: MoneyObservation[];
-  topWinners: { name: string; total: string; shareHint?: string }[];
-  documentRequests: string[];
-  /** AI executive narrative across the pack */
-  aiNarrative?: string;
-  aiModel?: string;
-  aiError?: string;
-};
+export type { AuditObservationPack, MoneyObservation } from './observation-types';
 
 const DISCLAIMER =
   'ชุดสังเกตการณ์นี้จัดลำดับประเด็นมูลค่าเงินจากข้อมูลจัดซื้อจัดจ้างสาธารณะเพื่อประกอบการตรวจและสอบสวน — ไม่ใช่ข้อสรุปการทุจริตหรือความผิด และไม่ใช่รายงานอย่างเป็นทางการของหน่วยงานที่มีอำนาจ';

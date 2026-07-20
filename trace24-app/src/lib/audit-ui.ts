@@ -1,36 +1,37 @@
-/** Open money observation pack with AI suspicion explanations. */
+/** Fetch investigation observation pack (JSON + AI) for in-app web view. */
 
-export async function openAuditObservationPack(agencyId: string): Promise<{ ok: true } | { ok: false; error: string }> {
+import type { AuditObservationPack } from '@/lib/audit/observation-types';
+
+export async function fetchAuditObservationPack(
+  agencyId: string
+): Promise<{ ok: true; pack: AuditObservationPack } | { ok: false; error: string }> {
   if (!agencyId) return { ok: false, error: 'ไม่มีรหัสหน่วยงาน' };
 
-  const res = await fetch(
-    `/api/agencies/${encodeURIComponent(agencyId)}/audit-observations?format=html&ai=1`
-  );
-  const html = await res.text();
-  if (!res.ok) {
-    try {
-      const j = JSON.parse(html) as { error?: string };
-      return { ok: false, error: j.error || `HTTP ${res.status}` };
-    } catch {
-      return { ok: false, error: html.slice(0, 160) || `HTTP ${res.status}` };
+  try {
+    const res = await fetch(
+      `/api/agencies/${encodeURIComponent(agencyId)}/audit-observations?format=json&ai=1`
+    );
+    const data = (await res.json().catch(() => ({}))) as AuditObservationPack & {
+      error?: string;
+      hint?: string;
+    };
+    if (!res.ok) {
+      return { ok: false, error: data.error || data.hint || `HTTP ${res.status}` };
     }
+    if (!data.agencyId && !data.agencyName) {
+      return { ok: false, error: 'รูปแบบชุดสรุปไม่ถูกต้อง' };
+    }
+    return { ok: true, pack: data };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : 'network error' };
   }
+}
 
-  const w = window.open('', '_blank');
-  if (w) {
-    w.document.open();
-    w.document.write(html);
-    w.document.close();
-    return { ok: true };
-  }
-
-  const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
-  const url = URL.createObjectURL(blob);
-  const opened = window.open(url, '_blank');
-  if (!opened) {
-    URL.revokeObjectURL(url);
-    return { ok: false, error: 'เบราว์เซอร์บล็อกหน้าต่างใหม่ — อนุญาตป๊อปอัปแล้วลองอีกครั้ง' };
-  }
-  setTimeout(() => URL.revokeObjectURL(url), 60_000);
+/** @deprecated use fetchAuditObservationPack + ObservationPackPanel */
+export async function openAuditObservationPack(
+  agencyId: string
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const out = await fetchAuditObservationPack(agencyId);
+  if (!out.ok) return out;
   return { ok: true };
 }
