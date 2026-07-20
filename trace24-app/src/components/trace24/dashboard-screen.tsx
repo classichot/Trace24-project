@@ -186,23 +186,6 @@ export function DashboardScreen() {
           >
             {briefBusy ? 'กำลังสรุป…' : 'AI สรุป 30 วินาที'}
           </div>
-          <div
-            onClick={() => {
-              setPendingOpenCase(true);
-              go('cases');
-            }}
-            style={{
-              padding: '10px 16px',
-              fontSize: 13,
-              textAlign: 'center',
-              cursor: 'pointer',
-              userSelect: 'none',
-              border: '1px solid #111110',
-            }}
-            title="เปิดสำนวนใหม่ของหน่วยงานนี้ในคิวงาน"
-          >
-            เปิดสำนวน / คิวงาน
-          </div>
           {agencyId ? (
             <div
               onClick={() => void runAuditPack()}
@@ -220,6 +203,23 @@ export function DashboardScreen() {
               {auditBusy ? 'AI กำลังอธิบาย…' : 'สรุปประเด็นตั้งต้นเพื่อพิจารณาสืบสวน'}
             </div>
           ) : null}
+          <div
+            onClick={() => {
+              setPendingOpenCase(true);
+              go('cases');
+            }}
+            style={{
+              padding: '10px 16px',
+              fontSize: 13,
+              textAlign: 'center',
+              cursor: 'pointer',
+              userSelect: 'none',
+              border: '1px solid #111110',
+            }}
+            title="เปิดสำนวนใหม่ของหน่วยงานนี้ในคิวงาน"
+          >
+            เปิดสำนวน / คิวงาน
+          </div>
           {auditErr && (
             <div style={{ fontSize: 12, color: 'var(--accent)', textAlign: 'center' }}>{auditErr}</div>
           )}
