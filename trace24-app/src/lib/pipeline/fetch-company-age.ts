@@ -150,7 +150,8 @@ function parseBingHtml(html: string): SearchHit[] {
   return out;
 }
 
-async function searchOpenWeb(query: string): Promise<{
+/** Open-web search via DuckDuckGo HTML (+ Bing fallback). Used by age + director search. */
+export async function searchOpenWeb(query: string): Promise<{
   hits: SearchHit[];
   sources: FetchCompanyAgeResult['sources'];
 }> {

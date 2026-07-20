@@ -3,6 +3,8 @@
  * Separate from TemporalGraph used by investigate/RAG.
  */
 
+import { projectDisplayLabel } from './normalize';
+
 type UiNode = { id: string; type: string; x: number; y: number; label: string };
 type UiEdge = [string, string, string, boolean];
 type UiDetail = {
@@ -120,29 +122,29 @@ export function buildUiEntityGraph(input: {
     const p = projects[pid];
     const y = 80 + i * ((480 - 80) / Math.max(1, projectIds.length - 1 || 1));
     const projectName = String(p.name || '').trim();
+    const fullLabel = projectDisplayLabel(p, { maxName: 64 });
     nodes.push({
       id: pid,
       type: 'project',
       x: 340,
       y: projectIds.length === 1 ? 280 : y,
-      // Prefer project name in graph + connection list (not bare e-GP code)
-      label: shortLabel(projectName || p.code || pid, 22),
+      // Name + e-GP code (shortened for canvas)
+      label: shortLabel(fullLabel, 28),
     });
     edges.push(['muni', pid, 'จัดจ้าง', false]);
     details[pid] = {
       typeLabel: 'โครงการ',
-      label: projectName || p.code || pid,
-      sub: [p.code ? `รหัส ${p.code}` : null, p.award, p.method, p.year]
-        .filter(Boolean)
-        .join(' · ') || '—',
+      label: fullLabel,
+      sub: [p.award, p.method, p.year].filter(Boolean).join(' · ') || '—',
       facts: [
         projectName ? truncate(projectName, 100) : '—',
+        p.code ? `รหัส e-GP ${p.code}` : null,
         p.winner && contractors[p.winner]
           ? `ผู้ชนะ: ${contractors[p.winner].name}`
           : p.winnerId && contractors[p.winnerId]
             ? `ผู้ชนะ: ${contractors[p.winnerId].name}`
             : 'ยังไม่ทราบผู้ชนะจากประกาศ',
-      ],
+      ].filter(Boolean) as string[],
       docs: p.code ? [`e-GP ${p.code}`] : [],
       link: 'project',
       target: pid,

@@ -3,9 +3,35 @@
 import { useEffect, useMemo, useState } from 'react';
 import { C, useTrace24 } from '@/context/trace24-context';
 import { callAgencyLlm } from '@/lib/llm-ui';
+import { projectDisplayLabel } from '@/lib/pipeline/normalize';
 import { sev } from '@/lib/utils';
 import { SeverityBadge } from './ui';
 import { GraphSvg, type GraphEdge } from './graph-svg';
+
+function connectionDisplayLabel(
+  otherId: string,
+  detailsLabel: string | undefined,
+  nodeLabel: string | undefined,
+  projects: Record<string, { code?: string; name?: string }> | undefined,
+  contractors: Record<string, { name?: string }> | undefined
+): string {
+  const pr = projects?.[otherId];
+  if (pr && (pr.name || pr.code)) return projectDisplayLabel(pr, { maxName: 40 });
+  // Graph may key by e-GP code in older caches — match by code
+  if (projects && /^\d{8,}$/.test(otherId)) {
+    const hit = Object.values(projects).find((p) => String(p.code || '') === otherId);
+    if (hit) return projectDisplayLabel(hit, { maxName: 40 });
+  }
+  const coName = contractors?.[otherId]?.name?.trim();
+  if (coName) return coName;
+  const fallback = detailsLabel || nodeLabel || otherId;
+  // If fallback is bare e-GP code, try resolve from projects by code once more
+  if (projects && /^\d{8,}$/.test(fallback)) {
+    const hit = Object.values(projects).find((p) => String(p.code || '') === fallback);
+    if (hit?.name) return projectDisplayLabel(hit, { maxName: 40 });
+  }
+  return fallback;
+}
 
 const G_FILTER_DEFS: [string, string][] = [
   ['all', 'ทั้งหมด'],
@@ -47,7 +73,26 @@ export function GraphScreen() {
 
   const G = dataset.graph || { nodes: [], edges: [], details: {} };
   const layer = graphLayer;
-  const nodes = Array.isArray(G.nodes) ? G.nodes : [];
+  const projectsForGraph = dataset.projects as
+    | Record<string, { code?: string; name?: string }>
+    | undefined;
+  const contractorsForGraph = dataset.contractors as
+    | Record<string, { name?: string }>
+    | undefined;
+  // Enrich cached graph labels: name + e-GP code (works without re-scan)
+  const nodes = useMemo(() => {
+    const raw = Array.isArray(G.nodes) ? G.nodes : [];
+    return raw.map((n) => {
+      const pr = projectsForGraph?.[n.id];
+      if (pr && (pr.name || pr.code)) {
+        const full = projectDisplayLabel(pr, { maxName: 22 });
+        return { ...n, label: full.length > 26 ? `${full.slice(0, 25)}…` : full };
+      }
+      const co = contractorsForGraph?.[n.id]?.name?.trim();
+      if (co) return { ...n, label: co.length > 22 ? `${co.slice(0, 21)}…` : co };
+      return n;
+    });
+  }, [G.nodes, projectsForGraph, contractorsForGraph]);
   const edges = Array.isArray(G.edges) ? G.edges : [];
   const graphDetails = (G.details || {}) as Record<
     string,
@@ -97,18 +142,37 @@ export function GraphScreen() {
 
   const gSel = useMemo(() => {
     const fromDetails = details[activeNodeId] ?? details[dataset.def?.node ?? ''] ?? details.muni;
-    if (fromDetails) return fromDetails;
+    const pr = projectsForGraph?.[activeNodeId];
+    const enrichedLabel = pr
+      ? projectDisplayLabel(pr, { maxName: 72 })
+      : fromDetails?.label;
+    if (fromDetails) {
+      return enrichedLabel && enrichedLabel !== fromDetails.label
+        ? { ...fromDetails, label: enrichedLabel }
+        : fromDetails;
+    }
     const node = nodeById[activeNodeId] ?? nodes[0];
+    const coName = contractorsForGraph?.[activeNodeId]?.name;
     return {
       typeLabel: node?.type === 'project' ? 'โครงการ' : node?.type === 'company' ? 'ผู้รับจ้าง' : 'หน่วยงาน',
-      label: node?.label || muni.th,
+      label: enrichedLabel || coName || node?.label || muni.th,
       sub: dataset.meta?.graphNote || '—',
       facts: ['ยังไม่มีรายละเอียดโหนดนี้ในกราฟ'],
       docs: [] as string[],
       link: null as string | null,
       target: undefined as string | undefined,
     };
-  }, [details, activeNodeId, dataset.def?.node, dataset.meta?.graphNote, nodeById, nodes, muni.th]);
+  }, [
+    details,
+    activeNodeId,
+    dataset.def?.node,
+    dataset.meta?.graphNote,
+    nodeById,
+    nodes,
+    muni.th,
+    projectsForGraph,
+    contractorsForGraph,
+  ]);
 
   const gConns = useMemo(
     () =>
@@ -117,16 +181,20 @@ export function GraphScreen() {
         .map((e) => {
           const otherId = (e[0] === activeNodeId ? e[1] : e[0]) as string;
           const other = nodeById[otherId];
-          const fromDetails = details[otherId]?.label;
-          // Prefer detail title (project/company name) over bare node id/code
-          const label = fromDetails || other?.label || otherId;
+          const label = connectionDisplayLabel(
+            otherId,
+            details[otherId]?.label,
+            other?.label,
+            projectsForGraph,
+            contractorsForGraph
+          );
           return {
             label,
             rel: e[2] as string,
             go: () => setSelNodeId(otherId),
           };
         }),
-    [edges, activeNodeId, nodeById, details, setSelNodeId]
+    [edges, activeNodeId, nodeById, details, setSelNodeId, projectsForGraph, contractorsForGraph]
   );
 
   const gSelLinkLabel =

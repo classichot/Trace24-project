@@ -1,16 +1,22 @@
 'use client';
 
+import { useState } from 'react';
 import { D, useTrace24 } from '@/context/trace24-context';
+import { getAdminToken } from '@/lib/admin-client';
 import { sev } from '@/lib/utils';
 import { RiskDisclaimer, SeverityBadge } from './ui';
 
+type FoundDirector = { name: string; note: string; flag?: boolean; role?: string };
+
 export function ContractorScreen() {
-  const { dataset, selContractorId, go } = useTrace24();
+  const { dataset, selContractorId, scannedId, go, patchContractorProfile } = useTrace24();
 
   const contractors = dataset.contractors as typeof D.contractors;
-  const coRaw =
-    contractors[selContractorId as keyof typeof contractors] ??
-    contractors[dataset.def.contractor as keyof typeof contractors];
+  const contractorKey =
+    (selContractorId as keyof typeof contractors) in contractors
+      ? (selContractorId as keyof typeof contractors)
+      : (dataset.def.contractor as keyof typeof contractors);
+  const coRaw = contractors[contractorKey];
   const coRawExtra = coRaw as {
     registeredAt?: string | null;
     registeredAtNote?: string;
@@ -34,6 +40,84 @@ export function ContractorScreen() {
     registeredAt: coRawExtra?.registeredAt || null,
     registeredAtNote: coRawExtra?.registeredAtNote || '',
     registeredAtSourceUrl: coRawExtra?.registeredAtSourceUrl || '',
+  };
+
+  const [searchBusy, setSearchBusy] = useState(false);
+  const [searchMsg, setSearchMsg] = useState<string | null>(null);
+  const [searchLinks, setSearchLinks] = useState<{ title: string; url: string }[]>([]);
+
+  const searchDirectors = () => {
+    const agencyId = scannedId || dataset.agency?.id;
+    if (!agencyId || agencyId === '—') {
+      setSearchMsg('ยังไม่มีหน่วยงานที่สแกน — กลับไปสแกนก่อน');
+      return;
+    }
+    setSearchBusy(true);
+    setSearchMsg(null);
+    setSearchLinks([]);
+    const headers: HeadersInit = { 'Content-Type': 'application/json' };
+    const token = getAdminToken();
+    if (token) headers['x-trace24-admin-token'] = token;
+
+    fetch(`/api/agencies/${encodeURIComponent(agencyId)}/contractors/search-directors`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        contractorId: String(contractorKey),
+        tin: co.reg !== '—' ? co.reg : undefined,
+        name: co.name !== '—' ? co.name : undefined,
+        persist: true,
+      }),
+    })
+      .then(async (r) => {
+        const data = await r.json().catch(() => ({}));
+        if (!r.ok) throw new Error(data.error || data.hint || `HTTP ${r.status}`);
+        return data as {
+          ok?: boolean;
+          note?: string;
+          model?: string | null;
+          directors?: FoundDirector[];
+          address?: string;
+          searchHits?: { title?: string; url: string }[];
+          persistSkipped?: boolean;
+          persistHint?: string;
+          disclaimer?: string;
+        };
+      })
+      .then((d) => {
+        const found = (d.directors || []).map((p) => ({
+          name: p.name,
+          note: p.note || (p.role ? `role: ${p.role}` : 'จากแหล่งสาธารณะ · รอยืนยัน'),
+          flag: p.flag,
+        }));
+        if (found.length) {
+          patchContractorProfile(String(contractorKey), {
+            directors: found,
+            ...(d.address
+              ? {
+                  address: d.address,
+                  addrNote: 'จากแหล่งสาธารณะ (AI ค้นหา) · รอยืนยัน',
+                }
+              : {}),
+          });
+        }
+        const hits = (d.searchHits || [])
+          .filter((h) => h.url)
+          .slice(0, 5)
+          .map((h) => ({ title: h.title || h.url, url: h.url }));
+        setSearchLinks(hits);
+        setSearchMsg(
+          [
+            d.note || (found.length ? `พบ ${found.length} รายชื่อ` : 'ไม่พบรายชื่อ'),
+            d.model ? `model ${d.model}` : null,
+            d.persistSkipped ? d.persistHint : null,
+          ]
+            .filter(Boolean)
+            .join(' · ')
+        );
+      })
+      .catch((e: Error) => setSearchMsg(e.message))
+      .finally(() => setSearchBusy(false));
   };
 
   return (
@@ -184,11 +268,57 @@ export function ContractorScreen() {
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 36 }}>
           <div>
-            <h2 style={{ fontSize: 13.5, fontWeight: 600, margin: 0 }}>กรรมการและผู้ถือหุ้น</h2>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 10 }}>
+              <h2 style={{ fontSize: 13.5, fontWeight: 600, margin: 0 }}>กรรมการและผู้ถือหุ้น</h2>
+            </div>
+            <div
+              onClick={searchBusy ? undefined : searchDirectors}
+              className="trace24-btn-outline"
+              style={{
+                marginTop: 10,
+                padding: '9px 12px',
+                fontSize: 12.5,
+                textAlign: 'center',
+                opacity: searchBusy ? 0.65 : 1,
+                cursor: searchBusy ? 'wait' : 'pointer',
+                userSelect: 'none',
+              }}
+            >
+              {searchBusy ? (
+                <span className="trace24-btn-busy">
+                  <span className="trace24-scan-spin trace24-scan-spin--sm" aria-hidden />
+                  AI กำลังค้นหา…
+                </span>
+              ) : (
+                'ค้นหาข้อมูลกรรมการ'
+              )}
+            </div>
+            <div style={{ fontSize: 11, color: '#8B8B85', marginTop: 8, lineHeight: 1.5 }}>
+              AI ค้นจาก Creden · DataForThai · DBD · เว็บสาธารณะ (ดัชนีค้นหา) — ไม่แต่งชื่อ · รอยืนยันก่อนใช้เป็นหลักฐาน
+            </div>
+            {searchMsg && (
+              <div style={{ fontSize: 11.5, color: '#55554F', marginTop: 8, lineHeight: 1.5 }}>{searchMsg}</div>
+            )}
+            {searchLinks.length > 0 && (
+              <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 4 }}>
+                {searchLinks.map((l) => (
+                  <a
+                    key={l.url}
+                    href={l.url}
+                    target="_blank"
+                    rel="noreferrer"
+                    style={{ fontSize: 11.5, color: '#55554F', lineHeight: 1.4 }}
+                  >
+                    {l.title.slice(0, 64)}
+                    {l.title.length > 64 ? '…' : ''} ↗
+                  </a>
+                ))}
+              </div>
+            )}
             <div style={{ marginTop: 12, borderTop: '1px solid #111110' }}>
               {co.directors.length === 0 && (
                 <div style={{ padding: '12px 0', fontSize: 12.5, color: '#8B8B85', lineHeight: 1.55 }}>
-                  ยังไม่มีรายชื่อกรรมการ/ผู้ถือหุ้น — บันทึกจาก DBD หรือ บอจ.5 ที่แท็บ「ความเชื่อมโยง」เพื่อเปิดการตรวจ R13
+                  ยังไม่มีรายชื่อกรรมการ/ผู้ถือหุ้น — กด「ค้นหาข้อมูลกรรมการ」หรือบันทึกจาก DBD / บอจ.5 ที่แท็บความเชื่อมโยงเพื่อเปิดการตรวจ R13
                 </div>
               )}
               {co.directors.map((d, i) => (

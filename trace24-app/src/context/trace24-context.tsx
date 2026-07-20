@@ -115,6 +115,15 @@ type Trace24ContextValue = Trace24State & {
   setCorrEmail: (v: string) => void;
   submitCorr: () => void;
   resetCorr: () => void;
+  /** Patch directors/address onto a contractor in the live report (UI session). */
+  patchContractorProfile: (
+    contractorId: string,
+    patch: {
+      directors?: { name: string; note: string; flag?: boolean }[];
+      address?: string;
+      addrNote?: string;
+    }
+  ) => void;
 };
 
 const Trace24Context = createContext<Trace24ContextValue | null>(null);
@@ -325,6 +334,28 @@ export function Trace24Provider({ children }: { children: ReactNode }) {
     setSelProjectId: (id) => setState((s) => ({ ...s, selProjectId: id })),
     setSelContractorId: (id) => setState((s) => ({ ...s, selContractorId: id })),
     setSelNodeId: (id) => setState((s) => ({ ...s, selNodeId: id })),
+    patchContractorProfile: (contractorId, patch) =>
+      setState((s) => {
+        if (!s.liveDataset) return s;
+        const contractors = {
+          ...(s.liveDataset.contractors as Record<string, Record<string, unknown>>),
+        };
+        const prev = contractors[contractorId];
+        if (!prev) return s;
+        contractors[contractorId] = {
+          ...prev,
+          ...(patch.directors ? { directors: patch.directors } : {}),
+          ...(patch.address ? { address: patch.address } : {}),
+          ...(patch.addrNote ? { addrNote: patch.addrNote } : {}),
+        };
+        return {
+          ...s,
+          liveDataset: {
+            ...s.liveDataset,
+            contractors: contractors as Trace24Dataset['contractors'],
+          },
+        };
+      }),
     setGraphFilter: (f) => setState((s) => ({ ...s, graphFilter: f })),
     setGraphLayer: (l) => setState((s) => ({ ...s, graphLayer: l })),
     setAdminTab: (t) => setState((s) => ({ ...s, adminTab: t })),
