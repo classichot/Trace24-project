@@ -67,6 +67,7 @@ export async function enrichObservationPackWithAi(
         role: 'user',
         content: `อธิบายความน่าสงสัยของแต่ละประเด็นมูลค่าเงินด้านล่าง สำหรับผู้ตรวจสอบ/พนักงานสอบสวน
 ใช้เฉพาะข้อมูลที่ให้มา อย่าแต่งตัวเลขหรือชื่อผู้ชนะใหม่
+แต่ละข้อต้องมีครบ 3 ส่วน: ทำไมน่าสงสัย / คำอธิบายที่เป็นไปได้ (สุจริต) / แนวทางตรวจยืนยัน
 
 ${JSON.stringify(payload)}
 
@@ -76,9 +77,9 @@ ${JSON.stringify(payload)}
   "items": [
     {
       "id": "obs-1",
-      "suspicionWhy": "อธิบาย 3-5 ประโยคว่าทำไมประเด็นนี้น่าสงสัยด้านมูลค่า/กระบวนการ ชัดเจน อ่านแล้วเข้าใจทันที",
+      "suspicionWhy": "ทำไมน่าสงสัย 2-4 ประโยค อ่านแล้วเข้าใจทันที ผูกกับชื่อโครงการ/ผู้รับจ้าง/มูลค่าในข้อมูล",
       "innocentAlternative": "คำอธิบายที่เป็นไปได้โดยสุจริต 1-2 ประโยค",
-      "whatToVerify": "สิ่งที่ต้องขอ/ตรวจยืนยัน 1-2 ประโยค"
+      "whatToVerify": "แนวทางตรวจยืนยัน: เอกสาร/ข้อเท็จจริงที่ต้องขอหรือเทียบ 1-3 ประโยค"
     }
   ]
 }
@@ -86,7 +87,7 @@ ${JSON.stringify(payload)}
 ต้องมี items ครบทุก id ที่ส่งไป (${slice.map((o) => o.id).join(', ')})`,
       },
     ],
-    { temperature: 0.25, maxTokens: 3200, json: true }
+    { temperature: 0.25, maxTokens: 4000, json: true }
   );
 
   if (!result.ok) {
@@ -101,14 +102,13 @@ ${JSON.stringify(payload)}
   const byId = new Map(parsed.items.map((it) => [it.id, it]));
   const observations: MoneyObservation[] = pack.observations.map((o) => {
     const ai = byId.get(o.id);
-    if (!ai?.suspicionWhy) return o;
+    if (!ai) return o;
+    // Overlay AI text onto rule-based leads; keep templates when AI omits a field
     return {
       ...o,
-      suspicionWhy: String(ai.suspicionWhy).trim(),
-      innocentAlternative: ai.innocentAlternative
-        ? String(ai.innocentAlternative).trim()
-        : undefined,
-      whatToVerify: ai.whatToVerify ? String(ai.whatToVerify).trim() : undefined,
+      suspicionWhy: ai.suspicionWhy?.trim() || o.suspicionWhy,
+      innocentAlternative: ai.innocentAlternative?.trim() || o.innocentAlternative,
+      whatToVerify: ai.whatToVerify?.trim() || o.whatToVerify,
     };
   });
 

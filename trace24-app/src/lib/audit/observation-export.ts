@@ -86,11 +86,18 @@ export function buildAuditObservationText(pack: AuditObservationPack): string {
       lines.push(`[${o.severity}] ${o.ruleTag}`);
       lines.push(`โครงการ: ${o.projectName} (${o.projectId}) · ปีงบ ${o.fy}`);
       lines.push(`ผู้รับจ้าง: ${o.winner} · วงเงิน ${o.award} / งบ ${o.budget}`);
-      lines.push(o.text);
-      if (o.suspicionWhy) lines.push(`ทำไมน่าสงสัย: ${o.suspicionWhy}`);
-      if (o.innocentAlternative) lines.push(`คำอธิบายที่เป็นไปได้: ${o.innocentAlternative}`);
-      if (o.whatToVerify) lines.push(`ควรตรวจยืนยัน: ${o.whatToVerify}`);
-      lines.push(`แนวทางตรวจต่อ: ${o.suggestedCheck}`);
+      lines.push(`สัญญาณ: ${o.text}`);
+      lines.push(`ทำไมน่าสงสัย: ${o.suspicionWhy || o.text}`);
+      lines.push(
+        `คำอธิบายที่เป็นไปได้: ${
+          o.innocentAlternative ||
+          'อาจมีเหตุผลทางเทคนิค งบประมาณ หรือสภาพตลาด — ต้องดูเอกสารก่อนตัดประเด็น'
+        }`
+      );
+      lines.push(`แนวทางตรวจยืนยัน: ${o.whatToVerify || o.suggestedCheck}`);
+      if (o.whatToVerify && o.suggestedCheck && o.whatToVerify !== o.suggestedCheck) {
+        lines.push(`เพิ่มเติม: ${o.suggestedCheck}`);
+      }
       lines.push('');
     }
   }

@@ -138,7 +138,7 @@ export function ObservationPackPanel({ pack, onClose }: Props) {
           </div>
           {pack.aiError && (
             <div style={{ fontSize: 12.5, color: 'var(--accent)', marginBottom: 14, lineHeight: 1.5 }}>
-              AI อธิบายไม่สำเร็จ: {pack.aiError} — แสดงเฉพาะสัญญาณจากกฎ
+              AI อธิบายเพิ่มไม่สำเร็จ: {pack.aiError} — ใช้คำอธิบายจากกฎตรวจแทน
             </div>
           )}
           {pack.aiModel && (
@@ -279,25 +279,46 @@ export function ObservationPackPanel({ pack, onClose }: Props) {
                         <SeverityBadge label={s.sevLabel} color={s.sevColor} border={s.sevBorder} />
                       </div>
                       <div style={{ fontSize: 13.5, lineHeight: 1.55, marginTop: 10, color: '#33332E' }}>
+                        <span style={{ color: '#8B8B85' }}>สัญญาณ: </span>
                         {o.text}
                       </div>
-                      {o.suspicionWhy && (
-                        <div style={{ fontSize: 13.5, lineHeight: 1.55, marginTop: 10 }}>
-                          <strong>ทำไมน่าสงสัย:</strong> {o.suspicionWhy}
+                      <div
+                        style={{
+                          marginTop: 12,
+                          padding: '12px 14px',
+                          background: '#fff',
+                          borderLeft: '3px solid #111110',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: 10,
+                        }}
+                      >
+                        <div style={{ fontSize: 13.5, lineHeight: 1.55 }}>
+                          <div style={{ fontSize: 11, letterSpacing: '.04em', color: '#8B8B85', marginBottom: 3 }}>
+                            ทำไมน่าสงสัย
+                          </div>
+                          {o.suspicionWhy || o.text}
                         </div>
-                      )}
-                      {o.innocentAlternative && (
-                        <div style={{ fontSize: 12.5, lineHeight: 1.5, marginTop: 6, color: '#55554F' }}>
-                          <strong>คำอธิบายที่เป็นไปได้:</strong> {o.innocentAlternative}
+                        <div style={{ fontSize: 13, lineHeight: 1.55, color: '#33332E' }}>
+                          <div style={{ fontSize: 11, letterSpacing: '.04em', color: '#8B8B85', marginBottom: 3 }}>
+                            คำอธิบายที่เป็นไปได้
+                          </div>
+                          {o.innocentAlternative ||
+                            'อาจมีเหตุผลทางเทคนิค งบประมาณ หรือสภาพตลาด — ต้องดูเอกสารก่อนตัดประเด็น'}
                         </div>
-                      )}
-                      {o.whatToVerify && (
-                        <div style={{ fontSize: 12.5, lineHeight: 1.5, marginTop: 6, color: '#55554F' }}>
-                          <strong>ควรตรวจยืนยัน:</strong> {o.whatToVerify}
+                        <div style={{ fontSize: 13, lineHeight: 1.55, color: '#33332E' }}>
+                          <div style={{ fontSize: 11, letterSpacing: '.04em', color: '#8B8B85', marginBottom: 3 }}>
+                            แนวทางตรวจยืนยัน
+                          </div>
+                          {o.whatToVerify || o.suggestedCheck}
+                          {o.whatToVerify &&
+                            o.suggestedCheck &&
+                            o.whatToVerify !== o.suggestedCheck && (
+                              <div style={{ marginTop: 4, color: '#55554F', fontSize: 12.5 }}>
+                                เพิ่มเติม: {o.suggestedCheck}
+                              </div>
+                            )}
                         </div>
-                      )}
-                      <div style={{ fontSize: 12.5, color: '#8B8B85', marginTop: 8, lineHeight: 1.5 }}>
-                        แนวทางตรวจต่อ: {o.suggestedCheck}
                       </div>
                     </article>
                   );

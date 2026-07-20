@@ -43,6 +43,77 @@ function suggestedCheck(section: MoneyObservation['section']): string {
   }
 }
 
+/** Rule-based lead text so every row has why / alternative / verify even without AI. */
+function explainForSection(
+  section: MoneyObservation['section']
+): Pick<MoneyObservation, 'suspicionWhy' | 'innocentAlternative' | 'whatToVerify'> {
+  switch (section) {
+    case 'ใกล้เพดานงบ':
+      return {
+        suspicionWhy:
+          'ราคาที่ตกลงใกล้เพดานงบ/วงเงินประกาศมาก อาจเป็นสัญญาณว่าประมาณราคาหรือสเปกถูกตั้งให้ชิดเพดาน หรือมีการดึงราคาเข้าใกล้งบโดยไม่สะท้อนต้นทุนจริง',
+        innocentAlternative:
+          'อาจเป็นงานที่มีราคากลาง/งบประมาณคำนวณไว้พอดี หรือตลาดมีผู้เสนอราคาน้อยจึงตกลงใกล้เพดานโดยสุจริต',
+        whatToVerify:
+          'ขอราคากลางทางการหรือใบแจ้งปริมาณงาน เทียบสเปกกับของที่ส่งมอบ และดูว่ามีส่วนลด/การแข่งขันจริงหรือไม่',
+      };
+    case 'ค่ากลางตลาด':
+      return {
+        suspicionWhy:
+          'ราคาเบี่ยงจากค่ากลางตลาดในหมวดงานใกล้เคียง อาจชี้ถึงการตั้งราคาสูงเกินเหตุหรือสเปกที่จำกัดการแข่งขัน (ค่ากลางตลาดไม่ใช่ราคากลางราชการ)',
+        innocentAlternative:
+          'อาจต่างเพราะคุณภาพ ปริมาณ เงื่อนไขส่งมอบ พื้นที่ห่างไกล หรือช่วงเวลาที่ราคาตลาดผันผวน',
+        whatToVerify:
+          'เทียบกับงานคล้ายในจังหวัด/ช่วงเวลาเดียวกัน ขอเหตุผลส่วนต่างราคา และเอกสารประมาณราคาประกอบ',
+      };
+    case 'กระจุกมูลค่าปีงบ':
+      return {
+        suspicionWhy:
+          'มูลค่าหรือจำนวนสัญญาไปกระจุกที่ผู้รับจ้างรายเดียวหรือกลุ่มน้อย อาจลดการแข่งขันและเปิดช่องให้มีการหมุนเวียนงานไม่โปร่งใส',
+        innocentAlternative:
+          'อาจเป็นผู้รับจ้างที่มีความพร้อมเฉพาะทางในพื้นที่ หรือชนะการแข่งขันตามเกณฑ์โดยชอบ',
+        whatToVerify:
+          'ตรวจสัดส่วนผู้ชนะรายปี จำนวนผู้เข้าเสนอราคา การหมุนเวียนผู้รับจ้าง และความสัมพันธ์ระหว่างผู้ชนะ',
+      };
+    case 'เร่งใช้เงินปลายปี':
+      return {
+        suspicionWhy:
+          'การจัดซื้อจัดจ้างกระจุกปลายปีงบอาจเป็นสัญญาณรีบใช้เงิน ลดเวลาแข่งขัน หรือตั้งความเร่งด่วนเกินจริง',
+        innocentAlternative:
+          'อาจเป็นงานตามฤดูกาล งบจัดสรรล่าช้า หรือเหตุจำเป็นที่เกิดขึ้นจริงช่วงปลายปี',
+        whatToVerify:
+          'ตรวจแผนใช้จ่าย ความเร่งด่วนในเอกสาร วันที่ประกาศ/ปิดรับ และว่ามีผู้เสนอราคาเพียงพอหรือไม่',
+      };
+    case 'ซอยสัญญา/แยกงวด':
+      return {
+        suspicionWhy:
+          'สัญญาชื่องานคล้ายกันหรือแยกงวดใกล้เคียงกันอาจเป็นการซอยวงเงินเพื่อเลี่ยงเกณฑ์วิธีจัดหา/เพดานอำนาจอนุมัติ',
+        innocentAlternative:
+          'อาจแยกตามงวดงานจริง แหล่งงบต่างกัน หรือระยะเวลาส่งมอบที่ไม่สามารถรวมสัญญาได้',
+        whatToVerify:
+          'รวมมูลค่างานที่คล้ายกัน เทียบวันประกาศ/ผู้ชนะ/สถานที่ และตรวจเหตุผลแยกสัญญาตามระเบียบ',
+      };
+    case 'วิธีจัดหา':
+      return {
+        suspicionWhy:
+          'การใช้วิธีคัดเลือก/เฉพาะเจาะจงแทนการแข่งขันเปิด อาจจำกัดผู้เข้าเสนอราคาหากเหตุผลตามระเบียบไม่ชัด',
+        innocentAlternative:
+          'อาจเข้าเหตุจำเป็น เร่งด่วน หรือมีผู้รับจ้างที่เชี่ยวชาญเฉพาะตามที่ระเบียบอนุญาต',
+        whatToVerify:
+          'ขอหนังสือเหตุผลใช้วิธีนั้น ตรวจเกณฑ์วงเงิน และหลักฐานว่าไม่มีทางใช้วิธีแข่งขันได้',
+      };
+    default:
+      return {
+        suspicionWhy:
+          'มีสัญญาณด้านมูลค่า/กระบวนการที่ควรใช้เป็นประเด็นตั้งต้นเพื่อขอเอกสารตรวจต่อ ไม่ใช่ข้อสรุปความผิด',
+        innocentAlternative:
+          'อาจอธิบายได้ด้วยเหตุผลทางเทคนิค งบประมาณ หรือสภาพตลาดเมื่อมีเอกสารครบ',
+        whatToVerify:
+          'รวบรวมประกาศ TOR สัญญา ใบเสนอราคา และรายงานพิจารณาผลเพื่อยืนยันหรือตัดประเด็น',
+      };
+  }
+}
+
 function moneyTag(tag: string) {
   return sectionForTag(tag) != null;
 }
@@ -63,6 +134,7 @@ export function buildAuditObservationPack(
     if (!section) continue;
     const text = String(a.text || '').trim();
     if (!text) continue;
+    const explain = explainForSection(section);
     observations.push({
       id: `obs-${++i}`,
       section,
@@ -76,6 +148,7 @@ export function buildAuditObservationPack(
       fy: '—',
       text,
       suggestedCheck: suggestedCheck(section),
+      ...explain,
     });
   }
 
@@ -88,6 +161,7 @@ export function buildAuditObservationPack(
       if (!section) continue;
       const text = String(a.explain || a.title || '').trim();
       if (!text) continue;
+      const explain = explainForSection(section);
       observations.push({
         id: `obs-${++i}`,
         section,
@@ -101,6 +175,7 @@ export function buildAuditObservationPack(
         fy: String(prExtra.fy || '—'),
         text,
         suggestedCheck: suggestedCheck(section),
+        ...explain,
       });
     }
   }

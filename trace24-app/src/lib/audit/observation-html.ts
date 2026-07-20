@@ -38,26 +38,27 @@ export function buildAuditObservationHtml(pack: AuditObservationPack): string {
     .map(([sec, rows]) => {
       const body = rows
         .map((o) => {
-          const suspicion = o.suspicionWhy
-            ? `<div class="why"><strong>ทำไมน่าสงสัย:</strong> ${esc(o.suspicionWhy)}</div>`
-            : '';
-          const innocent = o.innocentAlternative
-            ? `<div class="alt"><strong>คำอธิบายที่เป็นไปได้:</strong> ${esc(o.innocentAlternative)}</div>`
-            : '';
-          const verify = o.whatToVerify
-            ? `<div class="verify"><strong>ควรตรวจยืนยัน:</strong> ${esc(o.whatToVerify)}</div>`
-            : '';
+          const suspicion = `<div class="why"><strong>ทำไมน่าสงสัย:</strong> ${esc(
+            o.suspicionWhy || o.text
+          )}</div>`;
+          const innocent = `<div class="alt"><strong>คำอธิบายที่เป็นไปได้:</strong> ${esc(
+            o.innocentAlternative ||
+              'อาจมีเหตุผลทางเทคนิค งบประมาณ หรือสภาพตลาด — ต้องดูเอกสารก่อนตัดประเด็น'
+          )}</div>`;
+          const verify = `<div class="verify"><strong>แนวทางตรวจยืนยัน:</strong> ${esc(
+            o.whatToVerify || o.suggestedCheck
+          )}</div>`;
           return `<tr>
   <td>${esc(o.ruleTag)}<br/><span class="muted">${esc(o.severity)}</span></td>
   <td><strong>${esc(o.projectName)}</strong><br/><span class="muted">${esc(o.projectId)} · ปีงบ ${esc(o.fy)}</span></td>
   <td>${esc(o.winner)}<br/><span class="muted">วงเงิน ${esc(o.award)} / งบ ${esc(o.budget)}</span></td>
   <td>
-    <div>${esc(o.text)}</div>
+    <div><span class="muted">สัญญาณ:</span> ${esc(o.text)}</div>
     ${suspicion}
     ${innocent}
     ${verify}
   </td>
-  <td>${esc(o.suggestedCheck)}</td>
+  <td>${esc(o.whatToVerify || o.suggestedCheck)}</td>
 </tr>`;
         })
         .join('');
@@ -79,8 +80,8 @@ export function buildAuditObservationHtml(pack: AuditObservationPack): string {
       }</div>`
     : '';
   const aiErr = pack.aiError
-    ? `<div class="disclaimer">AI อธิบายไม่สำเร็จ: ${esc(pack.aiError)} — แสดงเฉพาะสัญญาณจากกฎ</div>`
-    : '';
+      ? `<div class="disclaimer">AI อธิบายเพิ่มไม่สำเร็จ: ${esc(pack.aiError)} — ใช้คำอธิบายจากกฎตรวจแทน</div>`
+      : '';
 
   return `<!DOCTYPE html>
 <html lang="th">
