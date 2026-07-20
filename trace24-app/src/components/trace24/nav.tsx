@@ -33,13 +33,6 @@ export function Nav() {
       go: () => go('graph'),
     },
     {
-      id: 'cases',
-      label: 'คิวงาน',
-      short: 'คิว',
-      active: page === 'cases' || page === 'org',
-      go: () => go('cases'),
-    },
-    {
       id: 'prices',
       label: 'ค่ากลางราคา',
       short: 'ราคา',
@@ -55,6 +48,13 @@ export function Nav() {
         setAdminTab('investigate');
         go('admin');
       },
+    },
+    {
+      id: 'cases',
+      label: 'คิวงาน',
+      short: 'คิว',
+      active: page === 'cases' || page === 'org',
+      go: () => go('cases'),
     },
   ];
 
